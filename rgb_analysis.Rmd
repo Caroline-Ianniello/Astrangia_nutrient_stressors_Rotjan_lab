@@ -1,0 +1,1444 @@
+---
+title: "RGB Analysis"
+author: "Caroline Fleming"
+date: "2023-01-13"
+output: html_document
+---
+
+
+```{r Inputting data & making sure everything is organized correctly}
+library("knitr")
+require("knitr")
+opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox")
+setwd("C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox")
+getwd()
+rgb_all.data <- read.csv("Master_RGB_Spreadsheet_Condensed_Red_1_12_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+library("dplyr")
+library("plyr")
+library("tidyverse")
+library("Rmisc")
+library("ggplot2")
+
+
+
+#Setting everything I need as factors for linear model and stats
+rgb_all.data$N_species<-as.factor(rgb_all.data$N_species)
+rgb_all.data$N_dose<-as.factor(rgb_all.data$N_dose)
+rgb_all.data$N_species_dose<-as.factor(rgb_all.data$N_species_dose)
+rgb_all.data$temp<-as.factor(rgb_all.data$temp)
+rgb_all.data$food<-as.factor(rgb_all.data$food)
+rgb_all.data$sym_state<-as.factor(rgb_all.data$sym_state)
+rgb_all.data$food_sym_state<-as.factor(rgb_all.data$food_sym_state)
+
+summary(rgb_all.data$temp)
+#checking normality and heterosescedasity
+hist(rgb_all.data$red_day1)
+qqnorm(rgb_all.data$red_day1, main = NULL)
+# Day 1 data is pretty beautifully normal
+
+hist(rgb_all.data$red_day11)
+qqnorm(rgb_all.data$red_day11, main = NULL)
+#slightly skewed but not horrible?
+
+
+hist(rgb_all.data$red_delta)
+qqnorm(rgb_all.data$red_delta, main = NULL)
+#potentially minimum extreme distribution? note in case you need to do a GLM
+
+# TRYING OUT A TRANSFORMATION
+rgb_all.data$red_day1_ln <- log(rgb_all.data$red_day1)
+rgb_all.data$red_day11_ln <- log(rgb_all.data$red_day11)
+rgb_all.data$red_delta_ln <- log(rgb_all.data$red_delta)
+
+#Lets look at the histograms again
+hist(rgb_all.data$red_day1_ln)
+qqnorm(rgb_all.data$red_day1_ln, main = NULL)
+#day 1 is fine
+hist(rgb_all.data$red_day11_ln)
+qqnorm(rgb_all.data$red_day11_ln, main = NULL)
+#day 11 is fine
+hist(rgb_all.data$red_delta_ln)
+qqnorm(rgb_all.data$red_delta_ln, main = NULL)
+#DELTA is a little skewed, but fine
+
+# SOOOO, we need to do all of our stats on the logged data, but we are still going to do our visualizations on the raw data
+
+
+```
+
+
+```{r all packages necessary for linear models}
+
+#install.packages("lme4")
+#compare with and without predictor
+library("lme4")
+#install.packages("lmerTest")
+library("lmerTest")
+#install.packages("emmeans")
+library("emmeans")
+#install.packages("pbkrtest")
+library("pbkrtest")
+#reshape melts our datasets in the way we want
+library("reshape2")
+
+#multiple response variables 
+#check model with performance package
+  #model tools R markdown
+  #check for colinearity
+  #r squared figures
+#install.packages("performance")
+#install.packages(c("rlang", "ggplot2", "performance", "dplyr", "ggrepel", "see"), dependencies = TRUE)
+library("performance")
+#install.packages("see")
+library("see")
+#install.packages("ggrepel")
+library("ggrepel")
+#install.packages("sjPlot") #for visualizing linear models
+library(sjPlot)
+#gg effects
+
+#increase the number of results it will show
+options(max.print=1000000)
+
+```
+# Linear Model
+```{r null linear models}
+#Null models
+#We are going with a null model that includes random factors jar unique ID, because this jar number is unique to each run (5 polyps per jar). We are also including the colony number it came from to normalize for the genet
+mm_null <- lmer(red_delta_ln ~ 1 + (1|beetag_exp_concat)  , data= rgb_all.data)
+summary(mm_null)
+#p values here are NOT significant, that is a good sign, we will proceed
+```
+
+
+```{r linear models -- all}
+#The way I am going to organize this is starting with all variables and all interactions between variables, then we will decrease them one by one
+#We take away a variable if they are not significant
+mm_1 <- lmer(red_delta_ln ~ N_species + N_dose + temp + food + sym_state + N_species*N_dose + N_species*temp + N_species*food + N_species*sym_state + N_dose*temp + N_dose*food + N_dose*sym_state + temp*food + temp*sym_state + food*sym_state + (1|beetag_exp_concat)  , data= rgb_all.data)
+summary(mm_1)
+# Overall significant interactions: N dose, temperature, sym state, food(kinda)
+# SIGNIFICANT INTERACTIONS: N_dose18 : sym_state S , N_dose5:temp30  , N_dose5 
+# MARGINALLY SIGNFICIANT INTERACTIONS: N_dose1.5  , temp30   , N_dose1.5:sym_stateS
+
+#sym state seems to be driving the model, which makes sense
+
+mm_2 <- lmer(red_delta_ln ~ N_species + N_dose + (1|beetag_exp_concat)  , data= rgb_all.data)
+summary(mm_2)
+
+#dropping N_dose
+mm_3 <- lmer(red_delta_ln~ sym_state + (1|beetag_exp_concat)  , data= rgb_all.data)
+summary(mm_3)
+emm_3=emmeans(mm_3, specs=pairwise ~ sym_state)
+summary(emm_3)
+
+#sym state, food, and temp
+mm_4 <- lmer(red_delta_ln ~ food + temp + sym_state  + (1|beetag_exp_concat)  , data= rgb_all.data)
+summary(mm_4)
+
+mm_5 <- lmer(red_delta_ln ~ food + N_dose + sym_state + temp + (1|beetag_exp_concat)  , data= rgb_all.data)
+emm_5=emmeans(mm_5, specs=pairwise ~ food*sym_state)
+summary(emm_5)
+
+mm_6 <- lmer(red_delta_ln~ sym_state + food + N_dose + food*sym_state+ (1|beetag_exp_concat)  , data= rgb_all.data)
+summary(mm_6)
+emm_6=emmeans(mm_6, specs=pairwise ~ food)
+summary(emm_6)
+
+mm_7<-lmer(red_delta_ln~ treat_ID + (1|beetag_exp_concat)  , data= rgb_all.data)
+summary(mm_7)
+
+## Looking at the overall model:
+mm_8<-lmer(red_delta_ln~ N_dose + temp + sym_state + food + N_dose*temp + N_dose*sym_state + temp*food + temp*sym_state + food*sym_state + (1|beetag_exp_concat)  , data= rgb_all.data)
+summary(mm_8)
+
+mm_9<-lmer(red_delta_ln~ N_dose + temp + sym_state + food + N_dose*temp + N_dose*sym_state + temp*food  + food*sym_state + (1|beetag_exp_concat)  , data= rgb_all.data)
+summary(mm_9)
+
+# MODEL I THINK IS BEST # # MODEL I THINK IS BEST # # MODEL I THINK IS BEST # # MODEL I THINK IS BEST #
+mm_10<-lmer(red_delta_ln~ N_dose + temp + sym_state + food + N_dose*temp + N_dose*sym_state + temp*food  + food*sym_state + (1|beetag_exp_concat)  , data= rgb_all.data)
+summary(mm_10)
+emm_10 <- emmeans(mm_10, specs=pairwise ~ temp na.rm=TRUE)
+summary(emm_10)
+# I think we like this one the best, does not include temp*sym_state
+
+mm_11<-lmer(red_delta_ln~ N_dose + temp + sym_state + N_dose*temp + N_dose*sym_state + temp*food + temp*sym_state + food*sym_state + (1|beetag_exp_concat)  , data= rgb_all.data)
+summary(mm_11)
+#no real difference between dropping food and not
+
+
+#install.packages("AICcmodavg")
+library(AICcmodavg)
+#aictab(cand.set = models1, modnames = models1)
+AIC_table_rgb<-AIC(mm_1, mm_2,mm_3,mm_4, mm_5, mm_6, mm_7, mm_8, mm_9, mm_10, mm_11)
+AIC_table_rgb
+#lowest AIC wins
+
+```
+
+
+
+
+
+
+# Paired t tests
+```{r PAIRED t tests}
+#Necessary subsets
+# all aposymbiotic
+all_apo<-subset(rgb_all.data, rgb_all.data$sym_state=="A")
+# all symbiotic
+all_sym<-subset(rgb_all.data, rgb_all.data$sym_state=="S")
+# all fed
+all_fed<-subset(rgb_all.data, rgb_all.data$food=="F")
+# all starved
+all_starved<-subset(rgb_all.data, rgb_all.data$food=="S")
+# all 20C
+all_20<-subset(rgb_all.data, rgb_all.data$temp=="20")
+# all 30C
+all_30<-subset(rgb_all.data, rgb_all.data$temp=="30")
+# all nitrate (taking out controls)
+all_nitrate<-subset(rgb_all.data,rgb_all.data$N_species=="N" & rgb_all.data$N_dose!="0")
+# all ammonium (taking out controls)
+all_ammonium<-subset(rgb_all.data,rgb_all.data$N_species=="A" & rgb_all.data$N_dose!="0")
+# all controls 30C
+control_all_30<-subset(rgb_all.data, rgb_all.data$N_dose=="0" & rgb_all.data$temp=="30")
+# all controls 20C
+control_all_20<-subset(rgb_all.data, rgb_all.data$N_dose=="0" & rgb_all.data$temp=="20")
+
+# Sym Fed
+all_sym_fed<-subset(rgb_all.data, rgb_all.data$food=="F" & rgb_all.data$sym_state=="S")
+
+# Sym Starved
+all_sym_starved<-subset(rgb_all.data, rgb_all.data$food=="S" & rgb_all.data$sym_state=="S")
+
+# Apo Fed
+all_apo_fed<-subset(rgb_all.data, rgb_all.data$food=="F" & rgb_all.data$sym_state=="A")
+
+# Apo Starved
+all_apo_starved<-subset(rgb_all.data, rgb_all.data$food=="S" & rgb_all.data$sym_state=="A")
+
+#Paired t test
+#Comparing red_delta_ln for fed v. starved
+t.test(all_fed$red_delta_ln,all_starved$red_delta_ln) #  p-value = 0.71
+#Comparing red_delta_ln for apo v. sym
+t.test(all_apo$red_delta_ln,all_sym$red_delta_ln) #  p-value = 0.27
+#Comparing red_delta_ln for sym fed v. sym starved
+t.test(all_sym_fed$red_delta_ln,all_sym_starved$red_delta_ln) #p-value = 0.2465
+#Comparing red_delta_ln for apo fed v. apo starved
+t.test(all_apo_fed$red_delta_ln,all_apo_starved$red_delta_ln) #p-value =  0.1313
+
+#Comparing red_delta_ln between sym fed vs. apo fed #this is okay to do because delta should capture the changes
+t.test(all_apo_fed$red_delta_ln,all_sym_fed$red_delta_ln) #p-value = 0.02603
+mean(all_apo_fed$red_delta_ln) #avg = 0.00670112
+mean(all_sym_fed$red_delta_ln) #avg = -0.005698667, syms were darker, makes sense
+#Comparing red_delta_ln between sym starved vs. apo starved #this is okay to do because delta should capture the changes
+t.test(all_apo_starved$red_delta_ln,all_sym_starved$red_delta_ln) #p-value = 0.1811
+mean(all_apo_starved$red_delta_ln) #avg =  -0.00237428
+mean(all_sym_starved$red_delta_ln, na.rm=TRUE) # avg= -0.01144875
+
+summary(all_sym_starved$red_delta_ln)
+#Comparing day 1 and day 11 for all FED
+t.test(all_fed$red_day1_ln,all_fed$red_day11_ln, paired=TRUE)
+#p=0.8537
+#Comparing day 1 and day 11 for all SYM FED
+t.test(all_sym_fed$red_day1_ln,all_sym_fed$red_day11_ln, paired=TRUE)
+#p= 0.1786
+
+#Comparing day 1 and day 11 for all APO FED
+t.test(all_apo_fed$red_day1_ln,all_apo_fed$red_day11_ln, paired=TRUE)
+#p= 0.06425
+mean(all_apo_fed$red_day1_ln) #avg = 0.3738996
+mean(all_apo_fed$red_day11_ln) #avg = 0.3806007
+
+#Comparing day 1 and day 11 for all STARVED
+t.test(all_starved$red_day1_ln,all_starved$red_day11_ln, paired=TRUE)
+#p= 0.0419
+mean(all_starved$red_day1_ln) #avg = 0.3928343
+mean(all_starved$red_day11_ln) #avg = 0.3859133
+#Comparing day 1 and day 11 for all SYM STARVED
+t.test(all_sym_starved$red_day1_ln,all_sym_starved$red_day11_ln, paired=TRUE)
+#p= 0.04587
+mean(all_sym_starved$red_day1_ln) #avg = 0.4119165
+mean(all_sym_starved$red_day11_ln) #avg =  0.4004677 #browning 
+
+#Comparing day 1 and day 11 for all APO STARVED
+t.test(all_apo_starved$red_day1_ln,all_apo_starved$red_day11_ln, paired=TRUE)
+#p= 0.00237428 
+mean(all_apo_starved$red_day1_ln) #avg = 0.3736723
+mean(all_apo_starved$red_day11_ln) #avg = 0.371298 #browning
+
+
+
+#Comparing day 1 and day 11 for all COLD
+t.test(all_20$red_day11_ln, all_30$red_day11_ln)
+#p= 0.03345
+mean(all_20$red_day11_ln) #avg = 0.3830801
+mean(all_30$red_day11_ln) #avg = 0.3960112
+
+#Comparing day 1 and day 11 for all HOT
+t.test(all_30$red_day1_ln, all_30$red_day11_ln, paired=TRUE)
+#p= 0.01133
+
+#Comparing day 1 and day 11 for all CONTROL 20
+t.test(control_all_20$red_day1_ln, control_all_20$red_day11_ln, paired=TRUE)
+#p= 0.1037
+
+#Comparing day 1 and day 11 for all CONTROL 30
+t.test(control_all_30$red_day1_ln, control_all_30$red_day11_ln, paired=TRUE)
+#p= 0.1544
+
+
+```
+
+#Control vs. Initial Plots 20C - High
+```{r Control vs. Intial Plots - High 20C}
+#ammonium
+sym_fed_ammonium_high_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="10" & rgb_all.data$temp=="20")
+apo_fed_ammonium_high_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="10" & rgb_all.data$temp=="20")
+sym_starved_ammonium_high_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="10" & rgb_all.data$temp=="20")
+apo_starved_ammonium_high_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="10" & rgb_all.data$temp=="20")
+#nitrate
+sym_fed_nitrate_high_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="18" & rgb_all.data$temp=="20")
+apo_fed_nitrate_high_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="18" & rgb_all.data$temp=="20")
+sym_starved_nitrate_high_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="18" & rgb_all.data$temp=="20")
+apo_starved_nitrate_high_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="18" & rgb_all.data$temp=="20")
+
+#control 
+sym_fed_control_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="0" & rgb_all.data$temp=="20")
+apo_fed_control_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="0" & rgb_all.data$temp=="20")
+sym_starved_control_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="0" & rgb_all.data$temp=="20")
+apo_starved_control_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="0" & rgb_all.data$temp=="20")
+
+#gg plotting 
+#install.packages("reshape2")
+
+
+
+#AMMONIUM#####AMMONIUM#########AMMONIUM############AMMONIUM##
+#_____________________AMMONIUM_________________________________
+### _______________Sym fed ammonium high 20C_______________________ ###
+#first we need to melt the dataset
+sym_fed_ammonium_high_20C_melt<- melt(sym_fed_ammonium_high_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#now we can plot
+gg_sym_fed_ammonium_high_20C<-
+  ggplot(sym_fed_ammonium_high_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.2002"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium High - Sym Fed 20C: Day 1 vs. Day 11 Red")
+gg_sym_fed_ammonium_high_20C
+#lets do a paired t test now
+t.test(sym_fed_ammonium_high_20C$red_day1_ln,sym_fed_ammonium_high_20C$red_day11_ln, paired=TRUE)
+#done
+
+### ______________Sym starved ammonium high 20C________________________ ###
+#first we need to melt the dataset
+sym_starved_ammonium_high_20C_melt<- melt(sym_starved_ammonium_high_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(sym_starved_ammonium_high_20C$red_day1_ln,sym_starved_ammonium_high_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_sym_starved_ammonium_high_20C<-
+  ggplot(sym_starved_ammonium_high_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.9177"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium High - Sym Starved Fed 20C: Day 1 vs. Day 11 Red")
+gg_sym_starved_ammonium_high_20C
+#done
+
+### ______________Apo fed ammonium high 20C________________________ ###
+#first we need to melt the dataset
+apo_fed_ammonium_high_20C_melt<- melt(apo_fed_ammonium_high_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_fed_ammonium_high_20C$red_day1_ln,apo_fed_ammonium_high_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_fed_ammonium_high_20C<-
+  ggplot(apo_fed_ammonium_high_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.6051"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium High - Apo fed 20C: Day 1 vs. Day 11 Red")
+gg_apo_fed_ammonium_high_20C
+#done
+
+### ______________Apo starved ammonium high 20C________________________ ###
+#first we need to melt the dataset
+apo_starved_ammonium_high_20C_melt<- melt(apo_starved_ammonium_high_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_starved_ammonium_high_20C$red_day1_ln,apo_starved_ammonium_high_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_starved_ammonium_high_20C<-
+  ggplot(apo_starved_ammonium_high_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.9848"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium High - Apo Starved 20C: Day 1 vs. Day 11 Red")
+gg_apo_starved_ammonium_high_20C
+#done
+
+
+# NITRATE ### NITRATE # NITRATE ### NITRATE # NITRATE ### NITRATE
+#_____________________NITRATE_________________________________
+### _______________Sym fed nitrate high 20C_______________________ ###
+#first we need to melt the dataset
+sym_fed_nitrate_high_20C_melt<- melt(sym_fed_nitrate_high_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#now we can plot
+gg_sym_fed_nitrate_high_20C<-
+  ggplot(sym_fed_nitrate_high_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.06691*"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate High - Sym Fed 20C: Day 1 vs. Day 11 Red")
+gg_sym_fed_nitrate_high_20C
+#lets do a paired t test now
+t.test(sym_fed_nitrate_high_20C$red_day1_ln,sym_fed_nitrate_high_20C$red_day11_ln, paired=TRUE)
+#done 
+
+### ______________Sym starved nitrate high 20C________________________ ###
+#first we need to melt the dataset
+sym_starved_nitrate_high_20C_melt<- melt(sym_starved_nitrate_high_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(sym_starved_nitrate_high_20C$red_day1_ln,sym_starved_nitrate_high_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_sym_starved_nitrate_high_20C<-
+  ggplot(sym_starved_nitrate_high_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.4948"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate High - Sym Starved 20C: Day 1 vs. Day 11 Red")
+gg_sym_starved_nitrate_high_20C
+#done
+
+### ______________Apo fed nitrate high 20C________________________ ###
+#first we need to melt the dataset
+apo_fed_nitrate_high_20C_melt<- melt(apo_fed_nitrate_high_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_fed_nitrate_high_20C$red_day1_ln,apo_fed_nitrate_high_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_fed_nitrate_high_20C<-
+  ggplot(apo_fed_nitrate_high_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.5733"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate High - Apo fed 20C: Day 1 vs. Day 11 Red")
+gg_apo_fed_nitrate_high_20C
+#done
+
+
+### ______________Apo starved nitrate high 20C________________________ ###
+#first we need to melt the dataset
+apo_starved_nitrate_high_20C_melt<- melt(apo_starved_nitrate_high_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_starved_nitrate_high_20C$red_day1_ln,apo_starved_nitrate_high_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_starved_nitrate_high_20C<-
+  ggplot(apo_starved_nitrate_high_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.9275"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate High - Apo Starved 20C: Day 1 vs. Day 11 Red")
+gg_apo_starved_nitrate_high_20C
+#done
+
+
+# CONTROL # CONTROL # # CONTROL # CONTROL # # CONTROL # CONTROL # # CONTROL # CONTROL #
+#_____________________CONTROL_________________________________
+### _______________Sym fed control high 20C_______________________ ###
+#first we need to melt the dataset
+sym_fed_control_20C_melt<- melt(sym_fed_control_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#now we can plot
+gg_sym_fed_control_20C<-
+  ggplot(sym_fed_control_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p= 0.7427"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Control High - Sym Fed 20C: Day 1 vs. Day 11 Red")
+gg_sym_fed_control_20C
+#lets do a paired t test now
+t.test(sym_fed_control_20C$red_day1_ln,sym_fed_control_20C$red_day11_ln, paired=TRUE)
+#done
+
+### ______________Sym starved control high 20C________________________ ###
+#first we need to melt the dataset
+sym_starved_control_20C_melt<- melt(sym_starved_control_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(sym_starved_control_20C$red_day1,sym_starved_control_20C$red_day11, paired=TRUE)
+#now we can plot
+gg_sym_starved_control_20C<-
+  ggplot(sym_starved_control_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.4804"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Control - Sym Starved 20C: Day 1 vs. Day 11 Red")
+gg_sym_starved_control_20C
+#done
+
+### ______________Apo fed control high 20C________________________ ###
+#first we need to melt the dataset
+apo_fed_control_20C_melt<- melt(apo_fed_control_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_fed_control_20C$red_day1_ln,apo_fed_control_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_fed_control_20C<-
+  ggplot(apo_fed_control_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.3094"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Control - Apo fed 20C: Day 1 vs. Day 11 Red")
+gg_apo_fed_control_20C
+#done
+
+
+### ______________Apo starved control high 20C________________________ ###
+#first we need to melt the dataset
+apo_starved_control_20C_melt<- melt(apo_starved_control_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_starved_control_20C$red_day1_ln,apo_starved_control_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_starved_control_20C<-
+  ggplot(apo_starved_control_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.0869*"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Control - Apo Starved 20C: Day 1 vs. Day 11 Red")
+gg_apo_starved_control_20C
+#done
+
+```
+# Medium
+#Control vs. Initial Plots 30C - medium
+```{r Control vs. Intial Plots - medium 30C}
+#ammonium medium
+sym_fed_ammonium_medium_30C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="7.5" & rgb_all.data$temp=="30")
+apo_fed_ammonium_medium_30C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="7.5" & rgb_all.data$temp=="30")
+sym_starved_ammonium_medium_30C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="S" & rgb_all.data$N_dose== "7.5" & rgb_all.data$temp=="30")
+apo_starved_ammonium_medium_30C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="7.5" & rgb_all.data$temp=="30")
+#nitrate medium
+sym_fed_nitrate_medium_30C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="5" & rgb_all.data$temp=="30"& rgb_all.data$N_species=="N")
+apo_fed_nitrate_medium_30C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="5" & rgb_all.data$temp=="30"& rgb_all.data$N_species=="N")
+sym_starved_nitrate_medium_30C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="5" & rgb_all.data$temp=="30"& rgb_all.data$N_species=="N")
+apo_starved_nitrate_medium_30C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="5" & rgb_all.data$temp=="30"& rgb_all.data$N_species=="N")
+
+
+
+
+# AMMONIUM # # AMMONIUM # # AMMONIUM # # AMMONIUM #
+#_____________________AMMONIUM_________________________________
+### _______________Sym fed ammonium medium 30C_______________________ ###
+#first we need to melt the dataset
+sym_fed_ammonium_medium_30C_melt<- melt(sym_fed_ammonium_medium_30C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#now we can plot
+gg_sym_fed_ammonium_medium_30C<-
+  ggplot(sym_fed_ammonium_medium_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.4442"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium medium - Sym Fed 30C: Day 1 vs. Day 11 Red")
+gg_sym_fed_ammonium_medium_30C
+#lets do a paired t test now
+t.test(sym_fed_ammonium_medium_30C$red_day1_ln,sym_fed_ammonium_medium_30C$red_day11_ln, paired=TRUE)
+#done
+
+### ______________Sym starved ammonium medium 30C________________________ ###
+#first we need to melt the dataset
+sym_starved_ammonium_medium_30C_melt<- melt(sym_starved_ammonium_medium_30C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(sym_starved_ammonium_medium_30C$red_day1_ln,sym_starved_ammonium_medium_30C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_sym_starved_ammonium_medium_30C<-
+  ggplot(sym_starved_ammonium_medium_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.41"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium medium - Sym Starved Fed 30C: Day 1 vs. Day 11 Red")
+gg_sym_starved_ammonium_medium_30C
+ #done
+
+### ______________Apo fed ammonium medium 30C________________________ ###
+#first we need to melt the dataset
+apo_fed_ammonium_medium_30C_melt<- melt(apo_fed_ammonium_medium_30C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_fed_ammonium_medium_30C$red_day1_ln,apo_fed_ammonium_medium_30C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_fed_ammonium_medium_30C<-
+  ggplot(apo_fed_ammonium_medium_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.5341"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium medium - Apo fed 30C: Day 1 vs. Day 11 Red")
+gg_apo_fed_ammonium_medium_30C
+#done
+ 
+
+### ______________Apo starved ammonium medium 30C________________________ ###
+#first we need to melt the dataset
+apo_starved_ammonium_medium_30C_melt<- melt(apo_starved_ammonium_medium_30C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_starved_ammonium_medium_30C$red_day1_ln,apo_starved_ammonium_medium_30C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_starved_ammonium_medium_30C<-
+  ggplot(apo_starved_ammonium_medium_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p= 0.9632"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium medium - Apo Starved 30C: Day 1 vs. Day 11 Red")
+gg_apo_starved_ammonium_medium_30C
+#done 
+
+
+# NITRATE ### NITRATE ## NITRATE ### NITRATE ## NITRATE ### NITRATE ## NITRATE ### NITRATE 
+#_____________________NITRATE_________________________________
+### _______________Sym fed nitrate medium 30C_______________________ ###
+#first we need to melt the dataset
+sym_fed_nitrate_medium_30C_melt<- melt(sym_fed_nitrate_medium_30C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#now we can plot
+gg_sym_fed_nitrate_medium_30C<-
+  ggplot(sym_fed_nitrate_medium_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.1569"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate medium - Sym Fed 30C: Day 1 vs. Day 11 Red")
+gg_sym_fed_nitrate_medium_30C
+#lets do a paired t test now
+t.test(sym_fed_nitrate_medium_30C$red_day1_ln,sym_fed_nitrate_medium_30C$red_day11_ln, paired=TRUE)
+  
+
+### ______________Sym starved nitrate medium 30C________________________ ###
+#first we need to melt the dataset
+sym_starved_nitrate_medium_30C_melt<- melt(sym_starved_nitrate_medium_30C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(sym_starved_nitrate_medium_30C$red_day1_ln,sym_starved_nitrate_medium_30C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_sym_starved_nitrate_medium_30C<-
+  ggplot(sym_starved_nitrate_medium_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.3727"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate medium - Sym Starved 30C: Day 1 vs. Day 11 Red")
+gg_sym_starved_nitrate_medium_30C
+ 
+
+### ______________Apo fed nitrate medium 30C________________________ ###
+#first we need to melt the dataset
+apo_fed_nitrate_medium_30C_melt<- melt(apo_fed_nitrate_medium_30C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_fed_nitrate_medium_30C$red_day1_ln,apo_fed_nitrate_medium_30C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_fed_nitrate_medium_30C<-
+  ggplot(apo_fed_nitrate_medium_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.6453"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate medium - Apo fed 30C: Day 1 vs. Day 11 Red")
+gg_apo_fed_nitrate_medium_30C
+ 
+
+
+### ______________Apo starved nitrate medium 30C________________________ ###
+#first we need to melt the dataset
+apo_starved_nitrate_medium_30C_melt<- melt(apo_starved_nitrate_medium_30C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_starved_nitrate_medium_30C$red_day1_ln,apo_starved_nitrate_medium_30C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_starved_nitrate_medium_30C<-
+  ggplot(apo_starved_nitrate_medium_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p= 0.5404"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate medium - Apo Starved 30C: Day 1 vs. Day 11 Red")
+gg_apo_starved_nitrate_medium_30C
+ 
+
+ 
+
+```
+#Control vs. Initial Plots 20C - medium
+```{r Control vs. Intial Plots - medium 20C}
+#ammonium medium
+sym_fed_ammonium_medium_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="7.5" & rgb_all.data$temp=="20")
+apo_fed_ammonium_medium_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="7.5" & rgb_all.data$temp=="20")
+sym_starved_ammonium_medium_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="S" & rgb_all.data$N_dose== "7.5" & rgb_all.data$temp=="20")
+apo_starved_ammonium_medium_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="7.5" & rgb_all.data$temp=="20")
+#nitrate medium
+sym_fed_nitrate_medium_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="5" & rgb_all.data$temp=="20" & rgb_all.data$N_species=="N")
+apo_fed_nitrate_medium_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="5" & rgb_all.data$temp=="20"& rgb_all.data$N_species=="N")
+sym_starved_nitrate_medium_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="5" & rgb_all.data$temp=="20"& rgb_all.data$N_species=="N")
+apo_starved_nitrate_medium_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="5" & rgb_all.data$temp=="20"& rgb_all.data$N_species=="N")
+
+
+
+
+# AMMONIUM # # AMMONIUM # # AMMONIUM # # AMMONIUM #
+#_____________________AMMONIUM_________________________________
+### _______________Sym fed ammonium medium 20C_______________________ ###
+#first we need to melt the dataset
+sym_fed_ammonium_medium_20C_melt<- melt(sym_fed_ammonium_medium_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#now we can plot
+gg_sym_fed_ammonium_medium_20C<-
+  ggplot(sym_fed_ammonium_medium_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.9368"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium medium - Sym Fed 20C: Day 1 vs. Day 11 Red")
+gg_sym_fed_ammonium_medium_20C
+#lets do a paired t test now
+t.test(sym_fed_ammonium_medium_20C$red_day1_ln,sym_fed_ammonium_medium_20C$red_day11_ln, paired=TRUE)
+#done
+
+### ______________Sym starved ammonium medium 20C________________________ ###
+#first we need to melt the dataset
+sym_starved_ammonium_medium_20C_melt<- melt(sym_starved_ammonium_medium_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(sym_starved_ammonium_medium_20C$red_day1_ln,sym_starved_ammonium_medium_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_sym_starved_ammonium_medium_20C<-
+  ggplot(sym_starved_ammonium_medium_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.04756***"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium medium - Sym Starved Fed 20C: Day 1 vs. Day 11 Red")
+gg_sym_starved_ammonium_medium_20C
+ #done
+
+### ______________Apo fed ammonium medium 20C________________________ ###
+#first we need to melt the dataset
+apo_fed_ammonium_medium_20C_melt<- melt(apo_fed_ammonium_medium_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_fed_ammonium_medium_20C$red_day1_ln,apo_fed_ammonium_medium_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_fed_ammonium_medium_20C<-
+  ggplot(apo_fed_ammonium_medium_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, 0.0871*"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium medium - Apo fed 20C: Day 1 vs. Day 11 Red")
+gg_apo_fed_ammonium_medium_20C
+#done
+ 
+
+### ______________Apo starved ammonium medium 20C________________________ ###
+#first we need to melt the dataset
+apo_starved_ammonium_medium_20C_melt<- melt(apo_starved_ammonium_medium_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_starved_ammonium_medium_20C$red_day1_ln,apo_starved_ammonium_medium_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_starved_ammonium_medium_20C<-
+  ggplot(apo_starved_ammonium_medium_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p= 0.4321"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium medium - Apo Starved 20C: Day 1 vs. Day 11 Red")
+gg_apo_starved_ammonium_medium_20C
+#done 
+
+
+# NITRATE ### NITRATE ## NITRATE ### NITRATE ## NITRATE ### NITRATE ## NITRATE ### NITRATE 
+#_____________________NITRATE_________________________________
+### _______________Sym fed nitrate medium 20C_______________________ ###
+#first we need to melt the dataset
+sym_fed_nitrate_medium_20C_melt<- melt(sym_fed_nitrate_medium_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#now we can plot
+gg_sym_fed_nitrate_medium_20C<-
+  ggplot(sym_fed_nitrate_medium_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p= 0.2621"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate medium - Sym Fed 20C: Day 1 vs. Day 11 Red")
+gg_sym_fed_nitrate_medium_20C
+#lets do a paired t test now
+t.test(sym_fed_nitrate_medium_20C$red_day1_ln,sym_fed_nitrate_medium_20C$red_day11_ln, paired=TRUE)
+  
+
+### ______________Sym starved nitrate medium 20C________________________ ###
+#first we need to melt the dataset
+sym_starved_nitrate_medium_20C_melt<- melt(sym_starved_nitrate_medium_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(sym_starved_nitrate_medium_20C$red_day1_ln,sym_starved_nitrate_medium_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_sym_starved_nitrate_medium_20C<-
+  ggplot(sym_starved_nitrate_medium_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p= 0.7545"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate medium - Sym Starved 20C: Day 1 vs. Day 11 Red")
+gg_sym_starved_nitrate_medium_20C
+ 
+
+### ______________Apo fed nitrate medium 20C________________________ ###
+#first we need to melt the dataset
+apo_fed_nitrate_medium_20C_melt<- melt(apo_fed_nitrate_medium_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_fed_nitrate_medium_20C$red_day1_ln,apo_fed_nitrate_medium_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_fed_nitrate_medium_20C<-
+  ggplot(apo_fed_nitrate_medium_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p= 0.6598"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate medium - Apo fed 20C: Day 1 vs. Day 11 Red")
+gg_apo_fed_nitrate_medium_20C
+ 
+
+
+### ______________Apo starved nitrate medium 20C________________________ ###
+#first we need to melt the dataset
+apo_starved_nitrate_medium_20C_melt<- melt(apo_starved_nitrate_medium_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_starved_nitrate_medium_20C$red_day1_ln,apo_starved_nitrate_medium_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_starved_nitrate_medium_20C<-
+  ggplot(apo_starved_nitrate_medium_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.5257"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate medium - Apo Starved 20C: Day 1 vs. Day 11 Red")
+gg_apo_starved_nitrate_medium_20C
+ 
+```
+
+# Low
+#Control vs. Initial Plots 30C - Low
+```{r Control vs. Intial Plots - low 30C}
+#ammonium low
+sym_fed_ammonium_low_30C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="5" & rgb_all.data$temp=="30"& rgb_all.data$N_species=="A")
+apo_fed_ammonium_low_30C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="5" & rgb_all.data$temp=="30"& rgb_all.data$N_species=="A")
+sym_starved_ammonium_low_30C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="S" & rgb_all.data$N_dose== "5" & rgb_all.data$temp=="30"& rgb_all.data$N_species=="A")
+apo_starved_ammonium_low_30C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="5" & rgb_all.data$temp=="30"& rgb_all.data$N_species=="A")
+#nitrate low
+sym_fed_nitrate_low_30C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="1.5" & rgb_all.data$temp=="30")
+apo_fed_nitrate_low_30C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="1.5" & rgb_all.data$temp=="30")
+sym_starved_nitrate_low_30C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="1.5" & rgb_all.data$temp=="30")
+apo_starved_nitrate_low_30C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="1.5" & rgb_all.data$temp=="30")
+
+
+
+
+# AMMONIUM # # AMMONIUM # # AMMONIUM # # AMMONIUM #
+#_____________________AMMONIUM_________________________________
+### _______________Sym fed ammonium low 30C_______________________ ###
+#first we need to melt the dataset
+sym_fed_ammonium_low_30C_melt<- melt(sym_fed_ammonium_low_30C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#now we can plot
+gg_sym_fed_ammonium_low_30C<-
+  ggplot(sym_fed_ammonium_low_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=  0.4877"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium low - Sym Fed 30C: Day 1 vs. Day 11 Red")
+gg_sym_fed_ammonium_low_30C
+#lets do a paired t test now
+t.test(sym_fed_ammonium_low_30C$red_day1_ln,sym_fed_ammonium_low_30C$red_day11_ln, paired=TRUE)
+#done
+
+### ______________Sym starved ammonium low 30C________________________ ###
+#first we need to melt the dataset
+sym_starved_ammonium_low_30C_melt<- melt(sym_starved_ammonium_low_30C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(sym_starved_ammonium_low_30C$red_day1_ln,sym_starved_ammonium_low_30C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_sym_starved_ammonium_low_30C<-
+  ggplot(sym_starved_ammonium_low_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.2265"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium low - Sym Starved Fed 30C: Day 1 vs. Day 11 Red")
+gg_sym_starved_ammonium_low_30C
+ #done
+
+### ______________Apo fed ammonium low 30C________________________ ###
+#first we need to melt the dataset
+apo_fed_ammonium_low_30C_melt<- melt(apo_fed_ammonium_low_30C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_fed_ammonium_low_30C$red_day1_ln,apo_fed_ammonium_low_30C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_fed_ammonium_low_30C<-
+  ggplot(apo_fed_ammonium_low_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.005406***"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium low - Apo fed 30C: Day 1 vs. Day 11 Red")
+gg_apo_fed_ammonium_low_30C
+#done
+ 
+
+### ______________Apo starved ammonium low 30C________________________ ###
+#first we need to melt the dataset
+apo_starved_ammonium_low_30C_melt<- melt(apo_starved_ammonium_low_30C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_starved_ammonium_low_30C$red_day1_ln,apo_starved_ammonium_low_30C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_starved_ammonium_low_30C<-
+  ggplot(apo_starved_ammonium_low_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p= 0.3992"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium low - Apo Starved 30C: Day 1 vs. Day 11 Red")
+gg_apo_starved_ammonium_low_30C
+#done 
+
+
+# NITRATE ### NITRATE ## NITRATE ### NITRATE ## NITRATE ### NITRATE ## NITRATE ### NITRATE 
+#_____________________NITRATE_________________________________
+### _______________Sym fed nitrate low 30C_______________________ ###
+#first we need to melt the dataset
+sym_fed_nitrate_low_30C_melt<- melt(sym_fed_nitrate_low_30C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#now we can plot
+gg_sym_fed_nitrate_low_30C<-
+  ggplot(sym_fed_nitrate_low_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.7887"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate low - Sym Fed 30C: Day 1 vs. Day 11 Red")
+gg_sym_fed_nitrate_low_30C
+#lets do a paired t test now
+t.test(sym_fed_nitrate_low_30C$red_day1_ln,sym_fed_nitrate_low_30C$red_day11_ln, paired=TRUE)
+  
+
+### ______________Sym starved nitrate low 30C________________________ ###
+#first we need to melt the dataset
+sym_starved_nitrate_low_30C_melt<- melt(sym_starved_nitrate_low_30C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(sym_starved_nitrate_low_30C$red_day1_ln,sym_starved_nitrate_low_30C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_sym_starved_nitrate_low_30C<-
+  ggplot(sym_starved_nitrate_low_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.6301"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate low - Sym Starved 30C: Day 1 vs. Day 11 Red")
+gg_sym_starved_nitrate_low_30C
+ 
+
+### ______________Apo fed nitrate low 30C________________________ ###
+#first we need to melt the dataset
+apo_fed_nitrate_low_30C_melt<- melt(apo_fed_nitrate_low_30C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_fed_nitrate_low_30C$red_day1_ln,apo_fed_nitrate_low_30C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_fed_nitrate_low_30C<-
+  ggplot(apo_fed_nitrate_low_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.4234"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate low - Apo fed 30C: Day 1 vs. Day 11 Red")
+gg_apo_fed_nitrate_low_30C
+ 
+
+
+### ______________Apo starved nitrate low 30C________________________ ###
+#first we need to melt the dataset
+apo_starved_nitrate_low_30C_melt<- melt(apo_starved_nitrate_low_30C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_starved_nitrate_low_30C$red_day1_ln,apo_starved_nitrate_low_30C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_starved_nitrate_low_30C<-
+  ggplot(apo_starved_nitrate_low_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.821"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate low - Apo Starved 30C: Day 1 vs. Day 11 Red")
+gg_apo_starved_nitrate_low_30C
+ 
+
+ 
+
+```
+#Control vs. Initial Plots 20C - low
+```{r Control vs. Intial Plots - low 20C}
+#ammonium low
+sym_fed_ammonium_low_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="5" & rgb_all.data$temp=="20" & rgb_all.data$N_species=="A")
+apo_fed_ammonium_low_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="5" & rgb_all.data$temp=="20"& rgb_all.data$N_species=="A")
+sym_starved_ammonium_low_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="S" & rgb_all.data$N_dose== "5" & rgb_all.data$temp=="20"& rgb_all.data$N_species=="A")
+apo_starved_ammonium_low_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="5" & rgb_all.data$temp=="20"& rgb_all.data$N_species=="A")
+#nitrate low
+sym_fed_nitrate_low_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="1.5" & rgb_all.data$temp=="20")
+apo_fed_nitrate_low_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="F" & rgb_all.data$N_dose=="1.5" & rgb_all.data$temp=="20")
+sym_starved_nitrate_low_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="S" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="1.5" & rgb_all.data$temp=="20")
+apo_starved_nitrate_low_20C<-subset(rgb_all.data, rgb_all.data$sym_state=="A" & rgb_all.data$food=="S" & rgb_all.data$N_dose=="1.5" & rgb_all.data$temp=="20")
+
+
+
+
+# AMMONIUM # # AMMONIUM # # AMMONIUM # # AMMONIUM #
+#_____________________AMMONIUM_________________________________
+### _______________Sym fed ammonium low 20C_______________________ ###
+#first we need to melt the dataset
+sym_fed_ammonium_low_20C_melt<- melt(sym_fed_ammonium_low_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#now we can plot
+gg_sym_fed_ammonium_low_20C<-
+  ggplot(sym_fed_ammonium_low_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.9328"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium low - Sym Fed 20C: Day 1 vs. Day 11 Red")
+gg_sym_fed_ammonium_low_20C
+#lets do a paired t test now
+t.test(sym_fed_ammonium_low_20C$red_day1_ln,sym_fed_ammonium_low_20C$red_day11_ln, paired=TRUE)
+#done
+
+### ______________Sym starved ammonium low 20C________________________ ###
+#first we need to melt the dataset
+sym_starved_ammonium_low_20C_melt<- melt(sym_starved_ammonium_low_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(sym_starved_ammonium_low_20C$red_day1_ln,sym_starved_ammonium_low_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_sym_starved_ammonium_low_20C<-
+  ggplot(sym_starved_ammonium_low_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.3753"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium low - Sym Starved Fed 20C: Day 1 vs. Day 11 Red")
+gg_sym_starved_ammonium_low_20C
+ #done
+
+### ______________Apo fed ammonium low 20C________________________ ###
+#first we need to melt the dataset
+apo_fed_ammonium_low_20C_melt<- melt(apo_fed_ammonium_low_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_fed_ammonium_low_20C$red_day1_ln,apo_fed_ammonium_low_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_fed_ammonium_low_20C<-
+  ggplot(apo_fed_ammonium_low_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.818"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium low - Apo fed 20C: Day 1 vs. Day 11 Red")
+gg_apo_fed_ammonium_low_20C
+#done
+ 
+
+### ______________Apo starved ammonium low 20C________________________ ###
+#first we need to melt the dataset
+apo_starved_ammonium_low_20C_melt<- melt(apo_starved_ammonium_low_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_starved_ammonium_low_20C$red_day1_ln,apo_starved_ammonium_low_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_starved_ammonium_low_20C<-
+  ggplot(apo_starved_ammonium_low_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p= 0.1896"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium low - Apo Starved 20C: Day 1 vs. Day 11 Red")
+gg_apo_starved_ammonium_low_20C
+#done 
+
+
+# NITRATE ### NITRATE ## NITRATE ### NITRATE ## NITRATE ### NITRATE ## NITRATE ### NITRATE 
+#_____________________NITRATE_________________________________
+### _______________Sym fed nitrate low 20C_______________________ ###
+#first we need to melt the dataset
+sym_fed_nitrate_low_20C_melt<- melt(sym_fed_nitrate_low_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#now we can plot
+gg_sym_fed_nitrate_low_20C<-
+  ggplot(sym_fed_nitrate_low_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.642"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate low - Sym Fed 20C: Day 1 vs. Day 11 Red")
+gg_sym_fed_nitrate_low_20C
+#lets do a paired t test now
+t.test(sym_fed_nitrate_low_20C$red_day1_ln,sym_fed_nitrate_low_20C$red_day11_ln, paired=TRUE)
+  
+
+### ______________Sym starved nitrate low 20C________________________ ###
+#first we need to melt the dataset
+sym_starved_nitrate_low_20C_melt<- melt(sym_starved_nitrate_low_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(sym_starved_nitrate_low_20C$red_day1_ln,sym_starved_nitrate_low_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_sym_starved_nitrate_low_20C<-
+  ggplot(sym_starved_nitrate_low_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.8728"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate low - Sym Starved 20C: Day 1 vs. Day 11 Red")
+gg_sym_starved_nitrate_low_20C
+ 
+
+### ______________Apo fed nitrate low 20C________________________ ###
+#first we need to melt the dataset
+apo_fed_nitrate_low_20C_melt<- melt(apo_fed_nitrate_low_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_fed_nitrate_low_20C$red_day1_ln,apo_fed_nitrate_low_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_fed_nitrate_low_20C<-
+  ggplot(apo_fed_nitrate_low_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.3918"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate low - Apo fed 20C: Day 1 vs. Day 11 Red")
+gg_apo_fed_nitrate_low_20C
+ 
+
+
+### ______________Apo starved nitrate low 20C________________________ ###
+#first we need to melt the dataset
+apo_starved_nitrate_low_20C_melt<- melt(apo_starved_nitrate_low_20C, id.vars="beetag_exp_concat", measure.vars=c("red_day1","red_day11"))
+#lets do a paired t test now
+t.test(apo_starved_nitrate_low_20C$red_day1_ln,apo_starved_nitrate_low_20C$red_day11_ln, paired=TRUE)
+#now we can plot
+gg_apo_starved_nitrate_low_20C<-
+  ggplot(apo_starved_nitrate_low_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=beetag_exp_concat), col="darkgray")+
+  ylab("Red value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.05963*"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate low - Apo Starved 20C: Day 1 vs. Day 11 Red")
+gg_apo_starved_nitrate_low_20C
+ 
+```
+
+```{r next}
+
+```
+

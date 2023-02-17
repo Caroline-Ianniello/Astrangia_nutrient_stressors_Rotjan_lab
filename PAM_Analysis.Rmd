@@ -1,0 +1,2487 @@
+---
+title: "PAM data: last updated 12/9/22 C. Fleming"
+output: html_notebook
+---
+
+
+```{r Inputting data & making sure everything is organized correctly}
+library("knitr")
+require("knitr")
+opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox")
+setwd("C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox")
+getwd()
+pam_all.data <- read.csv("PAM_summer_all_12_6_22_final_version_3b_O3B17_deleted_outlier.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+library("dplyr")
+library("plyr")
+library("tidyverse")
+library("Rmisc")
+library("ggplot2")
+
+#changing some column names
+pam_all.data<-subset(pam_all.data, select = -c(temp))
+#renaming columns in base R because dplyr is freaking out
+colnames(pam_all.data)[colnames(pam_all.data) == "sym_state"] ="sym_state_full"
+colnames(pam_all.data)[colnames(pam_all.data) == "sym_state.1"] ="sym_state"
+colnames(pam_all.data)[colnames(pam_all.data) == "temp.1"] ="temp"
+
+
+#getting rid of all the extra data at the bottom-- we only want rows 1:959 OR 1:639 if only looking at exp 2 and 3 (remember we got rid of the outlier!)
+pam_all.data <- pam_all.data[(1:959),]
+
+#Setting everything I need as factors for linear model and stats
+pam_all.data$N_species<-as.factor(pam_all.data$N_species)
+pam_all.data$N_dose<-as.factor(pam_all.data$N_dose)
+pam_all.data$N_species_dose<-as.factor(pam_all.data$N_species_dose)
+pam_all.data$temp<-as.factor(pam_all.data$temp)
+pam_all.data$food<-as.factor(pam_all.data$food)
+pam_all.data$sym_state<-as.factor(pam_all.data$sym_state)
+pam_all.data$food_sym_state<-as.factor(pam_all.data$food_sym_state)
+
+summary(pam_all.data$temp)
+
+hist(pam_all.data$PAM_delta)
+qqnorm(pam_all.data$PAM_delta, main = NULL)
+```
+
+
+```{r all packages necessary for linear models}
+
+#install.packages("lme4")
+#compare with and without predictor
+library("lme4")
+#install.packages("lmerTest")
+library("lmerTest")
+#install.packages("emmeans")
+library("emmeans")
+#install.packages("pbkrtest")
+library("pbkrtest")
+#reshape melts our datasets in the way we want
+library("reshape2")
+
+#multiple response variables 
+#check model with performance package
+  #model tools R markdown
+  #check for colinearity
+  #r squared figures
+#install.packages("performance")
+#install.packages(c("rlang", "ggplot2", "performance", "dplyr", "ggrepel", "see"), dependencies = TRUE)
+library("performance")
+#install.packages("see")
+library("see")
+#install.packages("ggrepel")
+library("ggrepel")
+#install.packages("sjPlot") #for visualizing linear models
+library(sjPlot)
+#gg effects
+
+#increase the number of results it will show
+options(max.print=1000000)
+
+```
+
+```{r Testing for normality & transforming the data}
+#TESTING FOR NORMALITY IN PAM_delta
+#install new package to see what the best transformation is
+#install.packages("bestNormalize")
+library("bestNormalize")
+bestNormalize(pam_all.data$PAM_delta)
+#based on this the package is telling us to use orderNorm -- this means ordered quantile transformation
+#in order for this to work I need to change the PAM_delta in to a vector
+pam_all.data$PAM_delta_vector<-as.vector(pam_all.data$PAM_delta)
+#then I run the orderNorm command into a new object
+orderNormobj_PAM_delta<-orderNorm(pam_all.data$PAM_delta)
+#this object gives us what we want, but we have to index from that object and put it in a new column
+pam_all.data$ordernorm_PAM_delta<-orderNormobj_PAM_delta$x.t
+
+
+# NOW WE ARE READY TO CHECK FOR NORMALITY AGAIN
+#step 2 check for normality
+#need to make it numeric
+pam_all.data$ordernorm_PAM_delta<-as.numeric(pam_all.data$ordernorm_PAM_delta)
+hist(pam_all.data$ordernorm_PAM_delta)
+#it looks really normal, but let's check with a shapiro wilk
+#shapiro wilk test for normality (we want it to NOT be statistically sigficiant -- significance means it is different than the normal distribution)
+shapiro.test(pam_all.data$ordernorm_PAM_delta)
+#P VALUE OF 1 IT IS LITERALLY NORMAL YAY
+# Now we look for heteroscedasticity -- remember we want the data to be normal and homoscedastic
+#bartlett test if the data is normal, levene if it is not normal (we can do Bartlett here)
+#install.packages("car") for levene
+bartlett.test(ordernorm_PAM_delta ~ N_dose, data=pam_all.data)
+#qq norm plot should look like a diagonal
+qqnorm(pam_all.data$ordernorm_PAM_delta, main = NULL)
+
+#Let's try a Box-Cox Normalization -- the Box Cox for data with negatives is called a Yeo-Johnson
+pam_all.data$PAM_delta_vector<-as.vector(pam_all.data$PAM_delta)
+yeo_PAM_delta<-yeojohnson(pam_all.data$PAM_delta)
+pam_all.data$yeo_PAM_delta<-yeo_PAM_delta$x.t
+shapiro.test(pam_all.data$yeo_PAM_delta)
+#lm_forfun <- lmer(pam_all.data$yeo_PAM_delta ~ 1 + (1|col_num) + (1|jar_unique_ID), data=pam_all.data)
+#summary(lm_forfun) #thats a good p value
+hist(pam_all.data$yeo_PAM_delta)
+qqnorm(pam_all.data$yeo_PAM_delta, main = NULL)
+
+# TESTING FOR NORMALILTY IN AVG_DAY_1 DATA
+#should check to see if each of these datasets is normal first
+shapiro.test(pam_all.data$PAM_avg_day1)
+#significant so the data is NOT normal
+#see what we need to do to get it to be normalized, using the command from the bestNormalize package
+bestNormalize(pam_all.data$PAM_avg_day1)
+#based on this the package is telling us to use orderNorm -- this means ordered quantile transformation
+#in order for this to work I need to change the PAM_delta in to a vector
+pam_all.data$PAM_avg_day1_vector<-as.vector(pam_all.data$PAM_avg_day1)
+#then I run the orderNorm command into a new object
+orderNormobj_PAM_avg_day1<-orderNorm(pam_all.data$PAM_avg_day1_vector)
+#this object gives us what we want, but we have to index from that object and put it in a new column
+pam_all.data$ordernorm_PAM_avg_day1<-orderNormobj_PAM_avg_day1$x.t
+#YEO-JOHNSON PAM_avg_day_1
+yeo_d1<-yeojohnson(pam_all.data$PAM_avg_day1)
+pam_all.data$yeo_d1<-yeo_d1$x.t
+pam_all.data$yeo_d1<-as.numeric(pam_all.data$yeo_d1)
+
+# TESTING FOR NORMALILTY IN AVG_DAY_11 DATA
+#should check to see if each of these datasets is normal first
+shapiro.test(pam_all.data$PAM_avg_day11)
+#significant so the data is NOT normal
+#see what we need to do to get it to be normalized, using the command from the bestNormalize package
+bestNormalize(pam_all.data$PAM_avg_day11)
+#based on this the package is telling us to use orderNorm -- this means ordered quantile transformation
+#in order for this to work I need to change the PAM_delta in to a vector
+pam_all.data$PAM_avg_day11_vector<-as.vector(pam_all.data$PAM_avg_day11)
+#then I run the orderNorm command into a new object
+orderNormobj_PAM_avg_day11<-orderNorm(pam_all.data$PAM_avg_day11_vector)
+#this object gives us what we want, but we have to index from that object and put it in a new column
+pam_all.data$ordernorm_PAM_avg_day11<-orderNormobj_PAM_avg_day11$x.t
+#YEO-JOHNSON PAM_avg_day_1
+yeo_d11<-yeojohnson(pam_all.data$PAM_avg_day11)
+pam_all.data$yeo_d11<-yeo_d11$x.t
+pam_all.data$yeo_d11<-as.numeric(pam_all.data$yeo_d11)
+
+## IMPORTANT NOTE: RANDI AND JUSTIN REALLY THINK WE SHOULD JUST PROCEED WITH THE UNTRANSFORMED DATA SINCE UPON VISUAL INSPECTION IT REALLY ISN'T VERY SKEWED
+```
+
+
+
+```{r BASIC - Master list of subsets}
+# all aposymbiotic
+all_apo<-subset(pam_all.data, pam_all.data$sym_state=="A")
+# all symbiotic
+all_sym<-subset(pam_all.data, pam_all.data$sym_state=="S")
+# all fed
+all_fed<-subset(pam_all.data, pam_all.data$food=="F")
+# all starved
+all_starved<-subset(pam_all.data, pam_all.data$food=="S")
+# all 20C
+all_20<-subset(pam_all.data, pam_all.data$temp=="20")
+# all 30C
+all_30<-subset(pam_all.data, pam_all.data$temp=="30")
+# all nitrate (taking out controls)
+all_nitrate<-subset(pam_all.data,pam_all.data$N_species=="N" & pam_all.data$N_dose!="0")
+# all ammonium (taking out controls)
+all_ammonium<-subset(pam_all.data,pam_all.data$N_species=="A" & pam_all.data$N_dose!="0")
+# all controls 30C
+control_all_30<-subset(pam_all.data, pam_all.data$N_dose=="0" & pam_all.data$temp=="30")
+# all controls 20C
+control_all_20<-subset(pam_all.data, pam_all.data$N_dose=="0" & pam_all.data$temp=="20")
+```
+
+```{r SYM VS. APO - Master list of subsets}
+#Sym fed hot vs. apo fed hot
+# Sym 20C
+
+#Apo 20C 
+
+# Sym 30C
+
+# Apo 30C
+
+
+
+```
+
+```{r HEAT VS. AMBIENT - Master list of subsets}
+
+
+
+
+```
+
+```{r FED VS. STARVED - Master list of subsets}
+
+# Sym Fed
+all_sym_fed<-subset(pam_all.data, pam_all.data$food=="F" & pam_all.data$sym_state=="S")
+
+# Sym Starved
+all_sym_starved<-subset(pam_all.data, pam_all.data$food=="S" & pam_all.data$sym_state=="S")
+
+# Apo Fed
+all_apo_fed<-subset(pam_all.data, pam_all.data$food=="F" & pam_all.data$sym_state=="A")
+
+# Apo Starved
+all_apo_starved<-subset(pam_all.data, pam_all.data$food=="S" & pam_all.data$sym_state=="A")
+
+# Sym Fed 20C AMBIENT
+
+# Apo Fed 20C AMBIENT
+
+# Sym Starved 20C AMBIENT
+
+# Apo Starved 20C AMBIENT
+
+# Sym Fed 30C HEAT
+
+# Apo Fed 30C HEAT
+
+# Sym Starved 30C HEAT
+
+# Apo Starved 30C HEAT
+
+```
+
+
+```{r Nitrate/Ammonium LEVELS - Master list of subsets}
+# Ammonium HIGH (10uM) 20C
+A_10_20<-subset(pam_all.data, pam_all.data$N_dose=="10" & pam_all.data$temp=="20")
+# Ammonium HIGH (10uM) 30C
+A_10_30<-subset(pam_all.data, pam_all.data$N_dose=="10" & pam_all.data$temp=="30")
+# Nitrate HIGH (18uM) 20C
+N_18_20<-subset(pam_all.data, pam_all.data$N_dose=="18" & pam_all.data$temp=="20")
+# Nitrate HIGH (18uM) 30C
+N_18_30<-subset(pam_all.data, pam_all.data$N_dose=="18" & pam_all.data$temp=="30")
+# Nitrate HIGH (18uM) 30C AND control 30C
+N_18_and_control_30<-subset(pam_all.data, pam_all.data$N_dose==c(0,18) & pam_all.data$temp=="30" & pam_all.data$N_species=="N")
+# Ammonium HIGH (10uM) 30C AND control 30C
+A_10_and_control_30<-subset(pam_all.data, pam_all.data$N_dose==c(0,10) & pam_all.data$temp=="30" & pam_all.data$N_species=="A")
+
+```
+ #Paired t tests
+
+```{r PAIRED t tests}
+
+#Paired t test
+#Comparing PAM_delta for fed v. starved
+t.test(all_fed$PAM_delta,all_starved$PAM_delta) #  p-value = 0.9898
+#Comparing PAM_delta for sym fed v. sym starved
+t.test(all_sym_fed$PAM_delta,all_sym_starved$PAM_delta) #p-value = 0.2208
+#Comparing PAM_delta for apo fed v. apo starved
+t.test(all_apo_fed$PAM_delta,all_apo_starved$PAM_delta) #p-value = 0.06325
+mean(all_apo_fed$PAM_delta) #avg = 0.1515622
+mean(all_apo_starved$PAM_delta) #avg = 0.2987816 #starved colonies had a greater change in photosynthetic efficiency
+#Comparing PAM_delta between sym fed vs. apo fed #this is okay to do because delta should capture the changes
+t.test(all_apo_fed$PAM_delta,all_sym_fed$PAM_delta) #p-value = 0.0009132
+mean(all_apo_fed$PAM_delta) #avg = 0.1515622
+mean(all_sym_fed$PAM_delta) #avg = -0.1617836 #symbiotic colonies lost more photosynthetic efficiency
+#Comparing PAM_delta between sym starved vs. apo starved #this is okay to do because delta should capture the changes
+t.test(all_apo_starved$PAM_delta,all_sym_starved$PAM_delta) #p-value = 1.837e-11
+mean(all_apo_starved$PAM_delta) #avg = 0.2984904
+mean(all_sym_starved$PAM_delta, na.rm=TRUE) #had to tell it to ignore the one NA #avg =-0.2834233 #symbiotic colonies lost more photosynthetic efficiency
+
+summary(all_sym_starved$PAM_delta)
+#Comparing day 1 and day 11 for all FED
+t.test(all_fed$ordernorm_PAM_avg_day1,all_fed$ordernorm_PAM_avg_day11, paired=TRUE)
+#p=0.8964
+#Comparing day 1 and day 11 for all SYM FED
+t.test(all_sym_fed$ordernorm_PAM_avg_day1,all_sym_fed$ordernorm_PAM_avg_day11, paired=TRUE)
+#p= 0.005225
+mean(all_sym_fed$ordernorm_PAM_avg_day1) #avg = 0.2747672
+mean(all_sym_fed$ordernorm_PAM_avg_day11) #avg = -0.01262951
+
+#Comparing day 1 and day 11 for all APO FED
+t.test(all_apo_fed$ordernorm_PAM_avg_day1,all_apo_fed$ordernorm_PAM_avg_day11, paired=TRUE)
+#p= 0.000137
+mean(all_apo_fed$ordernorm_PAM_avg_day1) #avg = -0.3497415
+mean(all_apo_fed$ordernorm_PAM_avg_day11) #avg = -0.09451322 #increased photosynthetic efficiency
+
+#Comparing day 1 and day 11 for all STARVED
+t.test(all_starved$ordernorm_PAM_avg_day1,all_starved$ordernorm_PAM_avg_day11, paired=TRUE)
+#p= 0.8986
+#Comparing day 1 and day 11 for all SYM STARVED
+t.test(all_sym_starved$ordernorm_PAM_avg_day1,all_sym_starved$ordernorm_PAM_avg_day11, paired=TRUE)
+#p= 1.166e-05
+mean(all_sym_starved$ordernorm_PAM_avg_day1) #avg = 0.4140107
+mean(all_sym_starved$ordernorm_PAM_avg_day11) #avg =  0.005541596 #decreased photosynthetic efficiency
+
+#Comparing day 1 and day 11 for all APO STARVED
+t.test(all_apo_starved$ordernorm_PAM_avg_day1,all_apo_starved$ordernorm_PAM_avg_day11, paired=TRUE)
+#p= p-value = 5.6e-11
+mean(all_apo_starved$ordernorm_PAM_avg_day1) #avg = -0.344543
+mean(all_apo_starved$ordernorm_PAM_avg_day11) #avg = 0.1017728 #increased photosynthetic efficiency
+
+
+
+#Comparing day 1 and day 11 for all COLD
+t.test(all_20$PAM_avg_day1, all_20$PAM_avg_day11, paired=TRUE)
+#p= 0.001
+
+#Comparing day 1 and day 11 for all HOT
+t.test(all_30$PAM_avg_day1, all_30$PAM_avg_day11, paired=TRUE)
+#p= 0.01133
+
+#Comparing day 1 and day 11 for all CONTROL 20
+t.test(control_all_20$PAM_avg_day1, control_all_20$PAM_avg_day11, paired=TRUE)
+#p= 0.1037
+
+#Comparing day 1 and day 11 for all CONTROL 30
+t.test(control_all_30$PAM_avg_day1, control_all_30$PAM_avg_day11, paired=TRUE)
+#p= 0.1544
+
+A_10_20_F_A <- subset(pam_all.data, pam_all.data$treat_ID_collapsed_controls=="A_10_20_F_A")
+
+A_10_20_F_S <- subset(pam_all.data, pam_all.data$treat_ID_collapsed_controls=="A_10_20_F_S")
+
+t.test(A_10_20_F_A$PAM_delta, A_10_20_F_S$PAM_delta)
+A_10_20_F_A$PAM_delta
+```
+
+#Control vs. Initial Plots 20C - High
+```{r Control vs. Intial Plots - High 20C}
+#ammonium
+sym_fed_ammonium_high_20C<-subset(pam_all.data, pam_all.data$sym_state=="S" & pam_all.data$food=="F" & pam_all.data$N_dose=="10" & pam_all.data$temp=="20")
+apo_fed_ammonium_high_20C<-subset(pam_all.data, pam_all.data$sym_state=="A" & pam_all.data$food=="F" & pam_all.data$N_dose=="10" & pam_all.data$temp=="20")
+sym_starved_ammonium_high_20C<-subset(pam_all.data, pam_all.data$sym_state=="S" & pam_all.data$food=="S" & pam_all.data$N_dose=="10" & pam_all.data$temp=="20")
+apo_starved_ammonium_high_20C<-subset(pam_all.data, pam_all.data$sym_state=="A" & pam_all.data$food=="S" & pam_all.data$N_dose=="10" & pam_all.data$temp=="20")
+#nitrate
+sym_fed_nitrate_high_20C<-subset(pam_all.data, pam_all.data$sym_state=="S" & pam_all.data$food=="F" & pam_all.data$N_dose=="18" & pam_all.data$temp=="20")
+apo_fed_nitrate_high_20C<-subset(pam_all.data, pam_all.data$sym_state=="A" & pam_all.data$food=="F" & pam_all.data$N_dose=="18" & pam_all.data$temp=="20")
+sym_starved_nitrate_high_20C<-subset(pam_all.data, pam_all.data$sym_state=="S" & pam_all.data$food=="S" & pam_all.data$N_dose=="18" & pam_all.data$temp=="20")
+apo_starved_nitrate_high_20C<-subset(pam_all.data, pam_all.data$sym_state=="A" & pam_all.data$food=="S" & pam_all.data$N_dose=="18" & pam_all.data$temp=="20")
+
+#control 
+sym_fed_control_20C<-subset(pam_all.data, pam_all.data$sym_state=="S" & pam_all.data$food=="F" & pam_all.data$N_dose=="0" & pam_all.data$temp=="20")
+apo_fed_control_20C<-subset(pam_all.data, pam_all.data$sym_state=="A" & pam_all.data$food=="F" & pam_all.data$N_dose=="0" & pam_all.data$temp=="20")
+sym_starved_control_20C<-subset(pam_all.data, pam_all.data$sym_state=="S" & pam_all.data$food=="S" & pam_all.data$N_dose=="0" & pam_all.data$temp=="20")
+apo_starved_control_20C<-subset(pam_all.data, pam_all.data$sym_state=="A" & pam_all.data$food=="S" & pam_all.data$N_dose=="0" & pam_all.data$temp=="20")
+
+#gg plotting 
+#install.packages("reshape2")
+
+
+
+#######################################################################
+#_____________________AMMONIUM_________________________________
+### _______________Sym fed ammonium high 20C_______________________ ###
+#first we need to melt the dataset
+sym_fed_ammonium_high_20C_melt<- melt(sym_fed_ammonium_high_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#now we can plot
+gg_sym_fed_ammonium_high_20C<-
+  ggplot(sym_fed_ammonium_high_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.9007"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium High - Sym Fed 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_fed_ammonium_high_20C
+#lets do a paired t test now
+t.test(sym_fed_ammonium_high_20C$PAM_avg_day1,sym_fed_ammonium_high_20C$PAM_avg_day11, paired=TRUE)
+
+### ______________Sym starved ammonium high 20C________________________ ###
+#first we need to melt the dataset
+sym_starved_ammonium_high_20C_melt<- melt(sym_starved_ammonium_high_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_starved_ammonium_high_20C$PAM_avg_day1,sym_starved_ammonium_high_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_starved_ammonium_high_20C<-
+  ggplot(sym_starved_ammonium_high_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.01291***"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium High - Sym Starved Fed 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_starved_ammonium_high_20C
+
+### ______________Apo fed ammonium high 20C________________________ ###
+#first we need to melt the dataset
+apo_fed_ammonium_high_20C_melt<- melt(apo_fed_ammonium_high_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_fed_ammonium_high_20C$PAM_avg_day1,apo_fed_ammonium_high_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_fed_ammonium_high_20C<-
+  ggplot(apo_fed_ammonium_high_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.6632"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium High - Apo fed 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_fed_ammonium_high_20C
+
+
+### ______________Apo starved ammonium high 20C________________________ ###
+#first we need to melt the dataset
+apo_starved_ammonium_high_20C_melt<- melt(apo_starved_ammonium_high_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_starved_ammonium_high_20C$PAM_avg_day1,apo_starved_ammonium_high_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_starved_ammonium_high_20C<-
+  ggplot(apo_starved_ammonium_high_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.4662"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium High - Apo Starved 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_starved_ammonium_high_20C
+
+
+#######################################################################
+#_____________________NITRATE_________________________________
+### _______________Sym fed nitrate high 20C_______________________ ###
+#first we need to melt the dataset
+sym_fed_nitrate_high_20C_melt<- melt(sym_fed_nitrate_high_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#now we can plot
+gg_sym_fed_nitrate_high_20C<-
+  ggplot(sym_fed_nitrate_high_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.3065"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate High - Sym Fed 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_fed_nitrate_high_20C
+#lets do a paired t test now
+t.test(sym_fed_nitrate_high_20C$PAM_avg_day1,sym_fed_nitrate_high_20C$PAM_avg_day11, paired=TRUE)
+
+### ______________Sym starved nitrate high 20C________________________ ###
+#first we need to melt the dataset
+sym_starved_nitrate_high_20C_melt<- melt(sym_starved_nitrate_high_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_starved_nitrate_high_20C$PAM_avg_day1,sym_starved_nitrate_high_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_starved_nitrate_high_20C<-
+  ggplot(sym_starved_nitrate_high_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.6535"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate High - Sym Starved 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_starved_nitrate_high_20C
+
+### ______________Apo fed nitrate high 20C________________________ ###
+#first we need to melt the dataset
+apo_fed_nitrate_high_20C_melt<- melt(apo_fed_nitrate_high_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_fed_nitrate_high_20C$PAM_avg_day1,apo_fed_nitrate_high_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_fed_nitrate_high_20C<-
+  ggplot(apo_fed_nitrate_high_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.5305 "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate High - Apo fed 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_fed_nitrate_high_20C
+
+
+### ______________Apo starved nitrate high 20C________________________ ###
+#first we need to melt the dataset
+apo_starved_nitrate_high_20C_melt<- melt(apo_starved_nitrate_high_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_starved_nitrate_high_20C$PAM_avg_day1,apo_starved_nitrate_high_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_starved_nitrate_high_20C<-
+  ggplot(apo_starved_nitrate_high_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.4661"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate High - Apo Starved 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_starved_nitrate_high_20C
+
+
+#######################################################################
+#_____________________CONTROL_________________________________
+### _______________Sym fed control high 20C_______________________ ###
+#first we need to melt the dataset
+sym_fed_control_20C_melt<- melt(sym_fed_control_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#now we can plot
+gg_sym_fed_control_20C<-
+  ggplot(sym_fed_control_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.04704***"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Control High - Sym Fed 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_fed_control_20C
+#lets do a paired t test now
+t.test(sym_fed_control_20C$PAM_avg_day1,sym_fed_control_20C$PAM_avg_day11, paired=TRUE)
+
+### ______________Sym starved control high 20C________________________ ###
+#first we need to melt the dataset
+sym_starved_control_20C_melt<- melt(sym_starved_control_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_starved_control_20C$PAM_avg_day1,sym_starved_control_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_starved_control_20C<-
+  ggplot(sym_starved_control_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.01362***"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Control - Sym Starved 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_starved_control_20C
+
+### ______________Apo fed control high 20C________________________ ###
+#first we need to melt the dataset
+apo_fed_control_20C_melt<- melt(apo_fed_control_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_fed_control_20C$PAM_avg_day1,apo_fed_control_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_fed_control_20C<-
+  ggplot(apo_fed_control_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.4234"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Control - Apo fed 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_fed_control_20C
+
+
+### ______________Apo starved control high 20C________________________ ###
+#first we need to melt the dataset
+apo_starved_control_20C_melt<- melt(apo_starved_control_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_starved_control_20C$PAM_avg_day1,apo_starved_control_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_starved_control_20C<-
+  ggplot(apo_starved_control_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.1907"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Control - Apo Starved 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_starved_control_20C
+
+```
+
+# Control vs. Initial Plots 5uM - 20C
+```{r Control vs. Initial Plots - 5uM 20C}
+#ammonium
+sym_fed_ammonium_5um_20C<-subset(pam_all.data, pam_all.data$N_species=="A" & pam_all.data$sym_state=="S"& pam_all.data$food=="F" & pam_all.data$N_dose=="5" & pam_all.data$temp=="20")
+apo_fed_ammonium_5um_20C<-subset(pam_all.data, pam_all.data$N_species=="A" & pam_all.data$sym_state=="A" & pam_all.data$food=="F" & pam_all.data$N_dose=="5" & pam_all.data$temp=="20")
+sym_starved_ammonium_5um_20C<-subset(pam_all.data, pam_all.data$N_species=="A" & pam_all.data$sym_state=="S" & pam_all.data$food=="S" & pam_all.data$N_dose=="5" & pam_all.data$temp=="20")
+apo_starved_ammonium_5um_20C<-subset(pam_all.data, pam_all.data$N_species=="A" & pam_all.data$sym_state=="A" & pam_all.data$food=="S" & pam_all.data$N_dose=="5" & pam_all.data$temp=="20")
+#nitrate
+sym_fed_nitrate_5um_20C<-subset(pam_all.data, pam_all.data$N_species=="N" & pam_all.data$sym_state=="S" & pam_all.data$food=="F" & pam_all.data$N_dose=="5" & pam_all.data$temp=="20")
+apo_fed_nitrate_5um_20C<-subset(pam_all.data, pam_all.data$N_species=="N" & pam_all.data$sym_state=="A" & pam_all.data$food=="F" & pam_all.data$N_dose=="5" & pam_all.data$temp=="20")
+sym_starved_nitrate_5um_20C<-subset(pam_all.data, pam_all.data$N_species=="N" & pam_all.data$sym_state=="S" & pam_all.data$food=="S" & pam_all.data$N_dose=="5" & pam_all.data$temp=="20")
+apo_starved_nitrate_5um_20C<-subset(pam_all.data, pam_all.data$N_species=="N" & pam_all.data$sym_state=="A" & pam_all.data$food=="S" & pam_all.data$N_dose=="5" & pam_all.data$temp=="20")
+
+#we already have our control datasets
+
+
+#######################################################################
+
+#_____________________AMMONIUM_________________________________
+
+### _______________Sym fed ammonium high 20C_______________________ ###
+#first we need to melt the dataset
+sym_fed_ammonium_5um_20C_melt<- melt(sym_fed_ammonium_5um_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#now we can plot
+gg_sym_fed_ammonium_5um_20C<-
+  ggplot(sym_fed_ammonium_5um_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.07879*"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium 5um - Sym Fed 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_fed_ammonium_5um_20C
+#lets do a paired t test now
+t.test(sym_fed_ammonium_5um_20C$PAM_avg_day1,sym_fed_ammonium_5um_20C$PAM_avg_day11, paired=TRUE)
+
+### ______________Sym starved ammonium high 20C________________________ ###
+#first we need to melt the dataset
+sym_starved_ammonium_5um_20C_melt<- melt(sym_starved_ammonium_5um_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_starved_ammonium_5um_20C$PAM_avg_day1,sym_starved_ammonium_5um_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_starved_ammonium_5um_20C<-
+  ggplot(sym_starved_ammonium_5um_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.0372***"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium 5um - Sym Starved 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_starved_ammonium_5um_20C
+
+### ______________Apo fed ammonium high 20C________________________ ###
+#first we need to melt the dataset
+apo_fed_ammonium_5um_20C_melt<- melt(apo_fed_ammonium_5um_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_fed_ammonium_5um_20C$PAM_avg_day1,apo_fed_ammonium_5um_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_fed_ammonium_5um_20C<-
+  ggplot(apo_fed_ammonium_5um_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.3801"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium 5um - Apo fed 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_fed_ammonium_5um_20C
+
+
+### ______________Apo starved ammonium high 20C________________________ ###
+#first we need to melt the dataset
+apo_starved_ammonium_5um_20C_melt<- melt(apo_starved_ammonium_5um_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_starved_ammonium_5um_20C$PAM_avg_day1,apo_starved_ammonium_5um_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_starved_ammonium_5um_20C<-
+  ggplot(apo_starved_ammonium_5um_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.1261"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium 5um - Apo Starved 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_starved_ammonium_5um_20C
+
+#######################################################################
+
+#_____________________NITRATE_________________________________
+
+### _______________Sym fed nitrate 5um 20C_______________________ ###
+#first we need to melt the dataset
+sym_fed_nitrate_5um_20C_melt<- melt(sym_fed_nitrate_5um_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_fed_nitrate_5um_20C$PAM_avg_day1,sym_fed_nitrate_5um_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_fed_nitrate_5um_20C<-
+  ggplot(sym_fed_nitrate_5um_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.4815"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate 5um - Sym Fed 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_fed_nitrate_5um_20C
+
+
+### ______________Sym starved nitrate 5um 20C________________________ ###
+#first we need to melt the dataset
+sym_starved_nitrate_5um_20C_melt<- melt(sym_starved_nitrate_5um_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_starved_nitrate_5um_20C$PAM_avg_day1,sym_starved_nitrate_5um_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_starved_nitrate_5um_20C<-
+  ggplot(sym_starved_nitrate_5um_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.07094*"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate 5um - Sym Starved 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_starved_nitrate_5um_20C
+
+### ______________Apo fed nitrate 5um 20C________________________ ###
+#first we need to melt the dataset
+apo_fed_nitrate_5um_20C_melt<- melt(apo_fed_nitrate_5um_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_fed_nitrate_5um_20C$PAM_avg_day1,apo_fed_nitrate_5um_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_fed_nitrate_5um_20C<-
+  ggplot(apo_fed_nitrate_5um_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.7731"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate 5um - Apo fed 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_fed_nitrate_5um_20C
+
+
+### ______________Apo starved nitrate 5um 20C________________________ ###
+#first we need to melt the dataset
+apo_starved_nitrate_5um_20C_melt<- melt(apo_starved_nitrate_5um_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_starved_nitrate_5um_20C$PAM_avg_day1,apo_starved_nitrate_5um_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_starved_nitrate_5um_20C<-
+  ggplot(apo_starved_nitrate_5um_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.2749"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate 5um - Apo Starved 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_starved_nitrate_5um_20C
+```
+#Control vs. Initial Plots 30C - High
+```{r Control vs. Intial Plots - High 30C}
+#ammonium
+sym_fed_ammonium_high_30C<-subset(pam_all.data, pam_all.data$sym_state=="S" & pam_all.data$food=="F" & pam_all.data$N_dose=="10" & pam_all.data$temp=="30")
+apo_fed_ammonium_high_30C<-subset(pam_all.data, pam_all.data$sym_state=="A" & pam_all.data$food=="F" & pam_all.data$N_dose=="10" & pam_all.data$temp=="30")
+sym_starved_ammonium_high_30C<-subset(pam_all.data, pam_all.data$sym_state=="S" & pam_all.data$food=="S" & pam_all.data$N_dose=="10" & pam_all.data$temp=="30")
+apo_starved_ammonium_high_30C<-subset(pam_all.data, pam_all.data$sym_state=="A" & pam_all.data$food=="S" & pam_all.data$N_dose=="10" & pam_all.data$temp=="30")
+#nitrate
+sym_fed_nitrate_high_30C<-subset(pam_all.data, pam_all.data$sym_state=="S" & pam_all.data$food=="F" & pam_all.data$N_dose=="18" & pam_all.data$temp=="30")
+apo_fed_nitrate_high_30C<-subset(pam_all.data, pam_all.data$sym_state=="A" & pam_all.data$food=="F" & pam_all.data$N_dose=="18" & pam_all.data$temp=="30")
+sym_starved_nitrate_high_30C<-subset(pam_all.data, pam_all.data$sym_state=="S" & pam_all.data$food=="S" & pam_all.data$N_dose=="18" & pam_all.data$temp=="30")
+apo_starved_nitrate_high_30C<-subset(pam_all.data, pam_all.data$sym_state=="A" & pam_all.data$food=="S" & pam_all.data$N_dose=="18" & pam_all.data$temp=="30")
+
+#control 
+sym_fed_control_30C<-subset(pam_all.data, pam_all.data$sym_state=="S" & pam_all.data$food=="F" & pam_all.data$N_dose=="0" & pam_all.data$temp=="30")
+apo_fed_control_30C<-subset(pam_all.data, pam_all.data$sym_state=="A" & pam_all.data$food=="F" & pam_all.data$N_dose=="0" & pam_all.data$temp=="30")
+sym_starved_control_30C<-subset(pam_all.data, pam_all.data$sym_state=="S" & pam_all.data$food=="S" & pam_all.data$N_dose=="0" & pam_all.data$temp=="30")
+apo_starved_control_30C<-subset(pam_all.data, pam_all.data$sym_state=="A" & pam_all.data$food=="S" & pam_all.data$N_dose=="0" & pam_all.data$temp=="30")
+
+#gg plotting 
+#install.packages("reshape2")
+
+
+
+#######################################################################
+#_____________________AMMONIUM_________________________________
+### _______________Sym fed ammonium high 30C_______________________ ###
+#first we need to melt the dataset
+sym_fed_ammonium_high_30C_melt<- melt(sym_fed_ammonium_high_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#now we can plot
+gg_sym_fed_ammonium_high_30C<-
+  ggplot(sym_fed_ammonium_high_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.04818***"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium High - Sym Fed 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_fed_ammonium_high_30C
+#lets do a paired t test now
+t.test(sym_fed_ammonium_high_30C$PAM_avg_day1,sym_fed_ammonium_high_30C$PAM_avg_day11, paired=TRUE)
+
+### ______________Sym starved ammonium high 30C________________________ ###
+#first we need to melt the dataset
+sym_starved_ammonium_high_30C_melt<- melt(sym_starved_ammonium_high_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_starved_ammonium_high_30C$PAM_avg_day1,sym_starved_ammonium_high_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_starved_ammonium_high_30C<-
+  ggplot(sym_starved_ammonium_high_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.9968"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium High - Sym Starved 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_starved_ammonium_high_30C
+
+### ______________Apo fed ammonium high 30C________________________ ###
+#first we need to melt the dataset
+apo_fed_ammonium_high_30C_melt<- melt(apo_fed_ammonium_high_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_fed_ammonium_high_30C$PAM_avg_day1,apo_fed_ammonium_high_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_fed_ammonium_high_30C<-
+  ggplot(apo_fed_ammonium_high_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.6253"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium High - Apo fed 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_fed_ammonium_high_30C
+
+
+### ______________Apo starved ammonium high 30C________________________ ###
+#first we need to melt the dataset
+apo_starved_ammonium_high_30C_melt<- melt(apo_starved_ammonium_high_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_starved_ammonium_high_30C$PAM_avg_day1,apo_starved_ammonium_high_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_starved_ammonium_high_30C<-
+  ggplot(apo_starved_ammonium_high_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.5734"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium High - Apo Starved 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_starved_ammonium_high_30C
+
+
+#######################################################################
+#_____________________NITRATE_________________________________
+### _______________Sym fed nitrate high 30C_______________________ ###
+#first we need to melt the dataset
+sym_fed_nitrate_high_30C_melt<- melt(sym_fed_nitrate_high_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#now we can plot
+gg_sym_fed_nitrate_high_30C<-
+  ggplot(sym_fed_nitrate_high_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.111"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate High - Sym Fed 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_fed_nitrate_high_30C
+#lets do a paired t test now
+t.test(sym_fed_nitrate_high_30C$PAM_avg_day1,sym_fed_nitrate_high_30C$PAM_avg_day11, paired=TRUE)
+
+### ______________Sym starved nitrate high 30C________________________ ###
+#first we need to melt the dataset
+sym_starved_nitrate_high_30C_melt<- melt(sym_starved_nitrate_high_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_starved_nitrate_high_30C$PAM_avg_day1,sym_starved_nitrate_high_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_starved_nitrate_high_30C<-
+  ggplot(sym_starved_nitrate_high_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.01045***"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate High - Sym Starved 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_starved_nitrate_high_30C
+
+### ______________Apo fed nitrate high 30C________________________ ###
+#first we need to melt the dataset
+apo_fed_nitrate_high_30C_melt<- melt(apo_fed_nitrate_high_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_fed_nitrate_high_30C$PAM_avg_day1,apo_fed_nitrate_high_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_fed_nitrate_high_30C<-
+  ggplot(apo_fed_nitrate_high_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.458"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate High - Apo fed 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_fed_nitrate_high_30C
+
+
+### ______________Apo starved nitrate high 30C________________________ ###
+#first we need to melt the dataset
+apo_starved_nitrate_high_30C_melt<- melt(apo_starved_nitrate_high_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_starved_nitrate_high_30C$PAM_avg_day1,apo_starved_nitrate_high_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_starved_nitrate_high_30C<-
+  ggplot(apo_starved_nitrate_high_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.5637"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate High - Apo Starved 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_starved_nitrate_high_30C
+
+
+#######################################################################
+#_____________________CONTROL_________________________________
+### _______________Sym fed control high 30C_______________________ ###
+#first we need to melt the dataset
+sym_fed_control_30C_melt<- melt(sym_fed_control_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#now we can plot
+gg_sym_fed_control_30C<-
+  ggplot(sym_fed_control_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.2947"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Control High - Sym Fed 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_fed_control_30C
+#lets do a paired t test now
+t.test(sym_fed_control_30C$PAM_avg_day1,sym_fed_control_30C$PAM_avg_day11, paired=TRUE)
+
+### ______________Sym starved control high 30C________________________ ###
+#first we need to melt the dataset
+sym_starved_control_30C_melt<- melt(sym_starved_control_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_starved_control_30C$PAM_avg_day1,sym_starved_control_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_starved_control_30C<-
+  ggplot(sym_starved_control_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.4326"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Control - Sym Starved 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_starved_control_30C
+
+### ______________Apo fed control high 30C________________________ ###
+#first we need to melt the dataset
+apo_fed_control_30C_melt<- melt(apo_fed_control_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_fed_control_30C$PAM_avg_day1,apo_fed_control_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_fed_control_30C<-
+  ggplot(apo_fed_control_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.8595"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Control - Apo fed 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_fed_control_30C
+
+
+### ______________Apo starved control high 30C________________________ ###
+#first we need to melt the dataset
+apo_starved_control_30C_melt<- melt(apo_starved_control_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_starved_control_30C$PAM_avg_day1,apo_starved_control_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_starved_control_30C<-
+  ggplot(apo_starved_control_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.2457"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Control - Apo Starved 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_starved_control_30C
+
+```
+#Control vs. Initial Plots 30C - 5um
+```{r Control vs. Intial Plots - 5um 30C}
+#ammonium
+sym_fed_ammonium_5um_30C<-subset(pam_all.data, pam_all.data$N_species=="A" & pam_all.data$sym_state=="S" & pam_all.data$food=="F" & pam_all.data$N_dose=="5" & pam_all.data$temp=="30")
+apo_fed_ammonium_5um_30C<-subset(pam_all.data, pam_all.data$N_species=="A" & pam_all.data$sym_state=="A" & pam_all.data$food=="F" & pam_all.data$N_dose=="5" & pam_all.data$temp=="30")
+sym_starved_ammonium_5um_30C<-subset(pam_all.data, pam_all.data$N_species=="A" & pam_all.data$sym_state=="S" & pam_all.data$food=="S" & pam_all.data$N_dose=="5" & pam_all.data$temp=="30")
+apo_starved_ammonium_5um_30C<-subset(pam_all.data, pam_all.data$N_species=="A" & pam_all.data$sym_state=="A" & pam_all.data$food=="S" & pam_all.data$N_dose=="5" & pam_all.data$temp=="30")
+#nitrate
+sym_fed_nitrate_5um_30C<-subset(pam_all.data, pam_all.data$N_species=="N" &  pam_all.data$sym_state=="S" & pam_all.data$food=="F" & pam_all.data$N_dose=="5" & pam_all.data$temp=="30")
+apo_fed_nitrate_5um_30C<-subset(pam_all.data, pam_all.data$N_species=="N" & pam_all.data$sym_state=="A" & pam_all.data$food=="F" & pam_all.data$N_dose=="5" & pam_all.data$temp=="30")
+sym_starved_nitrate_5um_30C<-subset(pam_all.data, pam_all.data$N_species=="N" & pam_all.data$sym_state=="S" & pam_all.data$food=="S" & pam_all.data$N_dose=="5" & pam_all.data$temp=="30")
+apo_starved_nitrate_5um_30C<-subset(pam_all.data, pam_all.data$N_species=="N" & pam_all.data$sym_state=="A" & pam_all.data$food=="S" & pam_all.data$N_dose=="5" & pam_all.data$temp=="30")
+
+#gg plotting 
+#install.packages("reshape2")
+
+
+
+#######################################################################
+#_____________________AMMONIUM_________________________________
+### _______________Sym fed ammonium 5um 30C_______________________ ###
+#first we need to melt the dataset
+sym_fed_ammonium_5um_30C_melt<- melt(sym_fed_ammonium_5um_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#now we can plot
+gg_sym_fed_ammonium_5um_30C<-
+  ggplot(sym_fed_ammonium_5um_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.04818***"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium 5um - Sym Fed 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_fed_ammonium_5um_30C
+#lets do a paired t test now
+t.test(sym_fed_ammonium_5um_30C$PAM_avg_day1,sym_fed_ammonium_5um_30C$PAM_avg_day11, paired=TRUE)
+
+### ______________Sym starved ammonium 5um 30C________________________ ###
+#first we need to melt the dataset
+sym_starved_ammonium_5um_30C_melt<- melt(sym_starved_ammonium_5um_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_starved_ammonium_5um_30C$PAM_avg_day1,sym_starved_ammonium_5um_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_starved_ammonium_5um_30C<-
+  ggplot(sym_starved_ammonium_5um_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.9968"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium 5um - Sym Starved 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_starved_ammonium_5um_30C
+
+### ______________Apo fed ammonium 5um 30C________________________ ###
+#first we need to melt the dataset
+apo_fed_ammonium_5um_30C_melt<- melt(apo_fed_ammonium_5um_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_fed_ammonium_5um_30C$PAM_avg_day1,apo_fed_ammonium_5um_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_fed_ammonium_5um_30C<-
+  ggplot(apo_fed_ammonium_5um_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.6253"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium 5um - Apo fed 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_fed_ammonium_5um_30C
+
+
+### ______________Apo starved ammonium 5um 30C________________________ ###
+#first we need to melt the dataset
+apo_starved_ammonium_5um_30C_melt<- melt(apo_starved_ammonium_5um_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_starved_ammonium_5um_30C$PAM_avg_day1,apo_starved_ammonium_5um_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_starved_ammonium_5um_30C<-
+  ggplot(apo_starved_ammonium_5um_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.5734"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Ammonium 5um - Apo Starved 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_starved_ammonium_5um_30C
+
+
+#######################################################################
+#_____________________NITRATE_________________________________
+### _______________Sym fed nitrate 5um 30C_______________________ ###
+#first we need to melt the dataset
+sym_fed_nitrate_5um_30C_melt<- melt(sym_fed_nitrate_5um_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#now we can plot
+gg_sym_fed_nitrate_5um_30C<-
+  ggplot(sym_fed_nitrate_5um_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.111"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate 5um - Sym Fed 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_fed_nitrate_5um_30C
+#lets do a paired t test now
+t.test(sym_fed_nitrate_5um_30C$PAM_avg_day1,sym_fed_nitrate_5um_30C$PAM_avg_day11, paired=TRUE)
+
+### ______________Sym starved nitrate 5um 30C________________________ ###
+#first we need to melt the dataset
+sym_starved_nitrate_5um_30C_melt<- melt(sym_starved_nitrate_5um_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_starved_nitrate_5um_30C$PAM_avg_day1,sym_starved_nitrate_5um_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_starved_nitrate_5um_30C<-
+  ggplot(sym_starved_nitrate_5um_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.01045***"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate 5um - Sym Starved 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_starved_nitrate_5um_30C
+
+### ______________Apo fed nitrate 5um 30C________________________ ###
+#first we need to melt the dataset
+apo_fed_nitrate_5um_30C_melt<- melt(apo_fed_nitrate_5um_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_fed_nitrate_5um_30C$PAM_avg_day1,apo_fed_nitrate_5um_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_fed_nitrate_5um_30C<-
+  ggplot(apo_fed_nitrate_5um_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.458"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate 5um - Apo fed 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_fed_nitrate_5um_30C
+
+
+### ______________Apo starved nitrate 5um 30C________________________ ###
+#first we need to melt the dataset
+apo_starved_nitrate_5um_30C_melt<- melt(apo_starved_nitrate_5um_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_starved_nitrate_5um_30C$PAM_avg_day1,apo_starved_nitrate_5um_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_starved_nitrate_5um_30C<-
+  ggplot(apo_starved_nitrate_5um_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.5637"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate 5um - Apo Starved 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_starved_nitrate_5um_30C
+
+
+
+
+
+```
+
+# Control vs. Initial Plots 30C - 1.5uM Nitrate
+```{r Control vs. Initial Plots 30C - 1.5uM Nitrate}
+
+#nitrate
+sym_fed_nitrate_1.5um_30C<-subset(pam_all.data, pam_all.data$N_species=="N" & pam_all.data$sym_state=="S" & pam_all.data$food=="F" & pam_all.data$N_dose=="1.5" & pam_all.data$temp=="30")
+apo_fed_nitrate_1.5um_30C<-subset(pam_all.data, pam_all.data$N_species=="N" & pam_all.data$sym_state=="A" & pam_all.data$food=="F" & pam_all.data$N_dose=="1.5" & pam_all.data$temp=="30")
+sym_starved_nitrate_1.5um_30C<-subset(pam_all.data, pam_all.data$N_species=="N" & pam_all.data$sym_state=="S" & pam_all.data$food=="S" & pam_all.data$N_dose=="1.5" & pam_all.data$temp=="30")
+apo_starved_nitrate_1.5um_30C<-subset(pam_all.data, pam_all.data$N_species=="N" & pam_all.data$sym_state=="A" & pam_all.data$food=="S" & pam_all.data$N_dose=="1.5" & pam_all.data$temp=="30")
+
+#we already have our control datasets
+
+
+
+#######################################################################
+
+#_____________________NITRATE_________________________________
+
+### _______________Sym fed nitrate 1.5um 30C_______________________ ###
+#first we need to melt the dataset
+sym_fed_nitrate_1.5um_30C_melt<- melt(sym_fed_nitrate_1.5um_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_fed_nitrate_1.5um_30C$PAM_avg_day1,sym_fed_nitrate_1.5um_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_fed_nitrate_1.5um_30C<-
+  ggplot(sym_fed_nitrate_1.5um_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.5, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p= 0.513"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate 1.5um - Sym Fed 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_fed_nitrate_1.5um_30C
+
+
+### ______________Sym starved nitrate 1.5um 30C________________________ ###
+#first we need to melt the dataset
+sym_starved_nitrate_1.5um_30C_melt<- melt(sym_starved_nitrate_1.5um_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_starved_nitrate_1.5um_30C$PAM_avg_day1,sym_starved_nitrate_1.5um_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_starved_nitrate_1.5um_30C<-
+  ggplot(sym_starved_nitrate_1.5um_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.5, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.03169***"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate 1.5um - Sym Starved 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_starved_nitrate_1.5um_30C
+
+### ______________Apo fed nitrate 1.5um 30C________________________ ###
+#first we need to melt the dataset
+apo_fed_nitrate_1.5um_30C_melt<- melt(apo_fed_nitrate_1.5um_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_fed_nitrate_1.5um_30C$PAM_avg_day1,apo_fed_nitrate_1.5um_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_fed_nitrate_1.5um_30C<-
+  ggplot(apo_fed_nitrate_1.5um_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test,p=0.02756*** "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate 1.5um - Apo fed 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_fed_nitrate_1.5um_30C
+
+
+### ______________Apo starved nitrate 1.5um 30C________________________ ###
+#first we need to melt the dataset
+apo_starved_nitrate_1.5um_30C_melt<- melt(apo_starved_nitrate_1.5um_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_starved_nitrate_1.5um_30C$PAM_avg_day1,apo_starved_nitrate_1.5um_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_starved_nitrate_1.5um_30C<-
+  ggplot(apo_starved_nitrate_1.5um_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.0004534***"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate 1.5um - Apo Starved 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_starved_nitrate_1.5um_30C
+```
+# Control vs. Initial Plots 20C - 1.5uM Nitrate
+```{r Control vs. Initial Plots 20C - 1.5uM}
+
+#nitrate
+sym_fed_nitrate_1.5um_20C<-subset(pam_all.data, pam_all.data$N_species=="N" & pam_all.data$sym_state=="S" & pam_all.data$food=="F" & pam_all.data$N_dose=="1.5" & pam_all.data$temp=="20")
+apo_fed_nitrate_1.5um_20C<-subset(pam_all.data, pam_all.data$N_species=="N" & pam_all.data$sym_state=="A" & pam_all.data$food=="F" & pam_all.data$N_dose=="1.5" & pam_all.data$temp=="20")
+sym_starved_nitrate_1.5um_20C<-subset(pam_all.data, pam_all.data$N_species=="N" & pam_all.data$sym_state=="S" & pam_all.data$food=="S" & pam_all.data$N_dose=="1.5" & pam_all.data$temp=="20")
+apo_starved_nitrate_1.5um_20C<-subset(pam_all.data, pam_all.data$N_species=="N" & pam_all.data$sym_state=="A" & pam_all.data$food=="S" & pam_all.data$N_dose=="1.5" & pam_all.data$temp=="20")
+
+#we already have our control datasets
+
+
+
+#######################################################################
+
+#_____________________NITRATE_________________________________
+
+### _______________Sym fed nitrate 1.5um 20C_______________________ ###
+#first we need to melt the dataset
+sym_fed_nitrate_1.5um_20C_melt<- melt(sym_fed_nitrate_1.5um_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_fed_nitrate_1.5um_20C$PAM_avg_day1,sym_fed_nitrate_1.5um_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_fed_nitrate_1.5um_20C<-
+  ggplot(sym_fed_nitrate_1.5um_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.5, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p= 0.1284"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate 1.5um - Sym Fed 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_fed_nitrate_1.5um_20C
+
+
+### ______________Sym starved nitrate 1.5um 20C________________________ ###
+#first we need to melt the dataset
+sym_starved_nitrate_1.5um_20C_melt<- melt(sym_starved_nitrate_1.5um_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_starved_nitrate_1.5um_20C$PAM_avg_day1,sym_starved_nitrate_1.5um_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_starved_nitrate_1.5um_20C<-
+  ggplot(sym_starved_nitrate_1.5um_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.5, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.06049*"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate 1.5um - Sym Starved 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_starved_nitrate_1.5um_20C
+
+### ______________Apo fed nitrate 1.5um 20C________________________ ###
+#first we need to melt the dataset
+apo_fed_nitrate_1.5um_20C_melt<- melt(apo_fed_nitrate_1.5um_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_fed_nitrate_1.5um_20C$PAM_avg_day1,apo_fed_nitrate_1.5um_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_fed_nitrate_1.5um_20C<-
+  ggplot(apo_fed_nitrate_1.5um_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test,p=0.6125 "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate 1.5um - Apo fed 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_fed_nitrate_1.5um_20C
+
+
+### ______________Apo starved nitrate 1.5um 20C________________________ ###
+#first we need to melt the dataset
+apo_starved_nitrate_1.5um_20C_melt<- melt(apo_starved_nitrate_1.5um_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_starved_nitrate_1.5um_20C$PAM_avg_day1,apo_starved_nitrate_1.5um_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_starved_nitrate_1.5um_20C<-
+  ggplot(apo_starved_nitrate_1.5um_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.05437***"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Nitrate 1.5um - Apo Starved 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_starved_nitrate_1.5um_20C
+```
+
+
+# Control vs. Initial Plots 30C - 7.5uM ammonium
+```{r Control vs. Initial Plots 30C - 7.5uM ammonium}
+
+#ammonium
+sym_fed_ammonium_7.5um_30C<-subset(pam_all.data, pam_all.data$N_species=="A" & pam_all.data$sym_state=="S" & pam_all.data$food=="F" & pam_all.data$N_dose=="7.5" & pam_all.data$temp=="30")
+apo_fed_ammonium_7.5um_30C<-subset(pam_all.data, pam_all.data$N_species=="A" & pam_all.data$sym_state=="A" & pam_all.data$food=="F" & pam_all.data$N_dose=="7.5" & pam_all.data$temp=="30")
+sym_starved_ammonium_7.5um_30C<-subset(pam_all.data, pam_all.data$N_species=="A" & pam_all.data$sym_state=="S" & pam_all.data$food=="S" & pam_all.data$N_dose=="7.5" & pam_all.data$temp=="30")
+apo_starved_ammonium_7.5um_30C<-subset(pam_all.data, pam_all.data$N_species=="A" & pam_all.data$sym_state=="A" & pam_all.data$food=="S" & pam_all.data$N_dose=="7.5" & pam_all.data$temp=="30")
+
+#we already have our control datasets
+
+
+
+#######################################################################
+
+#_____________________ammonium_________________________________
+
+### _______________Sym fed ammonium 7.5um 30C_______________________ ###
+#first we need to melt the dataset
+sym_fed_ammonium_7.5um_30C_melt<- melt(sym_fed_ammonium_7.5um_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_fed_ammonium_7.5um_30C$PAM_avg_day1,sym_fed_ammonium_7.5um_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_fed_ammonium_7.5um_30C<-
+  ggplot(sym_fed_ammonium_7.5um_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.5, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p= 0.06272*"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("ammonium 7.5um - Sym Fed 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_fed_ammonium_7.5um_30C
+
+
+### ______________Sym starved ammonium 7.5um 30C________________________ ###
+#first we need to melt the dataset
+sym_starved_ammonium_7.5um_30C_melt<- melt(sym_starved_ammonium_7.5um_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_starved_ammonium_7.5um_30C$PAM_avg_day1,sym_starved_ammonium_7.5um_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_starved_ammonium_7.5um_30C<-
+  ggplot(sym_starved_ammonium_7.5um_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.5, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.1826"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("ammonium 7.5um - Sym Starved 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_starved_ammonium_7.5um_30C
+
+### ______________Apo fed ammonium 7.5um 30C________________________ ###
+#first we need to melt the dataset
+apo_fed_ammonium_7.5um_30C_melt<- melt(apo_fed_ammonium_7.5um_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_fed_ammonium_7.5um_30C$PAM_avg_day1,apo_fed_ammonium_7.5um_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_fed_ammonium_7.5um_30C<-
+  ggplot(apo_fed_ammonium_7.5um_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test,p=0.5548 "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("ammonium 7.5um - Apo fed 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_fed_ammonium_7.5um_30C
+
+
+### ______________Apo starved ammonium 7.5um 30C________________________ ###
+#first we need to melt the dataset
+apo_starved_ammonium_7.5um_30C_melt<- melt(apo_starved_ammonium_7.5um_30C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_starved_ammonium_7.5um_30C$PAM_avg_day1,apo_starved_ammonium_7.5um_30C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_starved_ammonium_7.5um_30C<-
+  ggplot(apo_starved_ammonium_7.5um_30C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.1254"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("ammonium 7.5um - Apo Starved 30C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_starved_ammonium_7.5um_30C
+```
+
+# Control vs. Initial Plots 20C - 7.5uM
+```{r Control vs. Initial Plots 20C - 7.5uM Ammonium}
+
+#ammonium
+sym_fed_ammonium_7.5um_20C<-subset(pam_all.data, pam_all.data$N_species=="A" & pam_all.data$sym_state=="S" & pam_all.data$food=="F" & pam_all.data$N_dose=="7.5" & pam_all.data$temp=="20")
+apo_fed_ammonium_7.5um_20C<-subset(pam_all.data, pam_all.data$N_species=="A" & pam_all.data$sym_state=="A" & pam_all.data$food=="F" & pam_all.data$N_dose=="7.5" & pam_all.data$temp=="20")
+sym_starved_ammonium_7.5um_20C<-subset(pam_all.data, pam_all.data$N_species=="A" & pam_all.data$sym_state=="S" & pam_all.data$food=="S" & pam_all.data$N_dose=="7.5" & pam_all.data$temp=="20")
+apo_starved_ammonium_7.5um_20C<-subset(pam_all.data, pam_all.data$N_species=="A" & pam_all.data$sym_state=="A" & pam_all.data$food=="S" & pam_all.data$N_dose=="7.5" & pam_all.data$temp=="20")
+
+#we already have our control datasets
+
+
+
+#######################################################################
+
+#_____________________ammonium_________________________________
+
+### _______________Sym fed ammonium 7.5um 20C_______________________ ###
+#first we need to melt the dataset
+sym_fed_ammonium_7.5um_20C_melt<- melt(sym_fed_ammonium_7.5um_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_fed_ammonium_7.5um_20C$PAM_avg_day1,sym_fed_ammonium_7.5um_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_fed_ammonium_7.5um_20C<-
+  ggplot(sym_fed_ammonium_7.5um_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.5, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=  0.2634"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("ammonium 7.5um - Sym Fed 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_fed_ammonium_7.5um_20C
+
+
+### ______________Sym starved ammonium 7.5um 20C________________________ ###
+#first we need to melt the dataset
+sym_starved_ammonium_7.5um_20C_melt<- melt(sym_starved_ammonium_7.5um_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(sym_starved_ammonium_7.5um_20C$PAM_avg_day1,sym_starved_ammonium_7.5um_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_sym_starved_ammonium_7.5um_20C<-
+  ggplot(sym_starved_ammonium_7.5um_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.5, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+  theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.003379***"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("ammonium 7.5um - Sym Starved 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_sym_starved_ammonium_7.5um_20C
+
+### ______________Apo fed ammonium 7.5um 20C________________________ ###
+#first we need to melt the dataset
+apo_fed_ammonium_7.5um_20C_melt<- melt(apo_fed_ammonium_7.5um_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_fed_ammonium_7.5um_20C$PAM_avg_day1,apo_fed_ammonium_7.5um_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_fed_ammonium_7.5um_20C<-
+  ggplot(apo_fed_ammonium_7.5um_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test,p=0.6846"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("ammonium 7.5um - Apo fed 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_fed_ammonium_7.5um_20C
+
+
+### ______________Apo starved ammonium 7.5um 20C________________________ ###
+#first we need to melt the dataset
+apo_starved_ammonium_7.5um_20C_melt<- melt(apo_starved_ammonium_7.5um_20C, id.vars="exp_1_beetag", measure.vars=c("PAM_avg_day1","PAM_avg_day11"))
+#lets do a paired t test now
+t.test(apo_starved_ammonium_7.5um_20C$PAM_avg_day1,apo_starved_ammonium_7.5um_20C$PAM_avg_day11, paired=TRUE)
+#now we can plot
+gg_apo_starved_ammonium_7.5um_20C<-
+  ggplot(apo_starved_ammonium_7.5um_20C_melt, aes(x=variable, y=value, color=variable)) +
+  geom_boxplot() +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_line(aes(group=exp_1_beetag), col="darkgray")+
+  ylab("Fv/Fm value")+
+  xlab("Day of experiment")+
+ theme(legend.position="none", plot.margin = unit(c(1,3, 0.5, 7),"cm"), plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+  scale_x_discrete(labels=c("Day 1","Day 11")) +
+ annotate("text", x = Inf, y = Inf, label = paste("paired t-test, p=0.5141"), vjust = 1, hjust = 1, size=3)+
+  ggtitle("ammonium 7.5um - Apo Starved 20C: Day 1 vs. Day 11 Fv/Fm")
+gg_apo_starved_ammonium_7.5um_20C
+```
+
+```{r Comparing delta PAM for datasets that where control sigificantly changed}
+#Sym fed
+t.test(sym_fed_control_20C$PAM_delta, sym_fed_ammonium_5um_20C$PAM_delta, paired=FALSE) 
+#p = 0.9777, the difference in PAM from day 1 to 11 is NOT significantly different for control vs. A 5uM 
+#Sym Starved
+t.test(sym_starved_control_20C$PAM_delta, sym_starved_nitrate_1.5um_20C$PAM_delta)
+#p = 0.8655, the difference in PAM from day 1 to 11 is NOT significantly different for control vs. N 1.5uM
+t.test(sym_starved_control_20C$PAM_delta, sym_starved_nitrate_5um_20C$PAM_delta)
+#p = 0.7976, the difference in PAM from day 1 to 11 is NOT significantly different for control vs. N 5uM
+t.test(sym_starved_control_20C$PAM_delta, sym_starved_ammonium_high_20C$PAM_delta)
+#p = 0.5778, the difference in PAM from day 1 to 11 is NOT significantly different for control vs. A 10uM
+t.test(sym_starved_control_20C$PAM_delta, sym_starved_ammonium_5um_20C$PAM_delta)
+#p = 0.5423, the difference in PAM from day 1 to 11 is NOT significantly different for control vs. A 5uM
+t.test(sym_starved_control_20C$PAM_delta, sym_starved_ammonium_7.5um_20C$PAM_delta)
+#p = 0.2288, the difference in PAM from day 1 to 11 is NOT significantly different for control vs. A 7.5uM
+
+#playing around with some other t tests
+t.test(sym_starved_ammonium_high_20C$PAM_delta, sym_starved_ammonium_7.5um_20C$PAM_delta)
+```
+
+
+
+
+
+
+# Barplots mean
+```{r PAM Plots}
+#packages needed to add jitters
+library("hrbrthemes")
+#install.packages("viridis")
+library("viridis")
+#install.packages("Rmisc")
+library("Rmisc")
+#subsetting what I want
+A_10_and_all_control_30<-subset(pam_all.data, pam_all.data$treat_ID_without_sym==c("0_30_S","0_30_F","A_10_30_F", "A_10_30_S"))
+write.csv(A_10_and_control_30,"C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox/N_18_and_control_30.csv")
+N_18_and_all_control_30<-subset(pam_all.data, pam_all.data$treat_ID_without_sym==c("0_30_S","0_30_F","N_18_30_F", "N_18_30_S"))
+write.csv(N_18_and_control_30,"C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox/A_10_and_control_30.csv")
+
+#What do you want to do?
+  #I want to take the average day 1 PAM from each treat_ID
+library(Rmisc)
+library(tidyverse)
+pam_treatmeans_ammonium <- summarySE(A_10_and_all_control_30, measurevar=c("PAM_delta"),groupvars =c("treat_ID_without_sym"), na.rm=TRUE)
+
+pam_treatmeans_nitrate <- summarySE(N_18_and_all_control_30, measurevar=c("PAM_delta"),groupvars =c("treat_ID_without_sym"), na.rm=TRUE)
+
+
+# EXPLORING THE ROLE OF FEEDING AND SYM STATE
+pam_food_sym_state<- summarySE(pam_all.data, measurevar=c("PAM_delta"),groupvars =c("food_sym_state"), na.rm=TRUE)
+pam_plot_food_sym_state <- ggplot(pam_food_sym_state, aes(x = food_sym_state, y= c(PAM_delta), color = food_sym_state))+
+  theme_bw()+
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  geom_smooth(aes(group=food_sym_state), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+ # geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_line(aes(group = food_sym_state), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
+  geom_errorbar(aes(x = food_sym_state, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  scale_color_manual(name = "Food and Symbiotic Status",
+                     labels = c("Fed Aposymbiotic","Fed Symbiotic","Starved Aposymbiotic", "Starved Symbiotic"),
+                    values = c("orchid1","darkorchid1","royalblue","skyblue"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+  #scale_x_continuous(name = "Time Point", breaks = c(46,55,62,66,71,75,80)) +
+  #ylim(0.4,0.7) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+pam_plot_food_sym_state
+summary(pam_all.data$food_sym_state)
+
+# EXPLORING THE ROLE OF FEEDING AND SYM STATE - all
+sym_fed_ammonium_high_20C_SE<- summarySE(pam_all.data, measurevar=c("PAM_delta"),groupvars=c("treat_ID_collapsed_controls","food_sym_state","N_species","N_dose"), na.rm=TRUE)
+plot_sym_fed_ammonium_high_20C_SE <- ggplot(sym_fed_ammonium_high_20C_SE, aes(x = treat_ID_collapsed_controls, y= c(PAM_delta), color = food_sym_state))+
+  theme_bw()+
+  geom_point(size = 3, position = position_dodge(width=0.8))+
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+  #geom_smooth(aes(group=food_sym_state), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+ # geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_errorbar(aes(x = treat_ID_collapsed_controls, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  #scale_color_manual(name = "Food and Symbiotic Status",
+                     #labels = c("Fed Aposymbiotic","Fed Symbiotic","Starved Aposymbiotic", "Starved Symbiotic"),
+                   # values = c("orchid1","darkorchid1","royalblue","skyblue"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+ scale_x_discrete(expand=c(0.0001, 0.0001))+
+  #ylim(0.4,0.7) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+plot_sym_fed_ammonium_high_20C_SE
+summary(pam_all.data$food_sym_state)
+
+
+
+# EXPLORING THE ROLE OF FEEDING AND SYM STATE - 5uM and control 20C
+all_cntrl_and_5um_20C<-subset(pam_all.data, pam_all.data$N_dose==c(0,5) & pam_all.data$temp=="20")
+all_cntrl_and_5um_20C_SE<- summarySE(all_cntrl_and_5um_20C, measurevar=c("PAM_delta"),groupvars=c("treat_ID_collapsed_controls","food_sym_state","N_species","N_dose"), na.rm=TRUE)
+plot_all_cntrl_and_5um_20C_SE <- ggplot(all_cntrl_and_5um_20C_SE, aes(x = treat_ID_collapsed_controls, y= c(PAM_delta), color = food_sym_state))+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  #geom_smooth(aes(group=food_sym_state), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+ # geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_errorbar(aes(x = treat_ID_collapsed_controls, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+ # scale_color_manual(name = "Food and Symbiotic Status")+
+                     #labels = c("Fed Aposymbiotic","Fed Symbiotic","Starved Aposymbiotic", "Starved Symbiotic"),
+                   # values = c("orchid1","darkorchid1","royalblue","skyblue"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("Change in PAM at 5uM 20C")+
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+plot_all_cntrl_and_5um_20C_SE
+
+# EXPLORING THE ROLE OF FEEDING AND SYM STATE - 5uM and control 30C
+all_cntrl_and_5um_30C<-subset(pam_all.data, pam_all.data$N_dose==c(0,5) & pam_all.data$temp=="30")
+all_cntrl_and_5um_30C_SE<- summarySE(all_cntrl_and_5um_30C, measurevar=c("PAM_delta"),groupvars=c("treat_ID_collapsed_controls","food_sym_state","N_species","N_dose"), na.rm=TRUE)
+plot_all_cntrl_and_5um_30C_SE <- ggplot(all_cntrl_and_5um_30C_SE, aes(x = treat_ID_collapsed_controls, y= c(PAM_delta), color = food_sym_state))+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  #geom_smooth(aes(group=food_sym_state), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+ # geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_errorbar(aes(x = treat_ID_collapsed_controls, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+ # scale_color_manual(name = "Food and Symbiotic Status")+
+                     #labels = c("Fed Aposymbiotic","Fed Symbiotic","Starved Aposymbiotic", "Starved Symbiotic"),
+                   # values = c("orchid1","darkorchid1","royalblue","skyblue"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("Change in PAM at 5uM 30C")+
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+plot_all_cntrl_and_5um_30C_SE
+
+
+# EXPLORING THE ROLE OF FEEDING AND SYM STATE - HIGH LEVEL and control 20C
+all_cntrl_and_high_20C<-subset(pam_all.data, pam_all.data$N_dose==c(0,10,18) & pam_all.data$temp=="20")
+all_cntrl_and_high_20C_SE<- summarySE(all_cntrl_and_high_20C, measurevar=c("PAM_delta"),groupvars=c("treat_ID_collapsed_controls","food_sym_state","N_species","N_dose"), na.rm=TRUE)
+plot_all_cntrl_and_high_20C_SE <- ggplot(all_cntrl_and_high_20C_SE, aes(x = treat_ID_collapsed_controls, y= c(PAM_delta), color = food_sym_state))+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  #geom_smooth(aes(group=food_sym_state), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+ # geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_errorbar(aes(x = treat_ID_collapsed_controls, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+ # scale_color_manual(name = "Food and Symbiotic Status")+
+                     #labels = c("Fed Aposymbiotic","Fed Symbiotic","Starved Aposymbiotic", "Starved Symbiotic"),
+                   # values = c("orchid1","darkorchid1","royalblue","skyblue"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("Change in PAM at high 20C")+
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+plot_all_cntrl_and_high_20C_SE
+
+# EXPLORING THE ROLE OF FEEDING AND SYM STATE - HIGH LEVEL and control 30C
+all_cntrl_and_high_30C<-subset(pam_all.data, pam_all.data$N_dose==c(0,10,18) & pam_all.data$temp=="30")
+all_cntrl_and_high_30C_SE<- summarySE(all_cntrl_and_high_30C, measurevar=c("PAM_delta"),groupvars=c("treat_ID_collapsed_controls","food_sym_state","N_species","N_dose"), na.rm=TRUE)
+plot_all_cntrl_and_high_30C_SE <- ggplot(all_cntrl_and_high_30C_SE, aes(x = treat_ID_collapsed_controls, y= c(PAM_delta), color = food_sym_state))+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  #geom_smooth(aes(group=food_sym_state), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+ # geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_errorbar(aes(x = treat_ID_collapsed_controls, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+ # scale_color_manual(name = "Food and Symbiotic Status")+
+                     #labels = c("Fed Aposymbiotic","Fed Symbiotic","Starved Aposymbiotic", "Starved Symbiotic"),
+                   # values = c("orchid1","darkorchid1","royalblue","skyblue"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("Change in PAM at high 30C")+
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+plot_all_cntrl_and_high_30C_SE
+
+
+#AMMONIUM ONLY
+# plot, treatment x axis colored by site data figure
+pam_plot_treatment_amm <- ggplot(pam_treatmeans_ammonium, aes(x = treat_ID_without_sym, y= c(PAM_delta), color = treat_ID_without_sym))+
+  theme_bw()+
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  geom_smooth(aes(group=treat_ID_without_sym), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+  geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_line(aes(group = treat_ID_without_sym), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
+  geom_errorbar(aes(x = treat_ID_without_sym, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  scale_color_manual(name = "Treatment",
+                     labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                     values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+  #scale_x_continuous(name = "Time Point", breaks = c(46,55,62,66,71,75,80)) +
+  #ylim(0.4,0.7) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+pam_plot_treatment_amm  
+
+#NITATE ONLY
+# plot, treatment x axis colored by site data figure
+pam_plot_treatment <- ggplot(pam_treatmeans_nitrate, aes(x = treat_ID_without_sym, y= c(PAM_delta), color = treat_ID_without_sym))+
+  theme_bw()+
+  geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  geom_smooth(aes(group=treat_ID_without_sym), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+  geom_line(aes(group = treat_ID_without_sym), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
+  geom_errorbar(aes(x = treat_ID_without_sym, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  scale_color_manual(name = "Treatment",
+                     labels = c("Control 30C Fed","Control 30C Starved","Nitrate High 30C Fed", "Nitrate High 30C Starved"),
+                     values = c("orchid1","darkorchid1","orange","maroon","black","gray"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+  #scale_x_continuous(name = "Time Point", breaks = c(46,55,62,66,71,75,80)) +
+  #ylim(0.4,0.7) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+pam_plot_treatment  
+
+
+```
+
+
+
+
+```{r Dispersion of PAM data}
+
+#ALL
+pam_plot_treatment_all <- ggplot(pam_all.data, aes(x = treat_ID_without_sym, y= c(PAM_delta), color = treat_ID_without_sym))+
+  theme_bw()+
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  geom_smooth(aes(group=treat_ID_without_sym), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+  geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_line(aes(group = treat_ID_without_sym), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
+  #geom_errorbar(aes(x = treat_ID_without_sym, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  #scale_color_manual(name = "Treatment",
+                     #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                     #values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("All colonies - delta PAM")+
+  #scale_x_continuous(name = "Time Point", breaks = c(46,55,62,66,71,75,80)) +
+  #ylim(0.4,0.7) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+pam_plot_treatment_all
+
+#SYM ONLY
+sym_all<-subset(pam_all.data, pam_all.data$sym_state.1=="S")
+pam_plot_treatment_SYM_all <- ggplot(sym_all, aes(x = treat_ID_without_sym, y= c(PAM_delta), color = treat_ID_without_sym))+
+  theme_bw()+
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  geom_smooth(aes(group=treat_ID_without_sym), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+  geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_line(aes(group = treat_ID_without_sym), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
+  #geom_errorbar(aes(x = treat_ID_without_sym, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  #scale_color_manual(name = "Treatment",
+                     #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                     #values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("All symbiotic colonies - delta PAM")+
+  #scale_x_continuous(name = "Time Point", breaks = c(46,55,62,66,71,75,80)) +
+  #ylim(0.4,0.7) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+pam_plot_treatment_SYM_all
+
+#APO ONLY
+apo_all<-subset(pam_all.data, pam_all.data$sym_state.1=="A")
+pam_plot_treatment_APO_all <- ggplot(apo_all, aes(x = treat_ID_without_sym, y= c(PAM_delta), color = treat_ID_without_sym))+
+  theme_bw()+
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  geom_smooth(aes(group=treat_ID_without_sym), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+  geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_line(aes(group = treat_ID_without_sym), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
+  #geom_errorbar(aes(x = treat_ID_without_sym, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  #scale_color_manual(name = "Treatment",
+                     #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                     #values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("All aposymbiotic colonies - delta PAM")+
+  #scale_x_continuous(name = "Time Point", breaks = c(46,55,62,66,71,75,80)) +
+  #ylim(0.4,0.7) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+pam_plot_treatment_APO_all
+
+```
+
+```{r Apo vs. sym}
+#overall apo vs. sym
+t.test(all_apo$PAM_avg_day11, all_sym$PAM_avg_day11)
+
+
+pam_treatmeans_apovsym <- summarySE(pam_all.data, measurevar=c("PAM_delta"),groupvars =c("sym_state.1"), na.rm=TRUE)
+
+
+#AMMONIUM ONLY
+# plot, treatment x axis colored by site data figure
+pam_plot_apovsym <- ggplot(pam_treatmeans_apovsym, aes(x = sym_state.1, y= c(PAM_delta), color = sym_state.1))+
+  theme_bw()+
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  geom_smooth(aes(group=sym_state.1), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+ # geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_line(aes(group = sym_state.1), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
+  geom_errorbar(aes(x = sym_state.1, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  #scale_color_manual(name = "Treatment",
+                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("Sym vs. Apo")+
+  #scale_x_continuous(name = "Time Point", breaks = c(46,55,62,66,71,75,80)) +
+  #ylim(0.4,0.7) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+pam_plot_apovsym
+
+
+```
+
+```{r overall fed vs. starved}
+#overall fed vs. starved
+t.test(all_fed$PAM_avg_day11, all_starved$PAM_avg_day11)
+library("Rmisc")
+
+pam_treatmeans_fedvstarved <- summarySE(pam_all.data, measurevar=c("PAM_avg_day11"),groupvars =c("food"), na.rm=TRUE)
+
+# plot, treatment x axis colored by site data figure
+pam_plot_fedvstarved <- ggplot(pam_treatmeans_fedvstarved, aes(x = food, y= c(PAM_avg_day11), color = food))+
+  theme_bw()+
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  geom_smooth(aes(group=food), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+ # geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_line(aes(group = food), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
+  geom_errorbar(aes(x = food, ymax = PAM_avg_day11+se, ymin = PAM_avg_day11-se), width = .2, position = position_dodge(width=0.3)) +
+  #scale_color_manual(name = "Treatment",
+                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("PAM_avg_day11 Fv/Fm")+
+  ggtitle("Fed vs. starved")+
+  #scale_x_continuous(name = "Time Point", breaks = c(46,55,62,66,71,75,80)) +
+  #ylim(0.4,0.7) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+pam_plot_fedvstarved
+```
+
+```{r nitrate vs. ammonium overall}
+
+pam_treatmeans_nitratevammonium <- summarySE(pam_all.data_simplified_controls, measurevar=c("PAM_delta"),groupvars =c("N_species"), na.rm=TRUE)
+
+t.test(pam_all.data_simplified_controls$N_species=="N", pam_all.data_simplified_controls$N_species=="A")
+# plot, treatment x axis colored by site data figure
+pam_plot_nitratevammonium <- ggplot(pam_treatmeans_nitratevammonium, aes(x = N_species, y= c(PAM_delta), color = N_species))+
+  theme_bw()+
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  geom_smooth(aes(group=N_species), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+ # geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_line(aes(group = N_species), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
+  geom_errorbar(aes(x = N_species, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  #scale_color_manual(name = "Treatment",
+                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("Nitrate v. Ammonium")+
+  #scale_x_continuous(name = "Time Point", breaks = c(46,55,62,66,71,75,80)) +
+  #ylim(0.4,0.7) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+pam_plot_nitratevammonium
+```
+
+```{r hot vs. ambient overall}
+pam_treatmeans_20vs30 <- summarySE(pam_all.data_simplified_controls, measurevar=c("PAM_delta"),groupvars =c("temp.1"), na.rm=TRUE)
+
+t.test(pam_all.data_simplified_controls$temp.1=="20", pam_all.data_simplified_controls$temp.1=="30")
+# plot, treatment x axis colored by site data figure
+pam_plot_20vs30 <- ggplot(pam_treatmeans_20vs30, aes(x = temp.1, y= c(PAM_delta), color = temp.1))+
+  theme_bw()+
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  geom_smooth(aes(group=temp.1), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+ # geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_line(aes(group = temp.1), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
+  geom_errorbar(aes(x = temp.1, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  #scale_color_manual(name = "Treatment",
+                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("20C vs. 30C")+
+  #scale_x_continuous(name = "Time Point", breaks = c(46,55,62,66,71,75,80)) +
+  #ylim(0.4,0.7) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+pam_plot_20vs30
+```
+
+```{r All ammonium}
+pam_treatmeans_ammonium <- summarySE(all_ammonium, measurevar=c("PAM_delta"),groupvars =c("treat_ID_without_sym"), na.rm=TRUE)
+
+t.test(all_ammonium$N_dose==0, all_ammonium$N_dose==5)
+# plot, treatment x axis colored by site data figure
+pam_plot_ammonium <- ggplot(pam_treatmeans_ammonium, aes(x = treat_ID_without_sym, y= c(PAM_delta), color = treat_ID_without_sym))+
+  theme_bw()+
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  geom_smooth(aes(group=treat_ID_without_sym), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+ # geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_line(aes(group = treat_ID_without_sym), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
+  geom_errorbar(aes(x = treat_ID_without_sym, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  #scale_color_manual(name = "Treatment",
+                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("All Ammonium Treatments")+
+  #scale_x_continuous(name = "Time Point", breaks = c(46,55,62,66,71,75,80)) +
+  #ylim(0.4,0.7) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+pam_plot_ammonium
+
+ammonium_jitter <- ggplot(all_ammonium, aes(x = treat_ID_without_sym, y= c(PAM_delta), color = treat_ID_without_sym))+
+  theme_bw()+
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  geom_smooth(aes(group=treat_ID_without_sym), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+  geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_line(aes(group = treat_ID_without_sym), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
+  #geom_errorbar(aes(x = treat_ID_without_sym, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  #scale_color_manual(name = "Treatment",
+                     #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                     #values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("All colonies treated with Ammonium - JITTER")+
+  #scale_x_continuous(name = "Time Point", breaks = c(46,55,62,66,71,75,80)) +
+  #ylim(0.4,0.7) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+ammonium_jitter
+
+```
+
+```{r All nitrate treatments graphed}
+pam_treatmeans_nitrate <- summarySE(all_nitrate, measurevar=c("PAM_delta"),groupvars =c("treat_ID_without_sym"), na.rm=TRUE)
+
+t.test(all_ammonium$N_dose==0, all_ammonium$N_dose==5)
+# plot, treatment x axis colored by site data figure
+pam_plot_nitrate<- ggplot(pam_treatmeans_nitrate, aes(x = treat_ID_without_sym, y= c(PAM_delta), color = treat_ID_without_sym))+
+  theme_bw()+
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  geom_smooth(aes(group=treat_ID_without_sym), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+ # geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_line(aes(group = treat_ID_without_sym), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
+  geom_errorbar(aes(x = treat_ID_without_sym, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  #scale_color_manual(name = "Treatment",
+                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("All Nitrate Treatments")+
+  #scale_x_continuous(name = "Time Point", breaks = c(46,55,62,66,71,75,80)) +
+  #ylim(0.4,0.7) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+pam_plot_nitrate
+
+nitrate_jitter <- ggplot(all_nitrate, aes(x = treat_ID_without_sym, y= c(PAM_delta), color = treat_ID_without_sym))+
+  theme_bw()+
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  geom_smooth(aes(group=treat_ID_without_sym), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+  geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_line(aes(group = treat_ID_without_sym), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
+  #geom_errorbar(aes(x = treat_ID_without_sym, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  #scale_color_manual(name = "Treatment",
+                     #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                     #values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Change in Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("All colonies treated with Nitrate - JITTER")+
+  #scale_x_continuous(name = "Time Point", breaks = c(46,55,62,66,71,75,80)) +
+  #ylim(0.4,0.7) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+nitrate_jitter
+```
+
+# LINEAR MODELS
+
+```{r getting data ready for lmer}
+pam_all.data$N_species<-as.factor(pam_all.data$N_species)
+pam_all.data$N_dose<-as.factor(pam_all.data$N_dose)
+pam_all.data$N_species_dose<-as.factor(pam_all.data$N_species_dose)
+pam_all.data$temp<-as.factor(pam_all.data$temp)
+pam_all.data$food<-as.factor(pam_all.data$food)
+pam_all.data$sym_state<-as.factor(pam_all.data$sym_state)
+
+summary(pam_all.data$temp)
+```
+
+
+```{r linear models - testing for normality}
+#install new package to see what the best transformation is
+#install.packages("bestNormalize")
+library("bestNormalize")
+bestNormalize(pam_all.data$PAM_delta)
+#based on this the package is telling us to use orderNorm -- this means ordered quantile transformation
+#in order for this to work I need to change the PAM_delta in to a vector
+pam_all.data$PAM_delta_vector<-as.vector(pam_all.data$PAM_delta)
+#then I run the orderNorm command into a new object
+orderNormobj<-orderNorm(pam_all.data$PAM_delta_vector)
+#this object gives us what we want, but we have to index from that object and put it in a new column
+pam_all.data$ordernorm_PAM_delta<-orderNormobj$x.t
+
+# NOW WE ARE READY TO CHECK FOR NORMALITY AGAIN -- we will be using ordernorm_PAM_delta from here on out
+#step 2 check for normality
+#need to make it numeric
+pam_all.data$ordernorm_PAM_delta<-as.numeric(pam_all.data$ordernorm_PAM_delta)
+hist(pam_all.data$ordernorm_PAM_delta)
+#it looks really normal, but let's check with a shapiro wilk
+#shapiro wilk test for normality (we want it to NOT be statistically sigficiant -- significance means it is different than the normal distribution)
+shapiro.test(pam_all.data$ordernorm_PAM_delta)
+#P VALUE OF 1 IT IS LITERALLY NORMAL YAY
+# Now we look for heteroscedasticity -- remember we want the data to be normal and homoscedastic
+#bartlett test if the data is normal, levene if it is not normal (we can do Bartlett here)
+#install.packages("car") for levene
+bartlett.test(ordernorm_PAM_delta ~ N_dose, data=pam_all.data)
+#qq norm plot should look like a diagonal
+qqnorm(pam_all.data$ordernorm_PAM_delta, main = NULL)
+
+```
+
+
+```{r null linear models}
+#Null models
+#We are going with a null model that includes random factors jar unique ID, because this jar number is unique to each run (5 polyps per jar). We are also including the colony number it came from to normalize for the genet
+mm_null <- lmer(PAM_delta ~ 1 + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_null)
+#p values here are NOT significant, that is a good sign, we will proceed
+```
+
+
+```{r linear models -- all}
+#The way I am going to organize this is starting with all variables and all interactions between variables, then we will decrease them one by one
+#We take away a variable if they are not significant
+mm_1 <- lmer(PAM_delta ~ N_species + N_dose + temp + food + sym_state + N_species*N_dose + N_species*temp + N_species*food + N_species*sym_state + N_dose*temp + N_dose*food + N_dose*sym_state + temp*food + temp*sym_state + food*sym_state + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_1)
+
+#dropping food*sym_state
+mm_2 <- lmer(PAM_delta ~ N_species + N_dose + temp + food + sym_state + N_species*N_dose + N_species*temp + N_species*food + N_species*sym_state + N_dose*temp + N_dose*food + N_dose*sym_state + temp*food + temp*sym_state + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_2)
+
+#dropping temp*sym_state
+mm_3 <- lmer(PAM_delta ~ N_species + N_dose + temp + food + sym_state + N_species*N_dose + N_species*temp + N_species*food + N_species*sym_state + N_dose*temp + N_dose*food + N_dose*sym_state + temp*food + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_3)
+
+#dropping temp*food
+mm_4 <- lmer(PAM_delta ~ N_species + N_dose + temp + food + sym_state + N_species*N_dose + N_species*temp + N_species*food + N_species*sym_state + N_dose*temp + N_dose*food + N_dose*sym_state + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_4)
+
+#dropping N_dose*sym_state
+mm_5 <- lmer(PAM_delta ~ N_species + N_dose + temp + food + sym_state + N_species*N_dose + N_species*temp + N_species*food + N_species*sym_state + N_dose*temp + N_dose*food + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_5)
+
+#dropping N_dose*food
+mm_6 <- lmer(PAM_delta ~ N_species + N_dose + temp + food + sym_state + N_species*N_dose + N_species*temp + N_species*food + N_species*sym_state + N_dose*temp  + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_6)
+
+#dropping N_dose*temp
+mm_7 <- lmer(PAM_delta ~ N_species + N_dose + temp + food + sym_state + N_species*N_dose + N_species*temp + N_species*food + N_species*sym_state + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_7)
+#SIGNIFICANT FROM TEMP
+
+#dropping N_species*sym_state
+mm_8 <- lmer(PAM_delta ~ N_species + N_dose + temp + food + sym_state + N_species*N_dose + N_species*temp + N_species*food + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_8)
+#SIGNFICANT SYM STATE AND TEMP
+
+#dropping N_species*food
+mm_9 <- lmer(PAM_delta ~ N_species + N_dose + temp + food + sym_state + N_species*N_dose + N_species*temp + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_9)
+#SIGNFICANT SYM STATE AND TEMP
+
+#dropping N_species*temp
+mm_10 <- lmer(PAM_delta ~ N_species + N_dose + temp + food + sym_state + N_species*N_dose  + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_10)
+
+#dropping N_species*N_dose
+mm_10_B <- lmer(PAM_delta ~ N_species + N_dose + temp + food + sym_state  + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_10_B)
+#put the model into emmeans to do a post hoc
+emm_10_B=emmeans(mm_10_B, specs=pairwise ~ temp)
+summary(emm_10_B)
+levels(pam_all.data$food)
+
+#dropping sym_state
+mm_11 <- lmer(PAM_delta ~ N_species + N_dose + temp + food + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_11)
+
+#dropping food
+mm_12 <- lmer(PAM_delta ~ N_species + N_dose + temp + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_12)
+
+#dropping temp
+mm_13 <- lmer(PAM_delta ~ N_species + N_dose + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_13)
+
+#dropping N_dose
+mm_14 <- lmer(PAM_delta~ N_species + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_14)
+
+###################################### OTHER COMBINATIONS THAT SEEM INTERESTING ################################
+# We can tell that something is happening with food and sym state
+
+#N_species, N_dose, temp, and sym_state 
+mm_15 <- lmer(PAM_delta ~ N_species + N_dose + temp + sym_state  + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_15)
+
+#sym state, food, and temp
+mm_16 <- lmer(PAM_delta ~ food + temp + sym_state  + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_16)
+
+
+#some interactions
+mm_17 <- lmer(PAM_delta~ N_species + N_dose + temp + food + sym_state + temp*sym_state + N_species*temp + N_species*sym_state + N_dose*temp + food*temp + N_dose*sym_state + food*sym_state + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_17)
+
+mm_18 <- lmer(PAM_delta ~ N_species + N_dose + temp + food + sym_state + N_species*temp + N_species*sym_state + N_dose*temp + food*temp + N_dose*sym_state + food*sym_state + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_18)
+
+mm_19 <- lmer(PAM_delta ~ N_species + N_dose + temp + food + sym_state + N_species*temp + N_species*sym_state + N_dose*temp + food*temp + N_dose*sym_state + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_19)
+
+
+mm_20 <- lmer(PAM_delta ~ N_species + N_dose + temp + food + sym_state + N_species*temp + N_species*sym_state + food*temp + N_dose*sym_state + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_20)
+
+mm_21 <- lmer(PAM_delta ~ N_species + N_dose + temp + food + sym_state + N_species*temp + food*temp + N_dose*sym_state + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_21)
+
+
+mm_22 <- lmer(PAM_delta ~ N_species + N_dose + temp + food + sym_state + N_species*temp + N_dose*sym_state + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_22)
+
+mm_23 <- lmer(PAM_delta~ N_species + N_dose + temp + food + sym_state + N_species*temp + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_23)
+
+## AIC WINNER ## ## AIC WINNER ## ## AIC WINNER ## ## AIC WINNER ##
+mm_24 <- lmer(PAM_delta ~ temp + sym_state + food + sym_state*temp + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_24)
+#This is the AIC winner
+#put the model into emmeans to do a post hoc
+emm_24=emmeans(mm_24, specs=pairwise ~ sym_state)
+summary(emm_24)
+r2(mm_24) #marginal id variance just by fixed factors, conditional includes variance explained by random factor
+#so the colony nymber and jar number explain 4% of variation
+#treatment explains 27.4% of variation
+plot(mm_24)
+#Now lets check the model 
+check_collinearity(mm_24) #check for predictor variables are correlated
+#check_model(mm_sum_arms)
+check_outliers(mm_24)
+check_heteroscedasticity(mm_24)
+check_homogeneity(mm_24) #plot
+check_autocorrelation(mm_24) #plot
+
+
+mm_24_B <- lmer(PAM_delta ~ temp + sym_state + food + sym_state*temp + food*sym_state + food*temp+ (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_24_B)
+
+mm_24_C <- lmer(PAM_delta ~ temp + sym_state + food + sym_state*food + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_24_C)
+
+# Looking at subsets of apo/sym fed/starved to focus linear models 
+# When we tested these N species did not make the model stronger
+mm_24_D <- lmer(PAM_delta ~ temp +  N_dose  + (1|jar_unique_ID) + (1|col_num), data= all_sym_fed)
+summary(mm_24_D)
+emm_24_D=emmeans(mm_24_D, specs=pairwise ~ N_dose)
+summary(emm_24_D)
+
+mm_24_E <- lmer(PAM_delta ~ temp +  N_dose + (1|jar_unique_ID) + (1|col_num), data= all_sym_starved)
+summary(mm_24_E)
+emm_24_E=emmeans(mm_24_E, specs=pairwise ~ N_dose)
+summary(emm_24_E)
+
+mm_24_F <- lmer(PAM_delta ~ temp +  N_dose  + (1|jar_unique_ID) + (1|col_num), data= all_apo_fed)
+summary(mm_24_F)
+emm_24_F=emmeans(mm_24_F, specs=pairwise ~ N_dose)
+summary(emm_24_F)
+
+mm_24_G <- lmer(PAM_delta ~ temp +  N_dose  + (1|jar_unique_ID) + (1|col_num), data= all_apo_starved)
+summary(mm_24_G)
+emm_24_G=emmeans(mm_24_G, specs=pairwise ~ temp)
+summary(emm_24_G)
+
+#AIC(mm_24_G, mm_24_H)
+
+#taking sym state out
+mm_25 <- lmer(PAM_delta ~ N_species + N_dose + temp +food + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_25)
+
+mm_26 <- lmer(PAM_delta~ temp + sym_state + food + temp*sym_state+ food*sym_state+ (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_26)
+emm_26=emmeans(mm_26, specs=pairwise ~ food*sym_state)
+summary(emm_26)
+##OOO INTERESTING
+#nope not interesting, sym state is driving the whole model
+
+mm_27 <- lmer(PAM_delta~ sym_state + food + N_dose + food*sym_state+ (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_27)
+emm_27=emmeans(mm_27, specs=pairwise ~ food)
+summary(emm_27)
+
+mm_28<-lmer(PAM_delta~ treat_ID_collapsed_controls + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_28)
+emm_28=emmeans(mm_28, specs=pairwise ~ treat_ID_collapsed_controls)
+summary(emm_28)
+
+mm_29<-lmer(PAM_delta~ treat_ID_without_sym + (1|jar_unique_ID) + (1|col_num), data= pam_all.data)
+summary(mm_29)
+emm_29=emmeans(mm_29, specs=pairwise ~ treat_ID_without_sym)
+summary(emm_29)
+
+
+food_sym_state_aov<-aov(PAM_delta ~ food_sym_state, data=pam_all.data)
+summary(food_sym_state_aov)
+TukeyHSD(food_sym_state_aov)
+
+AIC(mm_24, mm_24_C)
+
+```
+
+```{r Model Selection -- AICing a bunch at once}
+#install.packages("AICcmodavg")
+library(AICcmodavg)
+
+models1 <- list(mm_17, mm_18, mm_19, mm_20, mm_21, mm_22, mm_23)
+#aictab(cand.set = models1, modnames = models1)
+AIC_table_pam<-AIC(mm_1, mm_2,mm_3,mm_4, mm_5, mm_6, mm_7, mm_8, mm_9, mm_10, mm_10_B, mm_11, mm_12, mm_13, mm_14, mm_15, mm_16, mm_17, mm_18, mm_19, mm_20, mm_21, mm_22, mm_23, mm_24, mm_25, mm_26, mm_27, mm_28)
+AIC_table_pam
+#24 is the closest right now
+AIC(mm_24, mm_24_B)
+
+```
+
+
+
+
+
