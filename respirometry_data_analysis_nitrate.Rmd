@@ -40,6 +40,9 @@ library(glmmTMB)
 library(relaimpo)
 #install.packages("outliers") #for checking out whether a data point is an outlier
 library(outliers)
+library(Rmisc)
+#install.packages("ggeffects")
+library(ggeffects)
 
 #turn off scientific notation
 options(scipen=999)
@@ -91,6 +94,34 @@ all_sym<-subset(resp_all_nitrate.data, resp_all_nitrate.data$sym_state=="S")
 e_coli<-subset(resp_all_nitrate.data, resp_all_nitrate.data$e_coli_plate=="1")
 no_e_coli<-subset(resp_all_nitrate.data, resp_all_nitrate.data$e_coli_plate=="0")
 ```
+```{r checking some things out}
+#Im on line 1652 of Sarah's code
+#https://github.com/speroffs/A.Poculata-Multiple-stressors-thesis-analysis-/blob/main/Respiration/Respiration.RMD
+N_species_dose_lm <- lm(resp_rate~N_species_dose, data=resp_all_nitrate.data)
+summary(N_species_dose_lm)
+# Summarize by N_species_dose
+N_species_dose.sum1 <- summarySE(resp_all_nitrate.data, measurevar = "resp_rate", groupvars = c("N_species_dose"))
+# Visualize
+ggplot(data = N_species_dose.sum1,
+       aes(x = N_species_dose,
+           y = resp_rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Nitrate Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\n", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
 
 ```{r All subsets and some preliminary t tests}
 control_all_20<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="0" & resp_all_nitrate.data$temp=="20")
@@ -172,6 +203,7 @@ print(step.model<- step(full.model))
 # here is the model that it recommends
 mm_resp_2 <- lmer(resp_rate ~ N_species_dose + temp + sym_state + e_coli_plate + (1 | col_num) + (1 | exp_num), data=resp_all_nitrate.data)
 summary(mm_resp_2)
+
 #it says to get rid of sym state, but it has a p value of 0.054 and we know it is biologically significant so we will keep it in
 mm_resp_2_changing_randoms <- lmer(resp_rate ~ temp + sym_state + e_coli_plate +  (1|exp_subrun) , data= resp_all_nitrate.data)
 summary(mm_resp_changing_randoms)
@@ -296,6 +328,25 @@ print(step.model<- step(full.model))
 mm_resp_e_coli_2 <- lmer(resp_rate ~ N_species_dose + temp + sym_state + (1 | col_num) + (1 | exp_num), data=e_coli)
 summary(mm_resp_e_coli_2)
 
+# Interaction plot
+int<-lmer(resp_rate~N_species_dose*temp*food*sym_state+(1|col_num), data=e_coli)
+summary(int)
+int_pred <- ggemmeans(int, terms=c("N_species_dose", "temp","sym_state","food")) # I cannot do more than 4 interactions 
+pred <- ggplot(int_pred, aes(facet,predicted, colour = group)) +
+  geom_point(aes(shape = x)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.3) +
+  labs(x = "Symbiotic State", y = "Rate O2 Consumption (umol*min-1*g-1)",
+       color = "temp") +
+  facet_grid(~panel) +
+  ggtitle("test") +
+  theme_classic() +
+  theme(axis.title.x = element_text(color="black", size=12),
+axis.title.y = element_text(color="black", size=12))+
+  theme(axis.text.x = element_text(size=12),
+          axis.text.y = element_text(size=12)) +
+  scale_color_manual(values=c("black", "goldenrod"))
+pred
+
 # Question: is there a dose of nitrate where we see a statistically significant effect on respiration?
 #Pairwise for N_species_dose
 mm_resp_e_coli_2_N_species_dose=emmeans(mm_resp_e_coli_2, specs=pairwise ~ N_species_dose)
@@ -310,6 +361,43 @@ summary(mm_resp_e_coli_2_N_species_dose)
 #  N_18 - N_5      -0.000412 0.000322 175  -1.282  0.5756
 
 #Interesting! There N_18 corals respired MORE than controls. Perhaps metabolic stress?
+# Summarize by N_species_dose so we can visualize
+e_coli_sum_N_species_dose <- summarySE(e_coli, measurevar = "resp_rate", groupvars = c("N_species_dose"))
+e_coli_sum_N_species_dose
+# Visualize
+ggplot(data = e_coli_sum_N_species_dose,
+       aes(x = N_species_dose,
+           y = resp_rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Nitrate E. Coli - N Species Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\n", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+
+#Plot model estimate for N_species_dose # I am not sure how interesting this is, but here is the code if we want it
+l=plot_model(mm_resp_e_coli_2, 'pred', ci.lvl = 0.95, terms="N_species_dose")
+l +
+  theme_classic() +
+xlab("N species dose")+
+  ylab("Rate O2 Consumption (umol*min-1*g-1)")+
+  ggtitle("")+
+  theme(axis.title.x = element_text(color="black", size=14, face="bold"),
+axis.title.y = element_text(color="black", size=14, face="bold"))+
+  theme(axis.text.x = element_text(size=14),
+          axis.text.y = element_text(size=14))
+# plot model estimate for temp
+t=plot_model(mm_resp_e_coli_2, 'pred', ci.lvl = 0.95, terms="N_species_dose")
+t
 
     # Question: do corals that experienced heat stress have statistically significant different respiration?
 #pairwise for temp
@@ -318,6 +406,29 @@ summary(mm_resp_e_coli_2_temp)
  # contrast         estimate       SE  df t.ratio p.value
  # temp20 - temp30 -0.000445 0.000203 202  -2.196  0.0292
     # Answer: Yes! Corals at 30C respired LESS than those at 20C.
+# Summarize by Temperature
+e_coli_sum_temp<- summarySE(e_coli, measurevar = "resp_rate", groupvars = c("temp"))
+e_coli_sum_temp
+# Visualize
+ggplot(data = e_coli_sum_temp,
+       aes(x = temp,
+           y = resp_rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Nitrate E. Coli - Temperature") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\n", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+
 
 # Question: do sym versus apo have statistically significant different respiration?
 #pairwise for sym state
@@ -326,10 +437,74 @@ summary(emm_resp_2_sym_state)
 # contrast estimate       SE  df t.ratio p.value
 # A - S    0.000361 0.000188 260   1.915  0.0566
   #Answer: symbiotic colonies respired marginally more than aposymbiotic colonies.
+# Summarize by Symbiotic State
+e_coli_sum_sym_state<- summarySE(e_coli, measurevar = "resp_rate", groupvars = c("sym_state"))
+# Visualize
+ggplot(data =e_coli_sum_sym_state,
+       aes(x = sym_state,
+           y = resp_rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Nitrate E. Coli - Symbiotic State") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\n", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+
 
 # I THINK WE SHOULD LEAVE IT AT THIS LEVEL AND GET ALL OF OUR TAKE HOMES FROM THIS
 
 ```
+
+```{r E. COLI NITRATE BY SYM STATE and FOOD}
+e_coli_sym_fed<-subset(e_coli, resp_all_nitrate.data$sym_state=="S" & resp_all_nitrate.data$food=="F")
+e_coli_sym_starved<-subset(e_coli, resp_all_nitrate.data$sym_state=="S" & resp_all_nitrate.data$food=="S")
+e_coli_apo_fed<-subset(e_coli, resp_all_nitrate.data$sym_state=="A" & resp_all_nitrate.data$food=="F")
+e_coli_apo_starved<-subset(e_coli, resp_all_nitrate.data$sym_state=="A" & resp_all_nitrate.data$food=="S")
+
+# E coli sym fed
+mm_e_coli_sym_fed <- lmer(resp_rate ~  N_species_dose + temp + N_species_dose*temp + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= e_coli_sym_fed)
+summary(mm_e_coli_sym_fed)
+print(step.model<- step(mm_e_coli_sym_fed))
+#nothing really significant
+
+# E coli sym starved
+mm_e_coli_sym_starved <- lmer(resp_rate ~  N_species_dose + temp + N_species_dose*temp + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= e_coli_sym_starved)
+summary(mm_e_coli_sym_starved)
+print(step.model<- step(mm_e_coli_sym_starved))
+#nothing really significant
+
+# E coli apo fed
+mm_e_coli_apo_fed <- lmer(resp_rate ~  N_species_dose + temp + N_species_dose*temp + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= e_coli_apo_fed)
+summary(mm_e_coli_apo_fed)
+print(step.model<- step(mm_e_coli_apo_fed))
+# nothing is really significant
+lm_e_coli_apo_fed<-lm(resp_rate ~ N_species_dose, data=e_coli_apo_fed)
+summary(emmeans(lm_e_coli_apo_fed, pairwise ~ N_species_dose)) # Nothing significant
+
+# E coli apo starved
+mm_e_coli_apo_starved <- lmer(resp_rate ~  N_species_dose + temp + N_species_dose*temp + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= e_coli_apo_starved)
+summary(mm_e_coli_apo_starved)
+print(step.model<- step(mm_e_coli_apo_starved))
+# temperature is significant!
+lm_e_coli_apo_starved<-lm(resp_rate ~ temp, data=e_coli_apo_starved)
+summary(emmeans(lm_e_coli_apo_starved, pairwise ~ temp)) # TEMP IS SIGNIFICANT, 20C respired more than 30C
+
+
+
+
+```
+
+
+
 ```{r linear models - E. COLI NITRATE BY TEMPERATURE}
 e_coli_20C<-subset(resp_all_nitrate.data, resp_all_nitrate.data$temp==20 & resp_all_nitrate.data$e_coli_plate=="1")
 e_coli_30C<-subset(resp_all_nitrate.data, resp_all_nitrate.data$temp==30 & resp_all_nitrate.data$e_coli_plate=="1")
@@ -380,6 +555,96 @@ mm_resp_no_e_coli_2 <- lmer(resp_rate ~  (1 | col_num), data=no_e_coli)
 ## YIKES! NOTHING SIGNIFICANT! INTERESTING
 
 ```
+
+```{r Looking at Nitrate 18uM}
+# We found in the above analyses that there was a statistically significant difference between Control and 18uM under E. coli. Let's zoom out and look at 18uM and see what might be driving that model 
+
+#QUESTION: For corals at 18uM nitrate, is there a significant difference if you are 1) fed vs starved? NO 2) E. coli vs. no E. coli? No, but it looks close 3) sym vs apo? NO  4) 20 vs. 30C? NO
+
+all_18uM<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species_dose=="N_18")
+
+full.model_all_18uM <- lmer(resp_rate ~ e_coli_plate + temp + food + sym_state + e_coli_plate*temp + e_coli_plate*food + e_coli_plate*sym_state + temp*food + temp*sym_state + food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= all_18uM)
+summary(full.model_all_18uM)
+print(step.model<- step(full.model_all_18uM))
+
+#model it recommends:
+mm_all_18uM<-lmer(resp_rate ~ e_coli_plate + temp + food + sym_state + (1 | col_num) + e_coli_plate:temp + e_coli_plate:food + e_coli_plate:sym_state, data=all_18uM)
+summary(mm_all_18uM) # E. coli seems to be driving the model
+#posthocs
+emm_all_18uM_sym_state <- emmeans(mm_all_18uM, pairwise ~ sym_state)
+summary(emm_all_18uM_sym_state)
+
+#let's try it just on E. coli data at 18uM
+
+e_coli_18uM<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species_dose=="N_18" & resp_all_nitrate.data$e_coli_plate==1)
+full.model_e_coli_18uM <- lmer(resp_rate ~ temp + food + sym_state + temp*food + temp*sym_state + food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= e_coli_18uM)
+summary(full.model_e_coli_18uM)
+print(step.model<- step((full.model_e_coli_18uM)))
+
+summary(aov(e_coli_18uM$resp_rate ~ e_coli_18uM$temp))
+
+
+#Maybe let's graph 18uM and see what comes out
+lm_all_18uM<- lm(resp_rate~e_coli_plate + temp + food + sym_state, data=all_18uM)
+summary(lm_all_18uM)
+# Summarize by E. coli -- it looks like there is a difference here, but it just doesn't come out as significant
+all_18uM_sum_e_coli <- summarySE(all_18uM, measurevar = "resp_rate", groupvars = c("e_coli_plate"))
+# Summarize by food
+all_18uM_sum_food <- summarySE(all_18uM, measurevar = "resp_rate", groupvars = c("food"))
+# Summarize by sym-state
+all_18uM_sum_sym_state <- summarySE(all_18uM, measurevar = "resp_rate", groupvars = c("sym_state"))
+# Summarize by temp
+all_18uM_sum_temp <- summarySE(all_18uM, measurevar = "resp_rate", groupvars = c("temp"))
+# Visualize
+ggplot(data = all_18uM_sum_temp,
+       aes(x = temp,
+           y = resp_rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("N 18uM - 20C vs. 30C") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\n", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+
+# What about 18uM treated with E. coli
+# Summarize by food
+e_coli_18uM_sum_food <- summarySE(e_coli_18uM, measurevar = "resp_rate", groupvars = c("food"))
+# Summarize by sym-state
+e_coli_18uM_sum_sym_state <- summarySE(e_coli_18uM, measurevar = "resp_rate", groupvars = c("sym_state"))
+# Summarize by temp
+e_coli_18uM_sum_temp <- summarySE(e_coli_18uM, measurevar = "resp_rate", groupvars = c("temp"))
+# Visualize
+ggplot(data = e_coli_18uM_sum_temp,
+       aes(x = temp,
+           y = resp_rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("N 18uM with E. Coli - 20C vs. 30C") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\n", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+
+```
+
+
 
 
 ```{r playing around with Sarahs code to see if there is an effect of E coli at every treatment}
