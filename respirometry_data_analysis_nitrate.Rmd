@@ -1,5 +1,5 @@
 ---
-title: "Respirometry data analysis (NITRATE) C. Fleming Last updated: 2/13/22"
+title: "Respirometry data analysis (NITRATE) C. Fleming Last updated: 2/20/23"
 output:
   pdf_document: default
   html_notebook: default
@@ -34,11 +34,11 @@ library("ggrepel")
 library(sjPlot)
 #install.packages("MASS")
 library(MASS)
-#install.packages("glmmTMB")
+#install.packages("glmmTMB") # for visualizing model checks
 library(glmmTMB)
-#install.packages("relaimpo") #for qauntifying the effects of predictor variables
+#install.packages("relaimpo") #for quantifying the effects of predictor variables
 library(relaimpo)
-#install.packages("outliers")
+#install.packages("outliers") #for checking out whether a data point is an outlier
 library(outliers)
 
 #turn off scientific notation
@@ -91,6 +91,7 @@ all_sym<-subset(resp_all_nitrate.data, resp_all_nitrate.data$sym_state=="S")
 e_coli<-subset(resp_all_nitrate.data, resp_all_nitrate.data$e_coli_plate=="1")
 no_e_coli<-subset(resp_all_nitrate.data, resp_all_nitrate.data$e_coli_plate=="0")
 ```
+
 ```{r All subsets and some preliminary t tests}
 control_all_20<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="0" & resp_all_nitrate.data$temp=="20")
 control_ecoli_20<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="0" & resp_all_nitrate.data$temp=="20" & resp_all_nitrate.data$e_coli=="1")
@@ -166,6 +167,8 @@ help('isSingular')
 full.model <- lmer(resp_rate ~  N_species_dose + temp + food + sym_state + e_coli_plate + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + N_species_dose*e_coli_plate + temp*food + temp*sym_state + temp*e_coli_plate + food*sym_state + food*e_coli_plate + sym_state*e_coli_plate +  + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= resp_all_nitrate.data)
 print(step.model<- step(full.model))
 
+#The model did NOT select sym_state as informative, but because it is marginally significant (p value of 0.054) we should keep it in
+
 # here is the model that it recommends
 mm_resp_2 <- lmer(resp_rate ~ N_species_dose + temp + sym_state + e_coli_plate + (1 | col_num) + (1 | exp_num), data=resp_all_nitrate.data)
 summary(mm_resp_2)
@@ -173,7 +176,7 @@ summary(mm_resp_2)
 mm_resp_2_changing_randoms <- lmer(resp_rate ~ temp + sym_state + e_coli_plate +  (1|exp_subrun) , data= resp_all_nitrate.data)
 summary(mm_resp_changing_randoms)
 #it looks like exp_subrun is causing the singularity
-AIC(mm_resp_2,mm_resp_2_changing_randoms )
+AIC(mm_resp_2,mm_resp_2_changing_randoms)
 
     # Question: is there a dose of nitrate where we see a statistically significant effect on respiration?
 #Pairwise for N_species_dose
@@ -253,7 +256,10 @@ summary(mm_resp_2)$coef
 VarCorr(mm_resp_2) #not really sure how to interpret this
 
 plot_model(mm_resp_2, "eff") # plots the predicted effects of each variable on respiration rate 
-plot_model(mm_resp_2, type="re") # plots random effects 
+plot_model(mm_resp_2, type="re") # plots random effects
+
+plot_model(mm_resp_2)
+tab_model(mm_resp_2, digits=7) #adding digits tells it to include more decimal places
 
 #let's try using the package relaimpo to give us a sense of the relative contribution of each variable to the model
 # link for info on this package: https://advstats.psychstat.org/book/mregression/importance.php
@@ -263,6 +269,119 @@ lm_resp_2_relimp <- lm(resp_rate ~ factor(N_species_dose) + factor(sym_state) + 
 calc.relimp(lm_resp_2_relimp, type="lmg", rela=TRUE)
 #need to identify exactly what lmg means
 ```
+
+
+
+
+```{r linear models - E. COLI NITRATE DATA}
+
+mm_resp_e_coli_null <- lmer(resp_rate ~ 1 + (1|vial_ID) + (1|col_num) + (1|exp_num) +(1|exp_subrun) +(1|jar_unique_ID) + (1|resp_run) , data= e_coli)
+summary(mm_resp_e_coli_null)
+
+#full model with all interactions possible
+mm_resp_e_coli_1 <- lmer(resp_rate ~  N_species_dose + temp + food + sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state + food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= e_coli)
+summary(mm_resp_1)
+#WARNING:
+# boundary (singular) fit: see help('isSingular')
+help('isSingular')
+
+# OKAY NOW LETS TRY TO DO A STEPWISE LINEAR REGRESSION A LA RANDI's SUGGESTION
+# This stepwise function includes random effects, but does not like random effects that cause singularity so I had to get rid of a bunch of them
+full.model <- lmer(resp_rate ~  N_species_dose + temp + food + sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state + food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= e_coli)
+print(step.model<- step(full.model))
+
+#The model did NOT select sym_state as informative, but because it is marginally significant (p value of 0.067) we should keep it in
+
+# here is the model that it recommends
+mm_resp_e_coli_2 <- lmer(resp_rate ~ N_species_dose + temp + sym_state + (1 | col_num) + (1 | exp_num), data=e_coli)
+summary(mm_resp_e_coli_2)
+
+# Question: is there a dose of nitrate where we see a statistically significant effect on respiration?
+#Pairwise for N_species_dose
+mm_resp_e_coli_2_N_species_dose=emmeans(mm_resp_e_coli_2, specs=pairwise ~ N_species_dose)
+summary(mm_resp_e_coli_2_N_species_dose)
+# $contrasts
+#  contrast         estimate       SE  df t.ratio p.value
+#  CNTRL_0 - N_1.5  0.000169 0.000266 200   0.634  0.9208
+#  CNTRL_0 - N_18   0.000872 0.000284 198   3.074  0.0128
+#  CNTRL_0 - N_5    0.000460 0.000274 195   1.676  0.3390
+#  N_1.5 - N_18     0.000704 0.000319 184   2.207  0.1252
+#  N_1.5 - N_5      0.000291 0.000313 186   0.932  0.7877
+#  N_18 - N_5      -0.000412 0.000322 175  -1.282  0.5756
+
+#Interesting! There N_18 corals respired MORE than controls. Perhaps metabolic stress?
+
+    # Question: do corals that experienced heat stress have statistically significant different respiration?
+#pairwise for temp
+mm_resp_e_coli_2_temp=emmeans(mm_resp_e_coli_2, specs=pairwise ~ temp)
+summary(mm_resp_e_coli_2_temp)
+ # contrast         estimate       SE  df t.ratio p.value
+ # temp20 - temp30 -0.000445 0.000203 202  -2.196  0.0292
+    # Answer: Yes! Corals at 30C respired LESS than those at 20C.
+
+# Question: do sym versus apo have statistically significant different respiration?
+#pairwise for sym state
+mm_resp_e_coli_2_sym_state=emmeans(mm_resp_e_coli_2, specs=pairwise ~ sym_state)
+summary(emm_resp_2_sym_state)
+# contrast estimate       SE  df t.ratio p.value
+# A - S    0.000361 0.000188 260   1.915  0.0566
+  #Answer: symbiotic colonies respired marginally more than aposymbiotic colonies.
+
+# I THINK WE SHOULD LEAVE IT AT THIS LEVEL AND GET ALL OF OUR TAKE HOMES FROM THIS
+
+```
+```{r linear models - E. COLI NITRATE BY TEMPERATURE}
+e_coli_20C<-subset(resp_all_nitrate.data, resp_all_nitrate.data$temp==20 & resp_all_nitrate.data$e_coli_plate=="1")
+e_coli_30C<-subset(resp_all_nitrate.data, resp_all_nitrate.data$temp==30 & resp_all_nitrate.data$e_coli_plate=="1")
+
+# Nitrate E. coli at 20C
+full.model_e_coli_20C <- lmer(resp_rate ~  N_species_dose + food + sym_state + N_species_dose*food + N_species_dose*sym_state +  food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= e_coli_20C)
+summary(full.model_e_coli_20C)
+print(step.model<- step(full.model_e_coli_20C))
+# The model the program picked: 
+mm_e_coli_20C <- lmer(resp_rate ~ (1 | col_num) + (1 | exp_num), data=e_coli_20C) #NO SIGNIFICANT FACTORS
+
+# Nitrate E. coli at 30C
+full.model_e_coli_30C <- lmer(resp_rate ~  N_species_dose + food + sym_state + N_species_dose*food + N_species_dose*sym_state +  food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= e_coli_30C)
+summary(full.model_e_coli_30C)
+print(step.model<- step(full.model_e_coli_30C))
+# The model the program picked: 
+mm_e_coli_30C <- lmer(resp_rate ~ (1 | col_num), data=e_coli_30C) #NO SIGNIFICANCE
+mm_e_coli_30C_test <- lmer(resp_rate ~ sym_state + N_species_dose + (1 | col_num), data=e_coli_30C)
+summary(mm_e_coli_30C_test)
+
+mm_resp_e_coli_30C_N_species_dose=emmeans(mm_e_coli_30C_test, specs=pairwise ~ N_species_dose)
+summary(mm_resp_e_coli_30C_N_species_dose)
+```
+
+
+```{r linear models - NO E. COLI NITRATE DATA}
+
+mm_resp_no_e_coli_null <- lmer(resp_rate ~ 1 + (1|vial_ID) + (1|col_num) + (1|exp_num) +(1|exp_subrun) +(1|jar_unique_ID) + (1|resp_run) , data= no_e_coli)
+summary(mm_resp_no_e_coli_null)
+
+#full model with all interactions possible
+mm_resp_no_e_coli_1 <- lmer(resp_rate ~  N_species_dose + temp + food + sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state + food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= no_e_coli)
+summary(mm_resp_no_e_coli_1)
+#WARNING:
+# boundary (singular) fit: see help('isSingular')
+help('isSingular')
+
+# OKAY NOW LETS TRY TO DO A STEPWISE LINEAR REGRESSION A LA RANDI's SUGGESTION
+# This stepwise function includes random effects, but does not like random effects that cause singularity so I had to get rid of a bunch of them
+full.model <- lmer(resp_rate ~  N_species_dose + temp + food + sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state + food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= no_e_coli)
+print(step.model<- step(full.model))
+
+#The model did NOT select sym_state as informative, but because it is marginally significant (p value of 0.067) we should keep it in
+
+# here is the model that it recommends
+mm_resp_no_e_coli_2 <- lmer(resp_rate ~  (1 | col_num), data=no_e_coli)
+
+## YIKES! NOTHING SIGNIFICANT! INTERESTING
+
+```
+
+
 ```{r playing around with Sarahs code to see if there is an effect of E coli at every treatment}
 
 #Generate a linear model and then use the log function on it
@@ -322,77 +441,6 @@ response.lm_apo <-
    tidy(                     
      lm(resp_rate~e_coli_plate, data= .)))
 response.lm_apo
-
-```
-
-
-```{r linear models - E. COLI NITRATE DATA}
-
-#make dose a factor
-e_coli$N_dose<-as.factor(e_coli$N_dose)
-mm_resp_e_coli_null <- lmer(resp_rate ~ 1 + (1|vial_ID), data= e_coli)
-summary(mm_resp_e_coli_null)
-#that null looks good
-
-mm_resp_e_coli_1 <- lmer(resp_rate ~ N_species_dose + temp + food + sym_state + (1|vial_ID), data= e_coli)
-summary(mm_resp_e_coli_1)
-# the factors that are not significant and I will drop: food, temp
-
-mm_resp_e_coli_2 <- lmer(resp_rate ~ N_species_dose  + sym_state + (1|vial_ID) + (1|col_num), data= e_coli)
-summary(mm_resp_e_coli_2)
-
-AIC(mm_resp_e_coli_1, mm_resp_e_coli_2) #1 wins the AIC weirdly
-#all N_species_dose are compared to ammonium 10uM
-#Ammonium 10 is different than ammonium 7.5
-#Ammonium 10 is different than control
-#Ammonium 10 is different than N 1.5
-#temperature and sym state are still coming out as the most interesting
-emm_resp_e_coli_2=emmeans(mm_resp_e_coli_2, specs=pairwise ~ sym_state)
-summary(emm_resp_e_coli_2)
-#go with this one
-
-mean(e_coli[e_coli$sym_state == "A","resp_rate"], na.rm=TRUE) #calculates the mean of resp_rate in the sym_state column where values are A
-#-0.004370495
-
-mean(e_coli[e_coli$sym_state == "S","resp_rate"], na.rm=TRUE) #calculates the mean of resp_rate in the sym_state column where values are A
-#-0.004912
-#syms respired more -- even more interesting because they also produce oxygen (but we did do dark respiration, so maybe not?)
-
-mean(e_coli[e_coli$temp == "20","resp_rate"], na.rm=TRUE) #calculates the mean of resp_rate in the sym_state column where values are A
-#-0.004933947
-#respired more under 20C than 30C
-
-mean(e_coli[e_coli$temp == "30","resp_rate"], na.rm=TRUE) #calculates the mean of resp_rate in the sym_state column where values are A
-#-0.004343118
-
-mean(e_coli[e_coli$N_dose == "0","resp_rate"], na.rm=TRUE) #calculates the mean of resp_rate in the sym_state column where values are A
-#-0.004231979
-
-mean(e_coli[e_coli$N_dose == "10","resp_rate"], na.rm=TRUE) #calculates the mean of resp_rate in the sym_state column where values are A
-#-0.005326042
-
-mean(e_coli[e_coli$N_dose == "18","resp_rate"], na.rm=TRUE) #calculates the mean of resp_rate in the sym_state column where values are A
-#-0.005102128
-
-```
-
-```{r linear models - NO E. COLI NITRATE DATA}
-
-#make dose a factor
-no_e_coli$N_dose<-as.factor(no_e_coli$N_dose)
-mm_resp_no_e_coli_null <- lmer(resp_rate ~ 1 + (1|vial_ID), data= no_e_coli)
-summary(mm_resp_no_e_coli_null)
-#that null looks good
-
-mm_resp_no_e_coli_1 <- lmer(resp_rate ~ N_species + N_dose + temp + food + sym_state  + (1|vial_ID), data= no_e_coli)
-summary(mm_resp_no_e_coli_1)
-# the factors that are not significant and I will drop: Nspecies, food
-
-mm_resp_no_e_coli_2 <- lmer(resp_rate ~ N_species_dose  + temp + sym_state + (1|vial_ID) + (1|col_num), data= no_e_coli)
-summary(mm_resp_no_e_coli_2)
-emm_resp_no_e_coli_2=emmeans(mm_resp_no_e_coli_2, specs=pairwise ~ temp, na.rm=TRUE)
-summary(emm_resp_no_e_coli_2)
-#go with this one
 
 ```
 
