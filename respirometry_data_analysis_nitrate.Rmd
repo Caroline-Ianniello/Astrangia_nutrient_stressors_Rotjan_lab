@@ -1,5 +1,5 @@
 ---
-title: "Respirometry data analysis (NITRATE) C. Fleming Last updated: 2/20/23"
+title: "Respirometry data analysis (NITRATE) C. Fleming Last updated: 2/24/23"
 output:
   pdf_document: default
   html_notebook: default
@@ -8,7 +8,7 @@ authors: Caroline Fleming
 #Some resources:
   #https://rstudio-pubs-static.s3.amazonaws.com/63556_e35cc7e2dfb54a5bb551f3fa4b3ec4ae.html
 
-#### NITRATE ####
+#### NITRATE ### New & improved! With updated nitrate only controls
 ---
 
 ```{r Install required packages}
@@ -57,35 +57,34 @@ options(max.print = 10000)
 ```{r Set working directory and upload data - NITRATE DATA ONLY}
 #opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox/N_Ecotox_Chapter_2_ANALYSIS/Astrangia_nutrient_stressors_Rotjan_lab")
 #getwd()
-resp_all.data <- read.csv("RESP_ALL_SUMMARY_cleaned_dead_and_broken_outlierG28Y65_deleted_2_17_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
-resp_all.data<-na.omit(resp_all.data)
 
-resp_all_nitrate.data <- subset(resp_all.data, resp_all.data$N_species=="N" | resp_all.data$N_species=="CNTRL")
-
-hist(resp_all_nitrate.data$resp_rate)
-qqnorm(resp_all_nitrate.data$resp_rate)
+# We made a separate Nitrate excel file now so we're all set to upload & go
+resp_all_nitrate.data <- read.csv("RESP_Nitrate_Cleaned.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+resp_all_nitrate.data<-na.omit(resp_all_nitrate.data)
+hist(resp_all_nitrate.data$resp_rate) #slight skew but we're okay let's keep using it
+qqnorm(resp_all_nitrate.data$resp_rate) #this looks really nice
 
 #make sure treatID is a character
 resp_all_nitrate.data$treat_ID_full<-as.character(resp_all_nitrate.data$treat_ID_full)
 
-#adding a log transformed resp rate
-resp_all_nitrate.data$log_resp_rate<-abs(resp_all_nitrate.data$resp_rate)
-resp_all_nitrate.data$log_resp_rate<-log(resp_all_nitrate.data$log_resp_rate)
-resp_all_nitrate.data$arcsin_resp_rate<-asin(resp_all_nitrate.data$resp_rate)
-
-#testing for normality
-#TESTING FOR NORMALITY IN PAM_delta
-#install new package to see what the best transformation is
-#install.packages("bestNormalize")
-library("bestNormalize")
-bestNormalize(resp_all_nitrate.data$resp_rate)
-#in order for this to work I need to change the PAM_delta in to a vector
-resp_all_nitrate.data$resp_rate_vector<-as.vector(resp_all_nitrate.data$resp_rate_vector)
-#then I run the orderNorm command into a new object
-orderNormobj_resp_rate<-orderNorm(resp_all_nitrate.data$resp_rate)
-#this object gives us what we want, but we have to index from that object and put it in a new column
-resp_all_nitrate.data$ordernorm_resp_rate<-orderNormobj_resp_rate$x.t
-
+# #adding a log transformed resp rate
+# resp_all_nitrate.data$log_resp_rate<-abs(resp_all_nitrate.data$resp_rate)
+# resp_all_nitrate.data$log_resp_rate<-log(resp_all_nitrate.data$log_resp_rate)
+# resp_all_nitrate.data$arcsin_resp_rate<-asin(resp_all_nitrate.data$resp_rate)
+# 
+# #testing for normality
+# #TESTING FOR NORMALITY IN PAM_delta
+# #install new package to see what the best transformation is
+# #install.packages("bestNormalize")
+# library("bestNormalize")
+# bestNormalize(resp_all_nitrate.data$resp_rate)
+# #in order for this to work I need to change the PAM_delta in to a vector
+# resp_all_nitrate.data$resp_rate_vector<-as.vector(resp_all_nitrate.data$resp_rate_vector)
+# #then I run the orderNorm command into a new object
+# orderNormobj_resp_rate<-orderNorm(resp_all_nitrate.data$resp_rate)
+# #this object gives us what we want, but we have to index from that object and put it in a new column
+# resp_all_nitrate.data$ordernorm_resp_rate<-orderNormobj_resp_rate$x.t
+# 
 # Essential subsets
 all_20C<-subset(resp_all_nitrate.data, resp_all_nitrate.data$temp==20)
 all_30C<-subset(resp_all_nitrate.data, resp_all_nitrate.data$temp==30)
@@ -94,89 +93,6 @@ all_sym<-subset(resp_all_nitrate.data, resp_all_nitrate.data$sym_state=="S")
 e_coli<-subset(resp_all_nitrate.data, resp_all_nitrate.data$e_coli_plate=="1")
 no_e_coli<-subset(resp_all_nitrate.data, resp_all_nitrate.data$e_coli_plate=="0")
 ```
-```{r checking some things out}
-#Im on line 1652 of Sarah's code
-#https://github.com/speroffs/A.Poculata-Multiple-stressors-thesis-analysis-/blob/main/Respiration/Respiration.RMD
-N_species_dose_lm <- lm(resp_rate~N_species_dose, data=resp_all_nitrate.data)
-summary(N_species_dose_lm)
-# Summarize by N_species_dose
-N_species_dose.sum1 <- summarySE(resp_all_nitrate.data, measurevar = "resp_rate", groupvars = c("N_species_dose"))
-# Visualize
-ggplot(data = N_species_dose.sum1,
-       aes(x = N_species_dose,
-           y = resp_rate)) +
-    geom_point() +
-    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
-    #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate Dose") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-    labs(x = "\n", 
-         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
-         caption = "data represent mean +/- SEM" ) +
-    theme_classic()
-```
-
-
-```{r All subsets and some preliminary t tests}
-control_all_20<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="0" & resp_all_nitrate.data$temp=="20")
-control_ecoli_20<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="0" & resp_all_nitrate.data$temp=="20" & resp_all_nitrate.data$e_coli=="1")
-control_no_ecoli_20<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="0" & resp_all_nitrate.data$temp=="20" & resp_all_nitrate.data$e_coli=="0")
-control_all_30<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="0" & resp_all_nitrate.data$temp=="30")
-control_ecoli_30<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="0" & resp_all_nitrate.data$temp=="30" & resp_all_nitrate.data$e_coli=="1")
-control_no_ecoli_30<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="0" & resp_all_nitrate.data$temp=="30" & resp_all_nitrate.data$e_coli=="0")
-A_5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="A"& resp_all_nitrate.data$N_dose=="5" & resp_all_nitrate.data$temp=="20")
-A_5_30 <- A_5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="A"& resp_all_nitrate.data$N_dose=="5" & resp_all_nitrate.data$temp=="30")
-A_7.5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="A"& resp_all_nitrate.data$N_dose=="7.5" & resp_all_nitrate.data$temp=="20")
-A_7.5_30 <- A_5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="A"& resp_all_nitrate.data$N_dose=="7.5" & resp_all_nitrate.data$temp=="30")
-A_10_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="A"& resp_all_nitrate.data$N_dose=="10" & resp_all_nitrate.data$temp=="20")
-A_10_30 <- A_5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="A"& resp_all_nitrate.data$N_dose=="10" & resp_all_nitrate.data$temp=="30")
-N_1.5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="N"& resp_all_nitrate.data$N_dose=="1.5" & resp_all_nitrate.data$temp=="20")
-N_1.5_30 <- A_5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="N"& resp_all_nitrate.data$N_dose=="1.5" & resp_all_nitrate.data$temp=="30")
-N_5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="N"& resp_all_nitrate.data$N_dose=="5" & resp_all_nitrate.data$temp=="20")
-N_5_30 <- A_5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="N"& resp_all_nitrate.data$N_dose=="5" & resp_all_nitrate.data$temp=="30")
-N_18_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="18" & resp_all_nitrate.data$temp=="20")
-N_18_30 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="18" & resp_all_nitrate.data$temp=="30")
-e_coli<-subset(resp_all_nitrate.data, resp_all_nitrate.data$e_coli==1)
-no_e_coli<-subset(resp_all_nitrate.data, resp_all_nitrate.data$e_coli==0)
-N_18_30_e_coli <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="18" & resp_all_nitrate.data$temp=="30" & resp_all_nitrate.data$e_coli==1)
-
-#e coli controls
-t.test(control_ecoli_30$resp_rate, control_no_ecoli_20$resp_rate) #no difference
-
-# Control 20 v control 30
-t.test(control_all_20$resp_rate, control_all_30$resp_rate)
-# A 5 20 v A 5 30
-t.test(A_5_20$resp_rate, A_5_30$resp_rate)
-# A 7.5 20 v A 7.5 30
-t.test(A_7.5_20$resp_rate, A_7.5_30$resp_rate)
-# Control 20 v. A10 20
-t.test(control_all_20$resp_rate, A_10_20$resp_rate)
-# Control 30 v. A10 30
-t.test(control_all_30$resp_rate, A_10_30$resp_rate)
-# A10 20 v A10 30
-t.test(A_10_20$resp_rate, A_10_30$resp_rate)
-# N 1.5 20 v N 1.5 30
-t.test(N_1.5_20$resp_rate, N_1.5_30$resp_rate)
-# N 5 20 v N 5 30
-t.test(N_5_20$resp_rate, N_5_30$resp_rate)
-# Control 20 v. N18 20
-t.test(control_all_20$resp_rate, N_18_20$resp_rate)
-# Control 30 v. Control N18 30
-t.test(control_all_30$resp_rate, N_18_30$resp_rate)
-
-# e coli vs. no ecoli 
-t.test(e_coli$resp_rate, no_e_coli$resp_rate)
-# N 18 e coli 30 vs. control 30
-t.test(control_all_30$resp_rate, N_18_30_e_coli$resp_rate)
-       
-```
-
 
 
 #Linear models
@@ -184,11 +100,11 @@ t.test(control_all_30$resp_rate, N_18_30_e_coli$resp_rate)
 ```{r linear models - ALL NITRATE DATA}
 mm_resp_null <- lmer(resp_rate ~ 1 + (1|vial_ID) + (1|col_num) + (1|exp_num) +(1|exp_subrun) +(1|jar_unique_ID) + (1|resp_run) , data= resp_all_nitrate.data)
 summary(mm_resp_null)
-#that null looks good
+#that null looks good, intercept is significant
 
 #full model with all interactions possible
 mm_resp_1 <- lmer(resp_rate ~  N_species_dose + temp + food + sym_state + e_coli_plate + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + N_species_dose*e_coli_plate + temp*food + temp*sym_state + temp*e_coli_plate + food*sym_state + food*e_coli_plate + sym_state*e_coli_plate + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= resp_all_nitrate.data)
-#summary(mm_resp_1)
+summary(mm_resp_1)
 #WARNING:
 # boundary (singular) fit: see help('isSingular')
 help('isSingular')
@@ -198,67 +114,15 @@ help('isSingular')
 full.model <- lmer(resp_rate ~  N_species_dose + temp + food + sym_state + e_coli_plate + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + N_species_dose*e_coli_plate + temp*food + temp*sym_state + temp*e_coli_plate + food*sym_state + food*e_coli_plate + sym_state*e_coli_plate +  + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= resp_all_nitrate.data)
 print(step.model<- step(full.model))
 
-#The model did NOT select sym_state as informative, but because it is marginally significant (p value of 0.054) we should keep it in
+#The model did NOT select sym_state as informative, p value of 0.2
 
 # here is the model that it recommends
-mm_resp_2 <- lmer(resp_rate ~ N_species_dose + temp + sym_state + e_coli_plate + (1 | col_num) + (1 | exp_num), data=resp_all_nitrate.data)
+mm_resp_2 <- lmer(resp_rate ~ N_species_dose + temp + e_coli_plate + (1 | col_num) + N_species_dose*e_coli_plate, data=resp_all_nitrate.data)
 summary(mm_resp_2)
 
-#it says to get rid of sym state, but it has a p value of 0.054 and we know it is biologically significant so we will keep it in
-mm_resp_2_changing_randoms <- lmer(resp_rate ~ temp + sym_state + e_coli_plate +  (1|exp_subrun) , data= resp_all_nitrate.data)
-summary(mm_resp_changing_randoms)
-#it looks like exp_subrun is causing the singularity
-AIC(mm_resp_2,mm_resp_2_changing_randoms)
-
-    # Question: is there a dose of nitrate where we see a statistically significant effect on respiration?
-#Pairwise for N_species_dose
-emm_resp_2_N_species_dose=emmeans(mm_resp_2, specs=pairwise ~ N_species_dose)
-summary(emm_resp_2_N_species_dose)
-# contrast         estimate       SE  df t.ratio p.value
-# CNTRL_0 - N_1.5 -0.000317 0.000200 394  -1.584  0.3890
-# CNTRL_0 - N_18   0.000423 0.000220 400   1.926  0.2187
-# CNTRL_0 - N_5    0.000146 0.000208 400   0.705  0.8952
-# N_1.5 - N_18     0.000740 0.000245 379   3.019  0.0143
-# N_1.5 - N_5      0.000463 0.000234 376   1.983  0.1963
-# N_18 - N_5      -0.000277 0.000248 374  -1.117  0.6792
-# Not really -- potentially there is a difference between N1.5 and N18 but there is no difference between N0 and N18
-
-    # Question: do corals that experienced heat stress have statistically significant different respiration?
-#pairwise for temp
-emm_resp_2_temp=emmeans(mm_resp_2, specs=pairwise ~ temp)
-summary(emm_resp_2_temp)
-# contrast         estimate       SE  df t.ratio p.value
-# temp20 - temp30 -0.000394 0.000154 406  -2.561  0.0108
-    # Answer: Yes! Corals at 30C respired less than those at 20C.
-mean(all_20C$resp_rate, na.rm=TRUE)
-#-0.004391691 #respired more than 30C
-mean(all_30C$resp_rate, na.rm=TRUE)
-#-0.004115614
-
-# Question: do sym versus apo have statistically significant different respiration?
-#pairwise for sym state
-emm_resp_2_sym_state=emmeans(mm_resp_2, specs=pairwise ~ sym_state)
-summary(emm_resp_2_sym_state)
-# contrast estimate       SE  df t.ratio p.value
-# A - S    0.000361 0.000188 260   1.915  0.0566
-  #Answer: symbiotic colonies respired marginally more than aposymbiotic colonies.
-mean(all_apo$resp_rate, na.rm=TRUE)
-#-0.004043973
-mean(all_sym$resp_rate, na.rm=TRUE)
-# -0.004452824 #respired more than apo
-
-# Question: do E. coli versus no e coli have statistically significant different respiration?
-#pairwise for e coli
-emm_resp_2_e_coli=emmeans(mm_resp_2, specs=pairwise ~ e_coli_plate)
-summary(emm_resp_2_e_coli)
-# contrast                      estimate       SE  df t.ratio p.value
-# e_coli_plate0 - e_coli_plate1 0.000371 0.000169 400   2.196  0.0286
-  #Answer: E. coli plates respired more than plates without e coli.
-mean(e_coli$resp_rate, na.rm=TRUE)
-# -0.00441 #respired more than no_e_coli
-mean(no_e_coli$resp_rate, na.rm=TRUE)
-# -0.004084725
-
+# lets add sym state for fun and see what happens
+mm_resp_3 <- lmer(resp_rate ~ N_species_dose + temp + e_coli_plate + sym_state + (1 | col_num), data=resp_all_nitrate.data)
+summary(mm_resp_3) #still not significant, let's keep it out. This is a bit weird! OUR FREAKING GRAPH SAYS OTHERWISE
 
 
 
@@ -266,12 +130,12 @@ mean(no_e_coli$resp_rate, na.rm=TRUE)
 #checking for model fit
 plot(mm_resp_2) #homogeneity of variance,looks okay--they are relatively distributed around 0
 r2(mm_resp_2) #marginal id variance just by fixed factors, conditional includes variance explained by random factor
-  # treatment explains 5% of variation
-  # Random effects 27.3% genetic effect 
+  # treatment explains 2.8% of variation
+  # Random effects 28% genetic effect 
 # !!!!!!!!!!!!! WEE WOO LOOK INTO THIS !!!!!!!!!!!!!!!!!!
-check_collinearity(mm_resp_2) #check for predictor variables are correlated #Low correllation
+check_collinearity(mm_resp_2) #There is correlation
 check_outliers(mm_resp_2) #it looks like there might be an outlier so let's look into this
-grubbs.test(resp_all_nitrate.data$resp_rate) #we fixed this and got rid of G28Y65_exp1A, no more outlier :)
+grubbs.test(resp_all_nitrate.data$resp_rate) # No outlier
 
 check_heteroscedasticity(mm_resp_2) #heteroscadasticity detected
 check_homogeneity(mm_resp_2) #variances different between groups
@@ -303,7 +167,335 @@ calc.relimp(lm_resp_2_relimp, type="lmg", rela=TRUE)
 ```
 
 
+```{r Posthocs}
+# Reminder: this is our model
+mm_resp_2 <- lmer(resp_rate ~ N_species_dose + temp + e_coli_plate + (1 | col_num) + N_species_dose*e_coli_plate, data=resp_all_nitrate.data)
+summary(mm_resp_2)
 
+# it looks to me like temperature really drives the model
+
+    # Question: is there a dose of nitrate where we see a statistically significant effect on respiration?
+#Pairwise for N_species_dose
+emm_resp_2_N_species_dose=emmeans(mm_resp_2, specs=pairwise ~ N_species_dose)
+summary(emm_resp_2_N_species_dose)
+ # contrast          estimate       SE  df t.ratio p.value
+ # CNTRL_0 - N_1.5 -0.0004036 0.000225 287  -1.795  0.2777
+ # CNTRL_0 - N_18   0.0003303 0.000244 304   1.352  0.5308
+ # CNTRL_0 - N_5    0.0000634 0.000233 300   0.272  0.9930
+ # N_1.5 - N_18     0.0007339 0.000243 296   3.026  0.0143 ***
+ # N_1.5 - N_5      0.0004670 0.000232 291   2.016  0.1843
+ # N_18 - N_5      -0.0002669 0.000246 290  -1.086  0.6981
+
+# There is a difference between N1.5 and N18 but there is no difference between N0 and N18
+
+    # Question: do corals that experienced heat stress have statistically significant different respiration?
+#pairwise for temp
+emm_resp_2_temp=emmeans(mm_resp_2, specs=pairwise ~ temp)
+summary(emm_resp_2_temp)
+ # contrast        estimate       SE  df t.ratio p.value
+ # temp20 - temp30 -0.00057 0.000175 324  -3.250  0.0013
+    # Answer: Yes! Corals at 30C respired less than those at 20C.
+mean(all_20C$resp_rate, na.rm=TRUE)
+#-0.004504099 #respired more than 30C
+mean(all_30C$resp_rate, na.rm=TRUE)
+#-0.004090608
+
+# Question: do sym versus apo have statistically significant different respiration? # NOT IN OUR MODEL!
+
+# Question: do E. coli versus no e coli have statistically significant different respiration?
+#pairwise for e coli
+emm_resp_2_e_coli=emmeans(mm_resp_2, specs=pairwise ~ e_coli_plate)
+summary(emm_resp_2_e_coli)
+ # contrast                      estimate       SE  df t.ratio p.value
+ # e_coli_plate0 - e_coli_plate1 0.000373 0.000194 318   1.925  0.0551
+  #Answer: E. coli plates respired marginally more than plates without e coli.
+mean(e_coli$resp_rate, na.rm=TRUE)
+# -0.004447118 #respired more than no_e_coli
+mean(no_e_coli$resp_rate, na.rm=TRUE)
+# -0.004125291
+
+
+#Question: what is the relationship between N dose and E. coli?
+emm_resp_2_N_dose_e_coli=emmeans(mm_resp_2, specs=pairwise ~ N_species_dose*e_coli_plate)
+summary(emm_resp_2_N_dose_e_coli)
+#  contrast                                         estimate       SE  df t.ratio p.value
+#  CNTRL_0 e_coli_plate0 - N_1.5 e_coli_plate0   -0.00102935 0.000324 303  -3.178  0.0346
+#  N_1.5 e_coli_plate0 - N_18 e_coli_plate1       0.00147009 0.000351 321   4.190  0.0009
+#  N_1.5 e_coli_plate0 - N_5 e_coli_plate1        0.00110336 0.000343 318   3.215  0.0308
+
+
+#Question: what is the relationship between E. coli and temperature?
+emm_resp_2_temp_e_coli=emmeans(mm_resp_2, specs=pairwise ~ temp*e_coli_plate)
+summary(emm_resp_2_temp_e_coli)
+ # contrast                                     estimate       SE  df t.ratio p.value
+ # temp20 e_coli_plate0 - temp30 e_coli_plate0 -0.000570 0.000175 324  -3.250  0.0069
+ # temp30 e_coli_plate0 - temp20 e_coli_plate1  0.000944 0.000265 333   3.565  0.0023
+ # temp20 e_coli_plate1 - temp30 e_coli_plate1 -0.000570 0.000175 324  -3.250  0.0069
+# Corals treated without E. coli respired more at 20C than 30C
+# Corals treated WITH E. coli respired more at 20C than 30C
+# Corals at 20C WITH E. coli respired more than corals at 30C without E. coli
+
+
+# Question: what is the relationship between N species dose and temperature?
+emm_resp_2_N_dose_temp=emmeans(mm_resp_2, specs=pairwise ~ N_species_dose*temp)
+summary(emm_resp_2_N_dose_temp)
+ # contrast                          estimate       SE  df t.ratio p.value
+ # CNTRL_0 temp20 - CNTRL_0 temp30 -0.0005703 0.000175 324  -3.250  0.0276  #Control 20C corals respired more than control 30C
+ # CNTRL_0 temp20 - N_1.5 temp30   -0.0009738 0.000290 309  -3.357  0.0198  #Dont think we care
+ # N_1.5 temp20 - N_18 temp20       0.0007339 0.000243 296   3.026  0.0540  # N 18 respired more than N 1.5 at 20C
+ # N_1.5 temp20 - N_1.5 temp30     -0.0005703 0.000175 324  -3.250  0.0276  # N 1.5 20C corals respired more than at 30C
+ # N_18 temp20 - CNTRL_0 temp30    -0.0009006 0.000302 301  -2.985  0.0605  # 
+ # N_18 temp20 - N_1.5 temp30      -0.0013042 0.000305 301  -4.277  0.0007
+ # N_18 temp20 - N_18 temp30       -0.0005703 0.000175 324  -3.250  0.0276  # at 30 you respire less under N 18
+ # N_5 temp20 - N_1.5 temp30       -0.0010373 0.000296 302  -3.508  0.0120
+ # N_5 temp20 - N_5 temp30         -0.0005703 0.000175 324  -3.250  0.0276
+ # N_1.5 temp30 - N_18 temp30       0.0007339 0.000243 296   3.026  0.0540  # N 18 respired more than N 1.5 at 30C
+
+```
+
+```{r Model interaction plots}
+# Reminder: this is our model
+mm_resp_2 <- lmer(resp_rate ~ N_species_dose + temp + e_coli_plate + (1 | col_num) + N_species_dose*e_coli_plate, data=resp_all_nitrate.data)
+summary(mm_resp_2)
+
+
+#Model Interaction plot - NITRATE
+# WHY WONT YOU WORK? BOBBBBBBBBB!
+int_nitrate<-lmer(resp_rate~N_species_dose*temp*e_coli_plate+(1|col_num), data=resp_all_nitrate.data)
+summary(int_nitrate)
+int_pred_nitrate <- ggemmeans(int_nitrate, terms=c("N_species_dose", "temp","e_coli_plate")) # I cannot do more than 4 interactions 
+pred_nitrate <- ggplot(int_pred_nitrate, aes(facet,predicted, colour = group)) +
+  geom_point(aes(shape = x)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.3) +
+  labs(x = "temp", y = "Rate O2 Consumption (umol*min-1*g-1)",
+       color = "temp") +
+  facet_grid(~panel) +
+  ggtitle("test") +
+  theme_classic() +
+  theme(axis.title.x = element_text(color="black", size=12),
+axis.title.y = element_text(color="black", size=12))+
+  theme(axis.text.x = element_text(size=12),
+          axis.text.y = element_text(size=12)) +
+  scale_color_manual(values=c("black", "goldenrod"))
+pred_nitrate
+pred_nitrate <- ggplot(int_pred_nitrate, aes(facet,predicted, colour = group))
+
+```
+
+```{r Graphs - Summarizing by each variable}
+# Summarize by N_species_dose so we can visualize
+sum_N_species_dose_nitrate <- summarySE(resp_all_nitrate.data, measurevar = "resp_rate", groupvars = c("N_species_dose"))
+# Visualize
+gg_N_species_dose_nitrate<-ggplot(data = sum_N_species_dose_nitrate,
+       aes(x = N_species_dose,
+           y = resp_rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Nitrate N Species Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\n", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+gg_N_species_dose_nitrate
+
+# Summarize by temperature so we can visualize
+sum_temp_nitrate <- summarySE(resp_all_nitrate.data, measurevar = "resp_rate", groupvars = c("temp"))
+# Visualize
+gg_temp_nitrate<-ggplot(data = sum_temp_nitrate,
+       aes(x = temp,
+           y = resp_rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Nitrate N Species Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   # scale_x_discrete(labels=c("20C","30C"))+
+    labs(x = "Temperature", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+gg_temp_nitrate
+
+# Summarize by E. coli so we can visualize
+sum_e_coli_nitrate <- summarySE(resp_all_nitrate.data, measurevar = "resp_rate", groupvars = c("e_coli_plate"))
+# Visualize
+gg_e_coli_nitrate<-ggplot(data = sum_e_coli_nitrate,
+       aes(x = e_coli_plate,
+           y = resp_rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Nitrate N Species Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   # scale_x_discrete(labels=c("20C","30C"))+
+    labs(x = "E. coli presence", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+gg_e_coli_nitrate
+
+# Summarize by sym state so we can visualize
+sum_sym_state_nitrate <- summarySE(resp_all_nitrate.data, measurevar = "resp_rate", groupvars = c("sym_state"))
+# Visualize
+gg_sym_state_nitrate<-ggplot(data = sum_sym_state_nitrate,
+       aes(x = sym_state,
+           y = resp_rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Nitrate N Species Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   # scale_x_discrete(labels=c("20C","30C"))+
+    labs(x = "Symbiotic state", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+gg_sym_state_nitrate
+summary(lm(resp_rate ~ sym_state, data=resp_all_nitrate.data))
+# UGH THEY ARE DIFFERENT! But it doesnt  come up in the overall model
+
+# Summarize by food and sym state so we can visualize
+sum_food_sym_state_nitrate <- summarySE(resp_all_nitrate.data, measurevar = "resp_rate", groupvars = c("sym_state","food"))
+# Visualize
+gg_food_sym_state_nitrate<-ggplot(data = sum_food_sym_state_nitrate,
+       aes(x = sym_state,
+           y = resp_rate, colour=food)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Nitrate Sym state and food") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   # scale_x_discrete(labels=c("20C","30C"))+
+    labs(x = "Symbiotic state", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+gg_food_sym_state_nitrate #seems obvious that food doesnt matter
+
+# Summarize by temp and N species dose so we can visualize
+sum_N_species_dose_temp_nitrate <- summarySE(resp_all_nitrate.data, measurevar = "resp_rate", groupvars = c("temp","N_species_dose"))
+# Visualize
+gg_N_species_dose_temp_nitrate<-ggplot(data = sum_N_species_dose_temp_nitrate,
+       aes(x = N_species_dose,
+           y = resp_rate, colour=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Nitrate N species dose and sym state") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   # scale_x_discrete(labels=c("20C","30C"))+
+    labs(x = "Nitrate dose", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+gg_N_species_dose_temp_nitrate 
+
+# Summarize by e_coli and N species dose so we can visualize
+sum_N_species_dose_e_coli_nitrate <- summarySE(resp_all_nitrate.data, measurevar = "resp_rate", groupvars = c("e_coli_plate","N_species_dose"))
+# Visualize
+gg_N_species_dose_e_coli_nitrate<-ggplot(data = sum_N_species_dose_e_coli_nitrate,
+       aes(x = N_species_dose,
+           y = resp_rate, colour=e_coli_plate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Nitrate N species dose and e coli") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   # scale_x_discrete(labels=c("20C","30C"))+
+    labs(x = "Nitrate dose", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+gg_N_species_dose_e_coli_nitrate
+
+# Summarize by e_coli and temp so we can visualize
+sum_temp_e_coli_nitrate <- summarySE(resp_all_nitrate.data, measurevar = "resp_rate", groupvars = c("e_coli_plate","temp"))
+# Visualize
+gg_temp_e_coli_nitrate<-ggplot(data = sum_temp_e_coli_nitrate,
+       aes(x = e_coli_plate,
+           y = resp_rate, colour=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Nitrate N species dose and e coli") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   # scale_x_discrete(labels=c("20C","30C"))+
+    labs(x = "E. coli", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+gg_temp_e_coli_nitrate
+
+```
+
+
+```{r Graphs - Plotting model estimates}
+#Plot model estimate for N_species_dose # I am not sure how interesting this is, but here is the code if we want it
+l=plot_model(mm_resp_e_coli_2, 'pred', ci.lvl = 0.95, terms="N_species_dose")
+l +
+  theme_classic() +
+xlab("N species dose")+
+  ylab("Rate O2 Consumption (umol*min-1*g-1)")+
+  ggtitle("")+
+  theme(axis.title.x = element_text(color="black", size=14, face="bold"),
+axis.title.y = element_text(color="black", size=14, face="bold"))+
+  theme(axis.text.x = element_text(size=14),
+          axis.text.y = element_text(size=14))
+# plot model estimate for temp
+t=plot_model(mm_resp_e_coli_2, 'pred', ci.lvl = 0.95, terms="N_species_dose")
+t
+
+```
 
 ```{r linear models - E. COLI NITRATE DATA}
 
@@ -328,7 +520,7 @@ print(step.model<- step(full.model))
 mm_resp_e_coli_2 <- lmer(resp_rate ~ N_species_dose + temp + sym_state + (1 | col_num) + (1 | exp_num), data=e_coli)
 summary(mm_resp_e_coli_2)
 
-# Interaction plot
+#Model Interaction plot - NITRATE
 int<-lmer(resp_rate~N_species_dose*temp*food*sym_state+(1|col_num), data=e_coli)
 summary(int)
 int_pred <- ggemmeans(int, terms=c("N_species_dose", "temp","sym_state","food")) # I cannot do more than 4 interactions 
@@ -349,7 +541,7 @@ pred
 
 # Question: is there a dose of nitrate where we see a statistically significant effect on respiration?
 #Pairwise for N_species_dose
-mm_resp_e_coli_2_N_species_dose=emmeans(mm_resp_e_coli_2, specs=pairwise ~ N_species_dose)
+mm_resp_e_coli_2_N_species_dose=emmeans(mm_resp_e_coli_2, specs=pairwise ~ N_species_dose*sym_state)
 summary(mm_resp_e_coli_2_N_species_dose)
 # $contrasts
 #  contrast         estimate       SE  df t.ratio p.value
@@ -1660,3 +1852,58 @@ gg_apo_starved_no_ecoli<-
   ggtitle("Resp rate by treat ID - apo Starved NO E. coli")
 gg_apo_starved_no_ecoli
 ```
+
+```{r Subsets if you want them}
+control_all_20<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="0" & resp_all_nitrate.data$temp=="20")
+control_ecoli_20<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="0" & resp_all_nitrate.data$temp=="20" & resp_all_nitrate.data$e_coli=="1")
+control_no_ecoli_20<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="0" & resp_all_nitrate.data$temp=="20" & resp_all_nitrate.data$e_coli=="0")
+control_all_30<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="0" & resp_all_nitrate.data$temp=="30")
+control_ecoli_30<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="0" & resp_all_nitrate.data$temp=="30" & resp_all_nitrate.data$e_coli=="1")
+control_no_ecoli_30<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="0" & resp_all_nitrate.data$temp=="30" & resp_all_nitrate.data$e_coli=="0")
+A_5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="A"& resp_all_nitrate.data$N_dose=="5" & resp_all_nitrate.data$temp=="20")
+A_5_30 <- A_5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="A"& resp_all_nitrate.data$N_dose=="5" & resp_all_nitrate.data$temp=="30")
+A_7.5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="A"& resp_all_nitrate.data$N_dose=="7.5" & resp_all_nitrate.data$temp=="20")
+A_7.5_30 <- A_5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="A"& resp_all_nitrate.data$N_dose=="7.5" & resp_all_nitrate.data$temp=="30")
+A_10_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="A"& resp_all_nitrate.data$N_dose=="10" & resp_all_nitrate.data$temp=="20")
+A_10_30 <- A_5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="A"& resp_all_nitrate.data$N_dose=="10" & resp_all_nitrate.data$temp=="30")
+N_1.5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="N"& resp_all_nitrate.data$N_dose=="1.5" & resp_all_nitrate.data$temp=="20")
+N_1.5_30 <- A_5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="N"& resp_all_nitrate.data$N_dose=="1.5" & resp_all_nitrate.data$temp=="30")
+N_5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="N"& resp_all_nitrate.data$N_dose=="5" & resp_all_nitrate.data$temp=="20")
+N_5_30 <- A_5_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species=="N"& resp_all_nitrate.data$N_dose=="5" & resp_all_nitrate.data$temp=="30")
+N_18_20 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="18" & resp_all_nitrate.data$temp=="20")
+N_18_30 <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="18" & resp_all_nitrate.data$temp=="30")
+e_coli<-subset(resp_all_nitrate.data, resp_all_nitrate.data$e_coli==1)
+no_e_coli<-subset(resp_all_nitrate.data, resp_all_nitrate.data$e_coli==0)
+N_18_30_e_coli <-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose=="18" & resp_all_nitrate.data$temp=="30" & resp_all_nitrate.data$e_coli==1)
+
+#e coli controls
+t.test(control_ecoli_30$resp_rate, control_no_ecoli_20$resp_rate) #no difference
+
+# Control 20 v control 30
+t.test(control_all_20$resp_rate, control_all_30$resp_rate)
+# A 5 20 v A 5 30
+t.test(A_5_20$resp_rate, A_5_30$resp_rate)
+# A 7.5 20 v A 7.5 30
+t.test(A_7.5_20$resp_rate, A_7.5_30$resp_rate)
+# Control 20 v. A10 20
+t.test(control_all_20$resp_rate, A_10_20$resp_rate)
+# Control 30 v. A10 30
+t.test(control_all_30$resp_rate, A_10_30$resp_rate)
+# A10 20 v A10 30
+t.test(A_10_20$resp_rate, A_10_30$resp_rate)
+# N 1.5 20 v N 1.5 30
+t.test(N_1.5_20$resp_rate, N_1.5_30$resp_rate)
+# N 5 20 v N 5 30
+t.test(N_5_20$resp_rate, N_5_30$resp_rate)
+# Control 20 v. N18 20
+t.test(control_all_20$resp_rate, N_18_20$resp_rate)
+# Control 30 v. Control N18 30
+t.test(control_all_30$resp_rate, N_18_30$resp_rate)
+
+# e coli vs. no ecoli 
+t.test(e_coli$resp_rate, no_e_coli$resp_rate)
+# N 18 e coli 30 vs. control 30
+t.test(control_all_30$resp_rate, N_18_30_e_coli$resp_rate)
+       
+```
+
