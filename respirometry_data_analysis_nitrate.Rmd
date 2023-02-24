@@ -460,44 +460,39 @@ ggplot(data =e_coli_sum_sym_state,
     theme_classic()
 
 
-# I THINK WE SHOULD LEAVE IT AT THIS LEVEL AND GET ALL OF OUR TAKE HOMES FROM THIS
+# I THINK WE SHOULD LEAVE IT AT THIS LEVEL AND GET ALL OF OUR TAKE HOMES FROM THIS, BUT I'LL DO SOME MORE ANALYSES FOR KICKS
 
 ```
 
-```{r E. COLI NITRATE BY SYM STATE and FOOD}
-e_coli_sym_fed<-subset(e_coli, resp_all_nitrate.data$sym_state=="S" & resp_all_nitrate.data$food=="F")
-e_coli_sym_starved<-subset(e_coli, resp_all_nitrate.data$sym_state=="S" & resp_all_nitrate.data$food=="S")
-e_coli_apo_fed<-subset(e_coli, resp_all_nitrate.data$sym_state=="A" & resp_all_nitrate.data$food=="F")
-e_coli_apo_starved<-subset(e_coli, resp_all_nitrate.data$sym_state=="A" & resp_all_nitrate.data$food=="S")
+```{r Linear models grouping by food and sym state}
 
-# E coli sym fed
-mm_e_coli_sym_fed <- lmer(resp_rate ~  N_species_dose + temp + N_species_dose*temp + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= e_coli_sym_fed)
-summary(mm_e_coli_sym_fed)
-print(step.model<- step(mm_e_coli_sym_fed))
+# Overall food and symbiotic state
+mm_food_sym<- lmer(resp_rate ~  food_sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= resp_all_nitrate.data)
+summary(mm_food_sym)
+emm_food_sym<-emmeans(mm_food_sym, pairwise ~ food_sym_state)
+summary(emm_e_coli_food_sym)
+#No pairwise differences 
+print(step.model<- step(mm_e_coli_food_sym))
+
+
+# E coli food and symbiotic state
+mm_e_coli_food_sym<- lmer(resp_rate ~  food_sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= e_coli)
+summary(mm_e_coli_food_sym)
+emm_e_coli_food_sym<-emmeans(mm_e_coli_food_sym, pairwise ~ food_sym_state)
+summary(emm_e_coli_food_sym)
+#No pairwise differences 
+print(step.model<- step(mm_e_coli_food_sym))
 #nothing really significant
 
-# E coli sym starved
-mm_e_coli_sym_starved <- lmer(resp_rate ~  N_species_dose + temp + N_species_dose*temp + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= e_coli_sym_starved)
-summary(mm_e_coli_sym_starved)
-print(step.model<- step(mm_e_coli_sym_starved))
+
+# NO E coli food and symbiotic state
+mm_no_e_coli_food_sym<- lmer(resp_rate ~  food_sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= no_e_coli)
+summary(mm_no_e_coli_food_sym)
+emm_no_e_coli_food_sym<-emmeans(mm_no_e_coli_food_sym, pairwise ~ food_sym_state)
+summary(emm_no_e_coli_food_sym)
+#No pairwise differences 
+print(step.model<- step(mm_no_e_coli_food_sym))
 #nothing really significant
-
-# E coli apo fed
-mm_e_coli_apo_fed <- lmer(resp_rate ~  N_species_dose + temp + N_species_dose*temp + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= e_coli_apo_fed)
-summary(mm_e_coli_apo_fed)
-print(step.model<- step(mm_e_coli_apo_fed))
-# nothing is really significant
-lm_e_coli_apo_fed<-lm(resp_rate ~ N_species_dose, data=e_coli_apo_fed)
-summary(emmeans(lm_e_coli_apo_fed, pairwise ~ N_species_dose)) # Nothing significant
-
-# E coli apo starved
-mm_e_coli_apo_starved <- lmer(resp_rate ~  N_species_dose + temp + N_species_dose*temp + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= e_coli_apo_starved)
-summary(mm_e_coli_apo_starved)
-print(step.model<- step(mm_e_coli_apo_starved))
-# temperature is significant!
-lm_e_coli_apo_starved<-lm(resp_rate ~ temp, data=e_coli_apo_starved)
-summary(emmeans(lm_e_coli_apo_starved, pairwise ~ temp)) # TEMP IS SIGNIFICANT, 20C respired more than 30C
-
 
 
 
