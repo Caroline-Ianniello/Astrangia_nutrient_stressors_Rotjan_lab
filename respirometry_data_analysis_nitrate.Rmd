@@ -283,6 +283,14 @@ pred_nitrate <- ggplot(int_pred_nitrate, aes(facet,predicted, colour = group))
 ```
 
 ```{r Graphs - Summarizing by each variable}
+#Make N species dose a factor and give it levels
+resp_all_nitrate.data$N_species_dose <- factor(resp_all_nitrate.data$N_species_dose, levels=c("CNTRL_0", "N_1.5", "N_5","N_18"))
+
+#Make everything else a character so they graph nicely 
+resp_all_nitrate.data$treat_ID_full<-as.character(resp_all_nitrate.data$treat_ID_full)
+resp_all_nitrate.data$e_coli_plate<-as.character(resp_all_nitrate.data$e_coli_plate)
+resp_all_nitrate.data$temp <- as.character(resp_all_nitrate.data$temp)
+
 # Summarize by N_species_dose so we can visualize
 sum_N_species_dose_nitrate <- summarySE(resp_all_nitrate.data, measurevar = "resp_rate", groupvars = c("N_species_dose"))
 # Visualize
@@ -292,7 +300,7 @@ gg_N_species_dose_nitrate<-ggplot(data = sum_N_species_dose_nitrate,
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate N Species Dose") +
+    ggtitle ("Nitrate - N Species Dose summary") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 12),
@@ -315,7 +323,7 @@ gg_temp_nitrate<-ggplot(data = sum_temp_nitrate,
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate N Species Dose") +
+    ggtitle ("Nitrate- Temperature summary") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 12),
@@ -339,7 +347,7 @@ gg_e_coli_nitrate<-ggplot(data = sum_e_coli_nitrate,
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate N Species Dose") +
+    ggtitle ("Nitrate- E. coli summary") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 12),
@@ -363,7 +371,7 @@ gg_sym_state_nitrate<-ggplot(data = sum_sym_state_nitrate,
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate N Species Dose") +
+    ggtitle ("Nitrate- Sym state summary") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 12),
@@ -389,7 +397,7 @@ gg_food_sym_state_nitrate<-ggplot(data = sum_food_sym_state_nitrate,
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate Sym state and food") +
+    ggtitle ("Nitrate- Sym state and food summary") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 12),
@@ -413,7 +421,7 @@ gg_N_species_dose_temp_nitrate<-ggplot(data = sum_N_species_dose_temp_nitrate,
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate N species dose and sym state") +
+    ggtitle ("Nitrate - N species dose and temperature summary") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 12),
@@ -437,7 +445,7 @@ gg_N_species_dose_e_coli_nitrate<-ggplot(data = sum_N_species_dose_e_coli_nitrat
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate N species dose and e coli") +
+    ggtitle ("Nitrate- N species dose and e coli summary") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 12),
@@ -461,7 +469,7 @@ gg_temp_e_coli_nitrate<-ggplot(data = sum_temp_e_coli_nitrate,
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate N species dose and e coli") +
+    ggtitle ("Nitrate- temperature and e coli summary") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 12),
@@ -481,7 +489,7 @@ gg_temp_e_coli_nitrate
 
 ```{r Graphs - Plotting model estimates}
 #Plot model estimate for N_species_dose # I am not sure how interesting this is, but here is the code if we want it
-l=plot_model(mm_resp_e_coli_2, 'pred', ci.lvl = 0.95, terms="N_species_dose")
+l=plot_model(mm_resp_2, 'pred', ci.lvl = 0.95, terms="N_species_dose")
 l +
   theme_classic() +
 xlab("N species dose")+
@@ -492,8 +500,7 @@ axis.title.y = element_text(color="black", size=14, face="bold"))+
   theme(axis.text.x = element_text(size=14),
           axis.text.y = element_text(size=14))
 # plot model estimate for temp
-t=plot_model(mm_resp_e_coli_2, 'pred', ci.lvl = 0.95, terms="N_species_dose")
-t
+
 
 ```
 
@@ -783,13 +790,13 @@ all_18uM_sum_sym_state <- summarySE(all_18uM, measurevar = "resp_rate", groupvar
 # Summarize by temp
 all_18uM_sum_temp <- summarySE(all_18uM, measurevar = "resp_rate", groupvars = c("temp"))
 # Visualize
-ggplot(data = all_18uM_sum_temp,
-       aes(x = temp,
+ggplot(data = all_18uM_sum_e_coli,
+       aes(x = e_coli_plate,
            y = resp_rate)) +
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("N 18uM - 20C vs. 30C") +
+    ggtitle ("N 18uM - e. coli vs. no e. coli") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 12),
@@ -803,6 +810,8 @@ ggplot(data = all_18uM_sum_temp,
     theme_classic()
 
 # What about 18uM treated with E. coli
+e_coli_18uM<-subset(resp_all_nitrate.data, resp_all_nitrate.data$N_species_dose=="N_18" & resp_all_nitrate.data$e_coli_plate==1)
+
 # Summarize by food
 e_coli_18uM_sum_food <- summarySE(e_coli_18uM, measurevar = "resp_rate", groupvars = c("food"))
 # Summarize by sym-state
@@ -810,13 +819,13 @@ e_coli_18uM_sum_sym_state <- summarySE(e_coli_18uM, measurevar = "resp_rate", gr
 # Summarize by temp
 e_coli_18uM_sum_temp <- summarySE(e_coli_18uM, measurevar = "resp_rate", groupvars = c("temp"))
 # Visualize
-ggplot(data = e_coli_18uM_sum_temp,
-       aes(x = temp,
+ggplot(data = e_coli_18uM_sum_food,
+       aes(x = food,
            y = resp_rate)) +
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("N 18uM with E. Coli - 20C vs. 30C") +
+    ggtitle ("N 18uM with E. Coli - fed vs. starved") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 12),
