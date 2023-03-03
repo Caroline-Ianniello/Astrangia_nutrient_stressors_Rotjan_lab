@@ -316,29 +316,31 @@ pred_ammonium
 
 ```
 
-```{r Graphs - Summarizing by each variable}
-# Summarize by N_species_dose so we can visualize
+```{r Ammonium plots}
+#Make N species dose a factor and give it levels so it will display in this order
 resp_all_ammonium.data$N_species_dose <- factor(resp_all_ammonium.data$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+
+#Make everything else a character so they graph nicely 
+resp_all_ammonium.data$treat_ID_full<-as.character(resp_all_ammonium.data$treat_ID_full)
+resp_all_ammonium.data$e_coli_plate<-as.character(resp_all_ammonium.data$e_coli_plate)
+resp_all_ammonium.data$temp <- as.character(resp_all_ammonium.data$temp)
+
+# Summarize by N_species_dose so we can visualize
 sum_N_species_dose_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "resp_rate", groupvars = c("N_species_dose"))
 # Visualize
 gg_N_species_dose_ammonium<-ggplot(data = sum_N_species_dose_ammonium,
        aes(x = N_species_dose,
-           y = resp_rate)) +
+           y = resp_rate, col=N_species_dose)) +
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Ammonium N Species Dose Summary") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
+    ggtitle ("Ammonium - N Species Dose summary") +
+   theme(legend.position="none")+
     labs(x = "\n", 
          y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
          caption = "data represent mean +/- SEM" ) +
-    theme_classic()
+    scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
+    scale_color_manual(labels=labels, values=c("blue", "orchid1","blueviolet","purple4"))
 gg_N_species_dose_ammonium
 
 # Summarize by temperature so we can visualize
@@ -346,23 +348,17 @@ sum_temp_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "resp_rate",
 # Visualize
 gg_temp_ammonium<-ggplot(data = sum_temp_ammonium,
        aes(x = temp,
-           y = resp_rate)) +
+           y = resp_rate, col=temp)) +
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Ammonium - Temp Summary ") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-   # scale_x_discrete(labels=c("20C","30C"))+
+    ggtitle ("Ammonium- Temperature summary") +
+  theme(legend.position="none")+
     labs(x = "Temperature", 
          y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
          caption = "data represent mean +/- SEM" ) +
-    theme_classic()
+    scale_x_discrete("Temperature", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
+    scale_color_manual(labels=labels, values=c("blue", "red"))
 gg_temp_ammonium
 
 # Summarize by E. coli so we can visualize
@@ -370,7 +366,7 @@ sum_e_coli_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "resp_rate
 # Visualize
 gg_e_coli_ammonium<-ggplot(data = sum_e_coli_ammonium,
        aes(x = e_coli_plate,
-           y = resp_rate)) +
+           y = resp_rate, col=e_coli_plate)) +
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
@@ -383,10 +379,12 @@ gg_e_coli_ammonium<-ggplot(data = sum_e_coli_ammonium,
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 12)) +
    # scale_x_discrete(labels=c("20C","30C"))+
+    theme(legend.position="none")+
     labs(x = "E. coli presence", 
          y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
          caption = "data represent mean +/- SEM" ) +
-    theme_classic()
+        scale_x_discrete("E. coli presence", labels=c("0"="No E. coli", "1"="E. coli")) +
+    scale_color_manual(labels=labels, values=c("gray", "goldenrod"))
 gg_e_coli_ammonium
 
 # Summarize by sym state so we can visualize
@@ -394,11 +392,11 @@ sum_sym_state_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "resp_r
 # Visualize
 gg_sym_state_ammonium<-ggplot(data = sum_sym_state_ammonium,
        aes(x = sym_state,
-           y = resp_rate)) +
+           y = resp_rate, col=sym_state)) +
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Ammonium - Sym State summary") +
+    ggtitle ("Ammonium- Sym state summary") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 12),
@@ -410,32 +408,58 @@ gg_sym_state_ammonium<-ggplot(data = sum_sym_state_ammonium,
     labs(x = "Symbiotic state", 
          y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
          caption = "data represent mean +/- SEM" ) +
-    theme_classic()
+        theme(legend.position="none")+
+        scale_x_discrete("Symbiotic State", labels=c("A"="Apo", "S"="Symbiotic")) +
+        scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "tan4"))
 gg_sym_state_ammonium
 summary(lm(resp_rate ~ sym_state, data=resp_all_ammonium.data))
+# UGH THEY ARE DIFFERENT! But it doesnt  come up in the overall model
+
+# Summarize by food so we can visualize
+sum_food_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "resp_rate", groupvars = c("food"))
+# Visualize
+gg_food_ammonium<-ggplot(data = sum_food_ammonium,
+       aes(x = food,
+           y = resp_rate, col=food)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Ammonium- Food summary") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   # scale_x_discrete(labels=c("20C","30C"))+
+    labs(x = "Symbiotic state", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme(legend.position="none")+
+   scale_x_discrete("Food presence", labels=c("F"="Fed", "S"="Starved")) +
+  scale_color_manual("Food Regime", labels=c("Fed","Starved"),values=c("brown", "darkgray"))
+gg_food_ammonium
+summary(lm(resp_rate ~ sym_state, data=resp_all_ammonium.data))
+
 
 # Summarize by food and sym state so we can visualize
 sum_food_sym_state_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "resp_rate", groupvars = c("sym_state","food"))
 # Visualize
 gg_food_sym_state_ammonium<-ggplot(data = sum_food_sym_state_ammonium,
        aes(x = sym_state,
-           y = resp_rate, colour=food)) +
+           y = resp_rate, col=food)) + #use fill here or the legends will be really hard to work with
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
-    #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("Ammonium- Sym state and food summary") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-   # scale_x_discrete(labels=c("20C","30C"))+
+   #scale_fill_manual(name="Feeding Regime", labels=c('Fed', 'Starved'))+
+ # scale_fill_manual(values=c("brown", "darkgray"))+
     labs(x = "Symbiotic state", 
          y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
          caption = "data represent mean +/- SEM" ) +
-    theme_classic()
+      scale_x_discrete(name="Symboitic state", labels=c("A"="Aposymbiotic", "S"="Symbiotic")) +
+  # scale_fill_manual(values=c("brown", "darkgray"))
+ scale_color_manual("Food Regime", labels=c("Fed","Starved"),values=c("brown", "black"))
 gg_food_sym_state_ammonium #seems obvious that food doesnt matter
 
 # Summarize by temp and N species dose so we can visualize
@@ -443,23 +467,18 @@ sum_N_species_dose_temp_ammonium <- summarySE(resp_all_ammonium.data, measurevar
 # Visualize
 gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
        aes(x = N_species_dose,
-           y = resp_rate, colour=temp)) +
+           y = resp_rate, col=temp)) +
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Ammonium N species dose and sym state") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
+    ggtitle ("Ammonium - N species dose and temperature summary") +
+     
    # scale_x_discrete(labels=c("20C","30C"))+
     labs(x = "ammonium dose", 
          y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
          caption = "data represent mean +/- SEM" ) +
-    theme_classic()
+ scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
+    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
 gg_N_species_dose_temp_ammonium 
 
 # Summarize by e_coli and N species dose so we can visualize
@@ -471,19 +490,13 @@ gg_N_species_dose_e_coli_ammonium<-ggplot(data = sum_N_species_dose_e_coli_ammon
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Ammonium N species dose and e coli") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
+    ggtitle ("Ammonium- N species dose and e coli summary") +
    # scale_x_discrete(labels=c("20C","30C"))+
-    labs(x = "ammonium dose", 
+    labs(x = "Ammonium dose", 
          y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
          caption = "data represent mean +/- SEM" ) +
-    theme_classic()
+   scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+     scale_color_manual("E.coli presence",labels=c("No E. coli", "E. coli"), values=c("gray", "darkgoldenrod"))
 gg_N_species_dose_e_coli_ammonium
 
 # Summarize by e_coli and temp so we can visualize
@@ -495,22 +508,17 @@ gg_temp_e_coli_ammonium<-ggplot(data = sum_temp_e_coli_ammonium,
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Ammonium temperature and e coli") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
+    ggtitle ("Ammonium- temperature and e coli summary") +
    # scale_x_discrete(labels=c("20C","30C"))+
     labs(x = "E. coli", 
          y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
          caption = "data represent mean +/- SEM" ) +
-    theme_classic()
+     scale_x_discrete("E. coli presence", labels=c("0"="No E. coli", "1"="E coli"))+
+     scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
 gg_temp_e_coli_ammonium
 
 ```
+
 
 
 ```{r Graphs - Plotting model estimates}
