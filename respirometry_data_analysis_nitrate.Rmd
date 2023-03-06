@@ -749,218 +749,34 @@ response.lm_apo
 
 ```
 
+# We are now going to subset just fed and just starved data and do linear models to compare results to the overall model
+```{r Fed data}
+#first let's subset all of the fed data
+all_fed_nitrate<-subset(resp_all_nitrate.data, resp_all_nitrate.data$food=="F")
+qqnorm(all_fed_nitrate$resp_rate) #looks good
 
+#now let's do model selection
+full.model_fed_nitrate <- lmer(resp_rate ~  N_species_dose + temp + sym_state + e_coli_plate + N_species_dose*temp +  N_species_dose*sym_state + N_species_dose*e_coli_plate + temp*sym_state + temp*e_coli_plate +  sym_state*e_coli_plate +  (1|col_num) + (1|exp_num) , data= all_fed_nitrate)
+print(step.model<- step(full.model_fed_nitrate))
 
-#Graphs and visualizations
-
-```{r Graphs NITRATE}
-#1
-gg_resp_all_ecoli<-
-  ggplot(e_coli, aes(x=treat_ID_full, y=resp_rate, color=col_num)) +
-  geom_boxplot(width=0.8) +
-  geom_jitter(width=0.15, alpha=0.9) +
- # geom_line(aes(group=e_coli_plate), col="darkgray")+
-  ylab("Respirometry rate")+
-  xlab("Treat ID")+
-  theme(legend.position="none", plot.title = element_text(size = 9)) +
-  #scale_color_manual(name = "Day of experiment",
-                     #labels = c("Day 1","Day 11"),
-                   # values = c("royalblue","darkorchid1"))+
- # scale_x_discrete(labels=c("Day 1","Day 11")) +
-    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
- annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
-  ggtitle("Resp rate by treat ID - E. coli")
-gg_resp_all_ecoli
-
-#2
-gg_food_sym_state_ecoli<-
-  ggplot(e_coli, aes(x=food_sym_state, y=resp_rate, color=col_num)) +
-  geom_boxplot(width=0.8) +
-  geom_jitter(width=0.15, alpha=0.9) +
- # geom_line(aes(group=e_coli_plate), col="darkgray")+
-  ylab("Respirometry rate")+
-  xlab("Treat ID")+
-  theme(legend.position="none", plot.title = element_text(size = 9)) +
-  #scale_color_manual(name = "Day of experiment",
-                     #labels = c("Day 1","Day 11"),
-                   # values = c("royalblue","darkorchid1"))+
- # scale_x_discrete(labels=c("Day 1","Day 11")) +
-    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
- annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
-  ggtitle("Resp rate by Food and Symbiotic State (Food_Symstate) - E. coli")
-gg_food_sym_state_ecoli
-
-#3
-gg_resp_all_no_ecoli<-
-  ggplot(no_e_coli, aes(x=treat_ID_collapsed_controls, y=resp_rate, color=col_num)) +
-  geom_boxplot(width=0.8) +
-  geom_jitter(width=0.15, alpha=0.9) +
- # geom_line(aes(group=e_coli_plate), col="darkgray")+
-  ylab("Respirometry rate")+
-  xlab("Treat ID")+
-  theme(legend.position="none", plot.title = element_text(size = 9)) +
-  #scale_color_manual(name = "Day of experiment",
-                     #labels = c("Day 1","Day 11"),
-                   # values = c("royalblue","darkorchid1"))+
- # scale_x_discrete(labels=c("Day 1","Day 11")) +
-    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
- annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
-  ggtitle("Resp rate by treat ID - No E. coli")
-gg_resp_all_no_ecoli
-
-#4
-gg_food_sym_state_no_ecoli<-
-  ggplot(no_e_coli, aes(x=food_sym_state, y=resp_rate, color=col_num)) +
-  geom_boxplot(width=0.8) +
-  geom_jitter(width=0.15, alpha=0.9) +
- # geom_line(aes(group=e_coli_plate), col="darkgray")+
-  ylab("Respirometry rate")+
-  xlab("Treat ID")+
-  theme(legend.position="none", plot.title = element_text(size = 9)) +
-  #scale_color_manual(name = "Day of experiment",
-                     #labels = c("Day 1","Day 11"),
-                   # values = c("royalblue","darkorchid1"))+
- # scale_x_discrete(labels=c("Day 1","Day 11")) +
-    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
- annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
-  ggtitle("Resp rate by Food and Symbiotic State (Food_Symstate) - No E. coli")
-gg_food_sym_state_no_ecoli
-
-
-#5
-gg_N_species_dose_ecoli<-
-  ggplot(e_coli, aes(x=N_species_dose, y=resp_rate, color=col_num)) +
-  geom_boxplot(width=0.8) +
-  geom_jitter(width=0.15, alpha=0.9) +
- # geom_label(position="jitter")+
- # geom_line(aes(group=e_coli_plate), col="darkgray")+
-  ylab("Respirometry rate")+
-  xlab("Treat ID")+
-  theme(legend.position="none", plot.title = element_text(size = 9)) +
-  #scale_color_manual()+
-                     #labels = c("Day 1","Day 11"),
-                   # values = c("royalblue","darkorchid1"))+
- # scale_x_discrete(labels=c("Day 1","Day 11")) +
-    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
- annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
-  ggtitle("Resp rate by N_species_dose - E. coli")
-gg_N_species_dose_ecoli
-?geom_label
-
-#6
-gg_N_species_dose_no_ecoli<-
-  ggplot(no_e_coli, aes(x=N_species_dose, y=resp_rate, color=col_num)) +
-  geom_boxplot(width=0.8) +
-  geom_jitter(width=0.15, alpha=0.9) +
- # geom_line(aes(group=e_coli_plate), col="darkgray")+
-  ylab("Respirometry rate")+
-  xlab("Treat ID")+
-  theme(legend.position="none", plot.title = element_text(size = 9)) +
-  #scale_color_manual(name = "Day of experiment",
-                     #labels = c("Day 1","Day 11"),
-                   # values = c("royalblue","darkorchid1"))+
- # scale_x_discrete(labels=c("Day 1","Day 11")) +
-    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
- annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
-  ggtitle("Resp rate by N_species_dose - No E. coli")
-gg_N_species_dose_no_ecoli
-
-
-#7
-e_coli$temp<-as.factor(e_coli$temp)
-gg_temp_ecoli<-
-  ggplot(e_coli, aes(x=temp, y=resp_rate)) +
-  geom_boxplot(width=0.8) +
-  geom_jitter(width=0.15, alpha=0.9) +
- # geom_line(aes(group=e_coli_plate), col="darkgray")+
-  ylab("Respirometry rate")+
-  xlab("Temperature")+
-  theme(legend.position="none", plot.title = element_text(size = 9)) +
-  #scale_color_manual(name = "Day of experiment",
-                     #labels = c("Day 1","Day 11"),
-                   # values = c("royalblue","darkorchid1"))+
- # scale_x_discrete(labels=c("Day 1","Day 11")) +
-    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
- annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
-  ggtitle("Resp rate by Temp - E. coli")
-gg_temp_ecoli
-
-#8
-no_e_coli$temp<-as.factor(no_e_coli$temp)
-gg_temp_no_ecoli<-
-  ggplot(no_e_coli, aes(x=temp, y=resp_rate, color=col_num)) +
-  geom_boxplot(width=0.8) +
-  geom_jitter(width=0.15, alpha=0.9) +
- # geom_line(aes(group=e_coli_plate), col="darkgray")+
-  ylab("Respirometry rate")+
-  xlab("Treat ID")+
-  theme(legend.position="none", plot.title = element_text(size = 9)) +
-  #scale_color_manual(name = "Day of experiment",
-                     #labels = c("Day 1","Day 11"),
-                   # values = c("royalblue","darkorchid1"))+
- # scale_x_discrete(labels=c("Day 1","Day 11")) +
-    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
- annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
-  ggtitle("Resp rate by Temp - No E. coli")
-gg_temp_no_ecoli
-
-#9
-no_e_coli$sym_state<-as.factor(no_e_coli$sym_state)
-gg_sym_state_no_ecoli<-
-  ggplot(no_e_coli, aes(x=sym_state, y=resp_rate)) +
-  geom_boxplot(width=0.8) +
-  geom_jitter(width=0.15, alpha=0.9) +
- # geom_line(aes(group=e_coli_plate), col="darkgray")+
-  ylab("Respirometry rate")+
-  xlab("Treat ID")+
-  theme(legend.position="none", plot.title = element_text(size = 9)) +
-  #scale_color_manual(name = "Day of experiment",
-                     #labels = c("Day 1","Day 11"),
-                   # values = c("royalblue","darkorchid1"))+
- # scale_x_discrete(labels=c("Day 1","Day 11")) +
-    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
- annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
-  ggtitle("Resp rate by Sym state - No E. coli")
-gg_sym_state_no_ecoli
-
-#10
-e_coli$sym_state<-as.factor(e_coli$sym_state)
-gg_sym_state_ecoli<-
-  ggplot(e_coli, aes(x=sym_state, y=resp_rate)) +
-  geom_boxplot(width=0.8) +
-  geom_jitter(width=0.15, alpha=0.9) +
- # geom_line(aes(group=e_coli_plate), col="darkgray")+
-  ylab("Respirometry rate")+
-  xlab("Treat ID")+
-  theme(legend.position="none", plot.title = element_text(size = 9)) +
-  #scale_color_manual(name = "Day of experiment",
-                     #labels = c("Day 1","Day 11"),
-                   # values = c("royalblue","darkorchid1"))+
- # scale_x_discrete(labels=c("Day 1","Day 11")) +
-    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
- annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
-  ggtitle("Resp rate by Sym state - No E. coli")
-gg_sym_state_ecoli
+mm_fed_nitrate <- lmer(resp_rate ~  N_species_dose + temp + sym_state + e_coli_plate +  (1|col_num) , data= all_fed_nitrate)
+summary(mm_fed_nitrate)
+#e coli comes out as significant
 
 ```
 
 
-# OVERALL ANOVA
-```{r MANOVA or ANOVA}
+```{r Starved data}
+#first let's subset all of the fed data
+all_starved_nitrate<-subset(resp_all_nitrate.data, resp_all_nitrate.data$food=="S")
+qqnorm(all_starved_nitrate$resp_rate) #looks good
+full.model_starved_nitrate <- lmer(resp_rate ~  N_species_dose + temp + sym_state + e_coli_plate + N_species_dose*temp +  N_species_dose*sym_state + N_species_dose*e_coli_plate + temp*sym_state + temp*e_coli_plate +  sym_state*e_coli_plate +  (1|col_num) + (1|exp_num) , data= all_fed_nitrate)
+print(step.model<- step(full.model_starved_nitrate))
 
-#What is a MANOVA?
-  # A MANOVA is used when there are multiple dependent variables as well as independent variables in the study. MANOVA combines the multiple dependent variables in a linear manner to produce a combination which best separates the independent variable groups. Can only be used when the dependent variable is continuous
-      # NOTE: the non parametric version of this is a PERMANOVA
+mm_starved_nitrate <- lmer(resp_rate ~ N_species_dose + temp + sym_state + e_coli_plate +  (1|col_num) , data= all_starved_nitrate)
+summary(mm_starved_nitrate)
 
-#What is the difference between a MANOVA and a linear model?
-  #  MANOVA will give you a very different answer than multiple regression analyses. MANOVA will look for a linear combination of the independent variables that minimizes ordinary least squares for the set of dependent variables. So, if the variables are not related in some way, it doesn't make much sense to combine them. To answer your question about why do a MANOVA, we can simply state that running multiple regressions (or ANOVAs) will inflate your type I error rate. Think about why you run an ANOVA instead of many t-tests.
-
-# I ACTUALLY THINK WE WANT A UNIVARIATE ANALYSIS BECAUSE WE ONLY HAVE ONE OUTPUT -- RESPIRATION RATE
-
-#We should do a seperate ANOVA for e coli and no e coli
-aov_resp_e_coli <- aov(resp_rate ~ N_species * N_dose * temp * food * sym_state, data=e_coli)
-summary(aov_resp_e_coli)
+#temperature comes out significant
 
 ```
-
 
