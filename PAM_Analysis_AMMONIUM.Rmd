@@ -1,9 +1,9 @@
 ---
-title: "PAM data NITRATE: last updated 03/05/22 C. Fleming"
+title: "PAM data AMMONIUM: last updated 12/9/22 C. Fleming"
 output: html_notebook
 ---
-#NITRATE ONLY
 
+# AMMONIUM ONLY
 ```{r Loading all necessary packages}
 # library("knitr")
 # require("knitr")
@@ -48,61 +48,61 @@ options(max.print=1000000)
 
 
 ```{r Inputting data & making sure everything is organized correctly}
-pam_all_nitrate.data <- read.csv("PAM_nitrate_only_3_5_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+pam_all_ammonium.data <- read.csv("PAM_ammonium_only_3_5_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 
 #getting rid of all the extra data at the bottom-- we only want rows 1:959 OR 1:639 if only looking at exp 2 and 3 (remember we got rid of the outlier!)
-pam_all_nitrate.data  <- pam_all_nitrate.data[(1:482),]
-pam_all_nitrate.data <- na.omit(pam_all_nitrate.data)
+#pam_all_ammonium.data  <- pam_all_ammonium.data[(1:482),]
+pam_all_ammonium.data <- na.omit(pam_all_ammonium.data)
 
 
 #changing some column names
-pam_all_nitrate.data<-subset(pam_all_nitrate.data, select = -c(temp))
+pam_all_ammonium.data<-subset(pam_all_ammonium.data, select = -c(temp))
 #renaming columns in base R because dplyr is freaking out
-colnames(pam_all_nitrate.data)[colnames(pam_all_nitrate.data) == "sym_state"] ="sym_state_full"
-colnames(pam_all_nitrate.data)[colnames(pam_all_nitrate.data) == "sym_state.1"] ="sym_state"
-colnames(pam_all_nitrate.data)[colnames(pam_all_nitrate.data) == "temp.1"] ="temp"
+colnames(pam_all_ammonium.data)[colnames(pam_all_ammonium.data) == "sym_state"] ="sym_state_full"
+colnames(pam_all_ammonium.data)[colnames(pam_all_ammonium.data) == "sym_state.1"] ="sym_state"
+colnames(pam_all_ammonium.data)[colnames(pam_all_ammonium.data) == "temp.1"] ="temp"
 
 #Setting everything I need as factors for linear model and stats
-pam_all_nitrate.data$N_species<-as.factor(pam_all_nitrate.data$N_species)
-pam_all_nitrate.data$N_dose<-as.factor(pam_all_nitrate.data$N_dose)
-pam_all_nitrate.data$N_species_dose<-as.factor(pam_all_nitrate.data$N_species_dose)
-pam_all_nitrate.data$temp<-as.factor(pam_all_nitrate.data$temp)
-pam_all_nitrate.data$food<-as.factor(pam_all_nitrate.data$food)
-pam_all_nitrate.data$sym_state<-as.character(pam_all_nitrate.data$sym_state)
-pam_all_nitrate.data$food_sym_state<-as.factor(pam_all_nitrate.data$food_sym_state)
+pam_all_ammonium.data$N_species<-as.factor(pam_all_ammonium.data$N_species)
+pam_all_ammonium.data$N_dose<-as.factor(pam_all_ammonium.data$N_dose)
+pam_all_ammonium.data$N_species_dose<-as.factor(pam_all_ammonium.data$N_species_dose)
+pam_all_ammonium.data$temp<-as.factor(pam_all_ammonium.data$temp)
+pam_all_ammonium.data$food<-as.factor(pam_all_ammonium.data$food)
+pam_all_ammonium.data$sym_state<-as.character(pam_all_ammonium.data$sym_state)
+pam_all_ammonium.data$food_sym_state<-as.factor(pam_all_ammonium.data$food_sym_state)
 
-summary(pam_all_nitrate.data$temp)
+summary(pam_all_ammonium.data$temp)
 
 #lets check for normality in PAM_delta
-hist(pam_all_nitrate.data$PAM_delta)
-qqnorm(pam_all_nitrate.data$PAM_delta, main = NULL)
+hist(pam_all_ammonium.data$PAM_delta)
+qqnorm(pam_all_ammonium.data$PAM_delta, main = NULL)
 # it looks pretty normal
 
-hist(pam_all_nitrate.data$PAM_avg_day1) # a little funky but it's probably okay
-qqnorm(pam_all_nitrate.data$PAM_avg_day1, main = NULL)
+hist(pam_all_ammonium.data$PAM_avg_day1) # eh
+qqnorm(pam_all_ammonium.data$PAM_avg_day1, main = NULL)
 
-hist(pam_all_nitrate.data$PAM_avg_day11) # a little funky but it's probably okay
-qqnorm(pam_all_nitrate.data$PAM_avg_day11, main = NULL)
+hist(pam_all_ammonium.data$PAM_avg_day11) # eh
+qqnorm(pam_all_ammonium.data$PAM_avg_day11, main = NULL)
 
 ```
 
 
 ```{r Basic list of subsets}
 # all aposymbiotic
-all_apo<-subset(pam_all_nitrate.data, pam_all_nitrate.data$sym_state=="A")
+all_apo<-subset(pam_all_ammonium.data, pam_all_ammonium.data$sym_state=="A")
 # all symbiotic
-all_sym<-subset(pam_all_nitrate.data, pam_all_nitrate.data$sym_state=="S")
+all_sym<-subset(pam_all_ammonium.data, pam_all_ammonium.data$sym_state=="S")
 # all fed
-all_fed<-subset(pam_all_nitrate.data, pam_all_nitrate.data$food=="F")
+all_fed<-subset(pam_all_ammonium.data, pam_all_ammonium.data$food=="F")
 # all starved
-all_starved<-subset(pam_all_nitrate.data, pam_all_nitrate.data$food=="S")
+all_starved<-subset(pam_all_ammonium.data, pam_all_ammonium.data$food=="S")
 # all 20C
-all_20<-subset(pam_all_nitrate.data, pam_all_nitrate.data$temp=="20")
+all_20<-subset(pam_all_ammonium.data, pam_all_ammonium.data$temp=="20")
 # all 30C
-all_30<-subset(pam_all_nitrate.data, pam_all_nitrate.data$temp=="30")
+all_30<-subset(pam_all_ammonium.data, pam_all_ammonium.data$temp=="30")
 
 #without controls
-no_controls <- subset(pam_all_nitrate.data, pam_all_nitrate.data$N_dose!=0)
+no_controls <- subset(pam_all_ammonium.data, pam_all_ammonium.data$N_dose!=0)
 ```
 
 
@@ -111,39 +111,43 @@ no_controls <- subset(pam_all_nitrate.data, pam_all_nitrate.data$N_dose!=0)
 # LINEAR MODELS
 
 ```{r getting data ready for lmer}
-pam_all_nitrate.data$N_species<-as.factor(pam_all_nitrate.data$N_species)
-pam_all_nitrate.data$N_dose<-as.factor(pam_all_nitrate.data$N_dose)
-pam_all_nitrate.data$N_species_dose<-as.factor(pam_all_nitrate.data$N_species_dose)
-pam_all_nitrate.data$temp<-as.factor(pam_all_nitrate.data$temp)
-pam_all_nitrate.data$food<-as.factor(pam_all_nitrate.data$food)
-pam_all_nitrate.data$sym_state<-as.factor(pam_all_nitrate.data$sym_state)
+pam_all_ammonium.data$N_species<-as.factor(pam_all_ammonium.data$N_species)
+pam_all_ammonium.data$N_dose<-as.factor(pam_all_ammonium.data$N_dose)
+pam_all_ammonium.data$N_species_dose<-as.factor(pam_all_ammonium.data$N_species_dose)
+pam_all_ammonium.data$temp<-as.factor(pam_all_ammonium.data$temp)
+pam_all_ammonium.data$food<-as.factor(pam_all_ammonium.data$food)
+pam_all_ammonium.data$sym_state<-as.factor(pam_all_ammonium.data$sym_state)
 
-summary(pam_all_nitrate.data$sym_state)
+summary(pam_all_ammonium.data$sym_state)
 ```
 
 
 ```{r PAM delta Model selection }
-full.model_pam_nitrate <- lmer(PAM_delta ~  N_species_dose + temp + food + sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state + food*sym_state +  (1|col_num) + (1|exp_num) , data= pam_all_nitrate.data)
-summary(full.model_pam_nitrate)
-print(step.model<- step(full.model_pam_nitrate))
+full.model_pam_ammonium <- lmer(PAM_delta ~  N_species_dose + temp + food + sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state + food*sym_state +  (1|col_num) + (1|exp_num) , data= pam_all_ammonium.data)
+summary(full.model_pam_ammonium)
+print(step.model<- step(full.model_pam_ammonium))
 #Model found:
 #PAM_delta ~ N_species_dose + sym_state + (1 | col_num) + (1 | exp_num) + N_species_dose:sym_state
 
-mm_pam_1 <- lmer(PAM_delta ~ N_species_dose + sym_state + (1 | col_num) + (1 | exp_num) + N_species_dose*sym_state, data=pam_all_nitrate.data)
+mm_pam_1 <- lmer(PAM_delta ~ temp + sym_state + food + N_species_dose*sym_state + (1 | col_num) + (1 | exp_num) + temp*food + temp*sym_state, data=pam_all_ammonium.data)
 summary(mm_pam_1)
+#sym state is VERY significant
+#temp is also overall significant
+
 # WINNER # WINNER # WINNER # WINNER # WINNER # WINNER
 
-summary(aov(pam_all_nitrate.data$PAM_delta ~ pam_all_nitrate.data$sym_state)) #now sym state comes out as signficant and when we do pairwise it comes out
-
 #lets try some other models 
-mm_pam_2 <- lmer(PAM_delta ~ N_species_dose + sym_state + temp + (1 | col_num) + (1 | exp_num), data=pam_all_nitrate.data)
+mm_pam_2 <- lmer(PAM_delta ~ N_species_dose + N_species_dose*sym_state + sym_state + food + temp + (1 | col_num) + (1 | exp_num), data=pam_all_ammonium.data)
 summary(mm_pam_2)
 
-mm_pam_3 <- lmer(PAM_delta ~ N_species_dose + sym_state + food + (1 | col_num) + (1 | exp_num) + N_species_dose*sym_state, data=pam_all_nitrate.data)
+
+mm_pam_3 <- lmer(PAM_delta ~ temp + food + sym_state + (1 | col_num) + (1 | exp_num) + temp*food + temp*sym_state, data=pam_all_ammonium.data)
 summary(mm_pam_3)
 
 
-AIC(mm_pam_1, mm_pam_3)
+mm_pam_4 <- lmer(PAM_delta ~ temp + sym_state + N_species_dose*sym_state+ (1 | col_num) + (1 | exp_num) + temp*food + temp*sym_state, data=pam_all_ammonium.data)
+
+AIC(mm_pam_1, mm_pam_4)
 
 #mm1 is our winner
 
@@ -153,99 +157,76 @@ r2(mm_pam_1) #random explains 30%
 ```
 
 ```{r PAM delta Model posthocs}
-# Nitrate dose posthoc
-emm_pam_N_species_dose=emmeans(mm_pam_1, specs=pairwise ~ N_species_dose)
-summary(emm_pam_N_species_dose)
- # contrast        estimate     SE  df t.ratio p.value
- # CNTRL_0 - N_1.5  0.03361 0.0242 420   1.388  0.6358
- # CNTRL_0 - N_18   0.03957 0.0243 433   1.630  0.4787
- # CNTRL_0 - N_5    0.03508 0.0243 429   1.443  0.6004
- # N_1.5 - N_18     0.00597 0.0243 432   0.245  0.9992
- # N_1.5 - N_5      0.00147 0.0243 426   0.060  1.0000
- # N_18 - N_5      -0.00450 0.0240 413  -0.188  0.9997
+# ammonium dose posthoc
+#NOT IN THE MODEL! Let's just double check by adding it to another model and then doing a posthoc
+emm_pam_dose=emmeans(mm_pam_2, specs=pairwise ~ N_species_dose)
+summary(emm_pam_dose)
+#Yep, no differences rip
+# What about N species dose and sym state, we added this to the model because it was significant
+emm_pam_sym_state_dose=emmeans(mm_pam_1, specs=pairwise ~ N_species_dose*sym_state)
+summary(emm_pam_sym_state_dose)
+ # contrast              estimate     SE  df t.ratio p.value
+ # A_10 A - A_7.5 S       0.12488 0.0349 457   3.575  0.0092
+ # A_5 A - A_7.5 S        0.14338 0.0345 460   4.152  0.0010
+ # A_7.5 A - A_7.5 S      0.12997 0.0348 456   3.736  0.0052
+ # CNTRL_0 A - A_7.5 S    0.15131 0.0348 459   4.353  0.0004
+# What about N species dose and temp, we added this to the model but let's take it out because NOT SIGNFICANT
+emm_pam_temp_dose=emmeans(mm_pam_1, specs=pairwise ~ N_species_dose*temp)
+summary(emm_pam_temp_dose)
+ # contrast              estimate     SE  df t.ratio p.value
+ # A_10 A - A_7.5 S       0.12488 0.0349 457   3.575  0.0092
+ # A_5 A - A_7.5 S        0.14338 0.0345 460   4.152  0.0010
+ # A_7.5 A - A_7.5 S      0.12997 0.0348 456   3.736  0.0052
+ # CNTRL_0 A - A_7.5 S    0.15131 0.0348 459   4.353  0.0004
+
 
 # Sym state posthoc
 emm_pam_sym_state=emmeans(mm_pam_1, specs=pairwise ~ sym_state)
-summary(emm_pam_sym_state)
+summary(emm_pam_sym_state) # p= <0.001
 
-#Temperature from the whole model I dont get why there are so many NAs!
-emm_pam_temp=emmeans(full.model_pam_nitrate, specs=pairwise ~ temp)
-summary(emm_pam_temp)
+# food posthoc
+emm_pam_food=emmeans(mm_pam_1, specs=pairwise ~ food)
+summary(emm_pam_food) # p= 0.41
 
-# Sym state by N species dose
-emm_pam_N_species_dose_sym_state=emmeans(mm_pam_1, specs=pairwise ~ N_species_dose*sym_state)
-summary(emm_pam_N_species_dose_sym_state)
 
-# temp by N species dose
-emm_pam_N_species_dose_temp=emmeans(mm_pam_2, specs=pairwise ~ N_species_dose*temp)
-summary(emm_pam_N_species_dose_temp)
+#Temperature from the whole model
+emm_pam_temp=emmeans(mm_pam_1, specs=pairwise ~ temp)
+summary(emm_pam_temp) # p= 0.05
 
-# food by N species dose
-emm_pam_N_species_dose_food=emmeans(mm_pam_3, specs=pairwise ~ N_species_dose*food)
-summary(emm_pam_N_species_dose_food)
+# Sym state by temp
+emm_pam_temp_sym_state=emmeans(mm_pam_1, specs=pairwise ~ temp*sym_state)
+summary(emm_pam_temp_sym_state)
+ # contrast            estimate     SE  df t.ratio p.value
+ # temp20 A - temp30 A   0.0311 0.0240 462   1.298  0.5645
+ # temp20 A - temp20 S   0.1532 0.0261 343   5.867  <.0001
+ # temp20 A - temp30 S   0.0577 0.0259 363   2.227  0.1179
+ # temp30 A - temp20 S   0.1220 0.0264 341   4.626  <.0001
+ # temp30 A - temp30 S   0.0265 0.0260 373   1.020  0.7380
+ # temp20 S - temp30 S  -0.0955 0.0239 455  -3.997  0.0004
+
 ```
 
 
 ```{r PAM PAM day 11 Model selection }
-full.model_pam_day_11_nitrate <- lmer(PAM_avg_day11 ~  N_species_dose + temp + food + sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state + food*sym_state +  (1|col_num) + (1|exp_num) , data= pam_all_nitrate.data)
-print(step.model<- step(full.model_pam_day_11_nitrate ))
-#Model found:
-# nothing? lmao
-mm_pam_day_11_nitrate <- lmer(PAM_avg_day11 ~ (1|col_num), data= pam_all_nitrate.data) #winning model, bummer lol
-r2(mm_pam_day_11_nitrate)
 
-summary(mm_2_pam_day_11_nitrate <- lmer(PAM_avg_day11 ~  N_species_dose + temp + food + sym_state + (1|col_num), data= pam_all_nitrate.data))
-emm_2_pam_day_11_nitrate =emmeans(mm_2_pam_day_11_nitrate , specs=pairwise ~ N_species_dose)
-summary(emm_2_pam_day_11_nitrate ) #nope nothing significant
-
-
-summary(mm_pam_day_11_nitrate <- lmer(PAM_avg_day11 ~  N_species_dose + temp + food + sym_state + (1|col_num) + (1|exp_num) , data= pam_all_nitrate.data))
-
-# THIS TELLS ME WE REALLY SHOULD PROCEED WITH DELTA RATHER THAN DAY 11
-
-```
-
-```{r PAM day 11 Model posthocs}
-# Nitrate dose posthoc
-emm_pam_day_11_nitrate=emmeans(mm_pam_day_11_nitrate, specs=pairwise ~ N_species_dose)
-summary(emm_pam_day_11_nitrate)
- # contrast        estimate     SE  df t.ratio p.value
- # CNTRL_0 - N_1.5  0.02742 0.0209 426   1.314  0.5545
- # CNTRL_0 - N_5    0.02389 0.0209 436   1.141  0.6642
- # CNTRL_0 - N_18   0.03869 0.0209 440   1.853  0.2501
- # N_1.5 - N_5     -0.00354 0.0209 433  -0.169  0.9983
-
- # N_1.5 - N_18     0.01127 0.0209 440   0.538  0.9496
- # N_5 - N_18       0.01481 0.0207 420   0.716  0.8907
-
-```
-
-```{r Exploratory t tests}
-t.test(all_20$PAM_delta, all_30$PAM_delta) #no difference
-
-t.test(all_fed$PAM_delta, all_starved$PAM_delta) #no difference
-
-t.test(all_sym$PAM_delta, all_apo$PAM_delta) #p-value = 0.0000002325
+# LETS SKIP FOR NOW BECAUSE DAY 11 DISTRIBUTION LOOKS JANKY
 ```
 
 # VISUALIZATIONS
 ```{r Prepping for visualizations}
-pam_all_nitrate.data$N_species_dose <- factor(pam_all_nitrate.data$N_species_dose, levels=c("CNTRL_0", "N_1.5", "N_5","N_18"))
-pam_all_nitrate.data$N_species_dose<-as.character(pam_all_nitrate.data$N_species_dose)
-pam_all_nitrate.data$sym_state<-as.character(pam_all_nitrate.data$sym_state)
-pam_all_nitrate.data$temp <- as.character(pam_all_nitrate.data$temp)
+pam_all_ammonium.data$N_species_dose <- factor(pam_all_ammonium.data$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+no_controls$N_species_dose <- factor(no_controls$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+pam_all_ammonium.data$N_species_dose<-as.character(pam_all_ammonium.data$N_species_dose)
+pam_all_ammonium.data$sym_state<-as.character(pam_all_ammonium.data$sym_state)
+pam_all_ammonium.data$temp <- as.character(pam_all_ammonium.data$temp)
 ```
 
 
 ```{r Symbiotic State - PAM_delta}
-#overall apo vs. sym
-t.test(all_apo$PAM_avg_day11, all_sym$PAM_avg_day11)
+# AMMONIUM ONLY
 
-
-pam_treatmeans_apovsym <- summarySE(pam_all_nitrate.data, measurevar=c("PAM_delta"),groupvars =c("sym_state"), na.rm=TRUE)
-
-#NITRATE ONLY 
 # plot, treatment x axis colored by site data figure
+pam_treatmeans_apovsym <- summarySE(pam_all_ammonium.data, measurevar=c("PAM_delta"),groupvars =c("sym_state"), na.rm=TRUE)
 gg_pam_plot_apovsym <- ggplot(pam_treatmeans_apovsym, aes(x = sym_state, y= c(PAM_delta), color = sym_state))+
   theme_bw()+
   geom_point(size = 3, position = position_dodge(width=0.3))+
@@ -257,39 +238,39 @@ gg_pam_plot_apovsym <- ggplot(pam_treatmeans_apovsym, aes(x = sym_state, y= c(PA
                     #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
                     # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
  ylab("Change in Fv/Fm Pre vs. Post-experiment")+
-  ggtitle("Change in Fv/Fm Sym vs. Apo")+
- labs(caption = "data represent mean +/- SEM, p=0.0006***")+
+  ggtitle("Change in Fv/Fm Sym vs. Apo - Ammonium")+
+ labs(caption = "data represent mean +/- SEM, p=<0.0001***")+
   scale_x_discrete("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
     scale_color_manual("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"), values=c("gray", "brown")) #gives you the colors for each point on the graph
 gg_pam_plot_apovsym
 
 # Summarize by temp and N species dose so we can visualize
-sum_N_species_dose_sym_state_nitrate <- summarySE(pam_all_nitrate.data, measurevar = "PAM_delta", groupvars = c("sym_state","N_species_dose"))
+sum_N_species_dose_sym_state_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "PAM_delta", groupvars = c("sym_state","N_species_dose"))
 # Visualize
-gg_N_species_dose_sym_state_nitrate<-ggplot(data = sum_N_species_dose_sym_state_nitrate,
+gg_N_species_dose_sym_state_ammonium<-ggplot(data = sum_N_species_dose_sym_state_ammonium,
        aes(x = N_species_dose,
            y = PAM_delta, colour=sym_state)) +
     geom_point() +
     geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate - Change in Fv/Fm by sym state and dose") +
+    ggtitle ("Ammonium - Change in Fv/Fm by sym state and dose") +
     
    # scale_x_discrete(labels=c("20C","30C"))+
-    labs(x = "Nitrate dose", 
+    labs(x = "ammonium dose", 
          y = expression(paste("Change in Photosynthetic Efficiency Fv/Fm")), 
          caption = "data represent mean +/- SEM" ) +
-    scale_x_discrete("Nitrate dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", A_5="1.5uM", A_7.5="7.5um", A_10="10um"))+
     scale_color_manual("Sym State", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))
-gg_N_species_dose_sym_state_nitrate
+gg_N_species_dose_sym_state_ammonium
 # Summarize by food and sym state so we can visualize
-sum_food_sym_state_nitrate <- summarySE(pam_all_nitrate.data, measurevar = "PAM_delta", groupvars = c("sym_state","food"))
+sum_food_sym_state_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "PAM_delta", groupvars = c("sym_state","food"))
 # Visualize
-gg_food_sym_state_nitrate<-ggplot(data = sum_food_sym_state_nitrate,
+gg_food_sym_state_ammonium<-ggplot(data = sum_food_sym_state_ammonium,
        aes(x = sym_state,
            y = PAM_delta, col=food)) + #use fill here or the legends will be really hard to work with
     geom_point() +
     geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
-    ggtitle ("PAM delta Fv/Fm Sym vs. Apo at various nitrate doses") +
+    ggtitle ("PAM delta Fv/Fm Sym vs. Apo at Fed vs. Starved") +
    #scale_fill_manual(name="Feeding Regime", labels=c('Fed', 'Starved'))+
  # scale_fill_manual(values=c("brown", "darkgray"))+
     labs(x = "Symbiotic state", 
@@ -298,7 +279,7 @@ gg_food_sym_state_nitrate<-ggplot(data = sum_food_sym_state_nitrate,
       scale_x_discrete(name="Symboitic state", labels=c("A"="Aposymbiotic", "S"="Symbiotic")) +
   # scale_fill_manual(values=c("brown", "darkgray"))
  scale_color_manual(values=c("orange", "black"))
-gg_food_sym_state_nitrate 
+gg_food_sym_state_ammonium 
 
  
 # WITHOUT CONTROLS #
@@ -315,21 +296,21 @@ gg_pam_plot_apovsym <- ggplot(pam_treatmeans_apovsym, aes(x = sym_state, y= c(PA
                     #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
                     # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
  ylab("Change in Photosynthetic Efficiency Fv/Fm")+
-  ggtitle("No Controls PAM delta Fv/Fm Sym vs. Apo")+
+  ggtitle("No Controls PAM delta Fv/Fm Sym vs. Apo - Ammonium")+
  labs(caption = "data represent mean +/- SEM, p=")+
   scale_x_discrete("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
     scale_color_manual("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"), values=c("gray", "brown")) #gives you the colors for each point on the graph
 gg_pam_plot_apovsym
 
 # Summarize by food and sym state so we can visualize
-sum_food_sym_state_nitrate <- summarySE(no_controls, measurevar = "PAM_delta", groupvars = c("sym_state","food"))
+sum_food_sym_state_ammonium <- summarySE(no_controls, measurevar = "PAM_delta", groupvars = c("sym_state","food"))
 # Visualize
-gg_food_sym_state_nitrate<-ggplot(data = sum_food_sym_state_nitrate,
+gg_food_sym_state_ammonium<-ggplot(data = sum_food_sym_state_ammonium,
        aes(x = sym_state,
            y = PAM_delta, col=food)) + #use fill here or the legends will be really hard to work with
     geom_point() +
     geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
-    ggtitle ("No Controls PAM delta Fv/Fm Sym vs. Apo at various nitrate doses") +
+    ggtitle ("No Controls PAM delta Fv/Fm Sym vs. Apo at various Ammonium doses") +
    #scale_fill_manual(name="Feeding Regime", labels=c('Fed', 'Starved'))+
  # scale_fill_manual(values=c("brown", "darkgray"))+
     labs(x = "Symbiotic state", 
@@ -338,19 +319,19 @@ gg_food_sym_state_nitrate<-ggplot(data = sum_food_sym_state_nitrate,
       scale_x_discrete(name="Symboitic state", labels=c("A"="Aposymbiotic", "S"="Symbiotic")) +
   # scale_fill_manual(values=c("brown", "darkgray"))
  scale_color_manual(values=c("orange", "black"))
-gg_food_sym_state_nitrate #seems obvious that food doesnt matter
+gg_food_sym_state_ammonium #seems obvious that food doesnt matter
 
 ```
 
 
-```{r Symbiotic State - PAM_avg_day11}
+```{r Symbiotic State - PAM_avg_day11 - TABLE THIS FOR NOW}
 #overall apo vs. sym
 t.test(all_apo$PAM_avg_day11, all_sym$PAM_avg_day11)
 
 
-pam_treatmeans_apovsym <- summarySE(pam_all_nitrate.data, measurevar=c("PAM_avg_day11"),groupvars =c("sym_state"), na.rm=TRUE)
+pam_treatmeans_apovsym <- summarySE(pam_all_ammonium.data, measurevar=c("PAM_avg_day11"),groupvars =c("sym_state"), na.rm=TRUE)
 
-#NITRATE ONLY 
+#ammonium ONLY 
 # plot, treatment x axis colored by site data figure
 gg_pam_plot_apovsym <- ggplot(pam_treatmeans_apovsym, aes(x = sym_state, y= c(PAM_avg_day11), color = sym_state))+
   theme_bw()+
@@ -370,14 +351,14 @@ gg_pam_plot_apovsym <- ggplot(pam_treatmeans_apovsym, aes(x = sym_state, y= c(PA
 gg_pam_plot_apovsym
 
 # Summarize by food and sym state so we can visualize
-sum_food_sym_state_nitrate <- summarySE(pam_all_nitrate.data, measurevar = "PAM_avg_day11", groupvars = c("sym_state","food"))
+sum_food_sym_state_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "PAM_avg_day11", groupvars = c("sym_state","food"))
 # Visualize
-gg_food_sym_state_nitrate<-ggplot(data = sum_food_sym_state_nitrate,
+gg_food_sym_state_ammonium<-ggplot(data = sum_food_sym_state_ammonium,
        aes(x = sym_state,
            y = PAM_avg_day11, col=food)) + #use fill here or the legends will be really hard to work with
     geom_point() +
     geom_errorbar(aes(ymin=PAM_avg_day11-se, ymax=PAM_avg_day11+se), width=0.1, size = 1) +
-    ggtitle ("Day 11 Fv/Fm Sym vs. Apo at various nitrate doses") +
+    ggtitle ("Day 11 Fv/Fm Sym vs. Apo at various ammonium doses") +
    #scale_fill_manual(name="Feeding Regime", labels=c('Fed', 'Starved'))+
  # scale_fill_manual(values=c("brown", "darkgray"))+
     labs(x = "Symbiotic state", 
@@ -386,12 +367,12 @@ gg_food_sym_state_nitrate<-ggplot(data = sum_food_sym_state_nitrate,
       scale_x_discrete(name="Symboitic state", labels=c("A"="Aposymbiotic", "S"="Symbiotic")) +
   # scale_fill_manual(values=c("brown", "darkgray"))
  scale_color_manual(values=c("orange", "black"))
-gg_food_sym_state_nitrate #seems obvious that food doesnt matter
+gg_food_sym_state_ammonium #seems obvious that food doesnt matter
 
 # Summarize by temp and N species dose so we can visualize
-sum_N_species_dose_sym_state_nitrate <- summarySE(pam_all_nitrate.data, measurevar = "PAM_avg_day11", groupvars = c("sym_state","N_species_dose"))
+sum_N_species_dose_sym_state_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "PAM_avg_day11", groupvars = c("sym_state","N_species_dose"))
 # Visualize
-gg_N_species_dose_sym_state_nitrate<-ggplot(data = sum_N_species_dose_sym_state_nitrate,
+gg_N_species_dose_sym_state_ammonium<-ggplot(data = sum_N_species_dose_sym_state_ammonium,
        aes(x = N_species_dose,
            y = PAM_avg_day11, colour=sym_state)) +
     geom_point() +
@@ -399,12 +380,12 @@ gg_N_species_dose_sym_state_nitrate<-ggplot(data = sum_N_species_dose_sym_state_
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("Day 11 Fv/Fm Sym state and N species dose") +
    # scale_x_discrete(labels=c("20C","30C"))+
-    labs(x = "Nitrate dose", 
+    labs(x = "ammonium dose", 
          y = expression(paste("Day 11 Fv/Fm")), 
          caption = "data represent mean +/- SEM" ) +
-    scale_x_discrete("Nitrate dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", A_5="1.5uM", A_7.5="7.5um", A_10="10um"))+
     scale_color_manual("Sym State", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))
-gg_N_species_dose_sym_state_nitrate
+gg_N_species_dose_sym_state_ammonium
 
 
 # WITHOUT CONTROLS #
@@ -428,14 +409,14 @@ gg_pam_plot_apovsym <- ggplot(pam_treatmeans_apovsym, aes(x = sym_state, y= c(PA
 gg_pam_plot_apovsym
 
 # Summarize by food and sym state so we can visualize
-sum_food_sym_state_nitrate <- summarySE(no_controls, measurevar = "PAM_avg_day11", groupvars = c("sym_state","food"))
+sum_food_sym_state_ammonium <- summarySE(no_controls, measurevar = "PAM_avg_day11", groupvars = c("sym_state","food"))
 # Visualize
-gg_food_sym_state_nitrate<-ggplot(data = sum_food_sym_state_nitrate,
+gg_food_sym_state_ammonium<-ggplot(data = sum_food_sym_state_ammonium,
        aes(x = sym_state,
            y = PAM_avg_day11, col=food)) + #use fill here or the legends will be really hard to work with
     geom_point() +
     geom_errorbar(aes(ymin=PAM_avg_day11-se, ymax=PAM_avg_day11+se), width=0.1, size = 1) +
-    ggtitle ("No Controls Day 11 Fv/Fm Sym vs. Apo at various nitrate doses") +
+    ggtitle ("No Controls Day 11 Fv/Fm Sym vs. Apo at various ammonium doses") +
    #scale_fill_manual(name="Feeding Regime", labels=c('Fed', 'Starved'))+
  # scale_fill_manual(values=c("brown", "darkgray"))+
     labs(x = "Symbiotic state", 
@@ -444,17 +425,17 @@ gg_food_sym_state_nitrate<-ggplot(data = sum_food_sym_state_nitrate,
       scale_x_discrete(name="Symboitic state", labels=c("A"="Aposymbiotic", "S"="Symbiotic")) +
   # scale_fill_manual(values=c("brown", "darkgray"))
  scale_color_manual(values=c("orange", "black"))
-gg_food_sym_state_nitrate #seems obvious that food doesnt matter
+gg_food_sym_state_ammonium #seems obvious that food doesnt matter
 
 
 ```
 
 
-```{r Fed vs. Starved - Pam delta and day 11}
+```{r Fed vs. Starved - Pam delta with and without controls}
 #Don't think theres anything going on here
 
-# Pam Delta Fed vs. starved
-pam_treatmeans_fedvstarved_delta <- summarySE(pam_all_nitrate.data, measurevar=c("PAM_delta"),groupvars =c("food"), na.rm=TRUE)
+# Pam Delta Fed vs. starved WITH CONTROLS
+pam_treatmeans_fedvstarved_delta <- summarySE(pam_all_ammonium.data, measurevar=c("PAM_delta"),groupvars =c("food"), na.rm=TRUE)
 # plot, treatment x axis colored by site data figure
 pam_plot_fedvstarved_delta <-ggplot(pam_treatmeans_fedvstarved_delta, aes(x = food, y= c(PAM_delta), color = food))+
   theme_bw()+
@@ -463,78 +444,95 @@ pam_plot_fedvstarved_delta <-ggplot(pam_treatmeans_fedvstarved_delta, aes(x = fo
  # geom_jitter(aes(), size=1.2, alpha=0.9)+
   geom_line(aes(group = food), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
   geom_errorbar(aes(x = food, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
- ylab("PAMdelta Fv/Fm")+
-  ggtitle("Fed vs. starved PAM delta")
+ ylab("PAM delta Fv/Fm")+
+    scale_color_manual("Feeding Regime", values=c("orange", "black")) +
+  scale_x_discrete(name="Feeding regime", labels=c("F"="Fed", "S"="Starved")) +
+  ggtitle("Fed vs. starved PAM delta, Ammonium p=0.05")
 pam_plot_fedvstarved_delta
 
-# Day 11 Fed vs. starved
-pam_treatmeans_fedvstarved_day11 <- summarySE(pam_all_nitrate.data, measurevar=c("PAM_avg_day11"),groupvars =c("food"), na.rm=TRUE)
+
+# Pam Delta Fed vs. starved WITHOUT CONTROLS
+pam_treatmeans_fedvstarved_delta <- summarySE(no_controls, measurevar=c("PAM_delta"),groupvars =c("food"), na.rm=TRUE)
 # plot, treatment x axis colored by site data figure
-pam_plot_fedvstarved_day11 <- ggplot(pam_treatmeans_fedvstarved_day11, aes(x = food, y= c(PAM_avg_day11), color = food))+
+pam_plot_fedvstarved_delta <-ggplot(pam_treatmeans_fedvstarved_delta, aes(x = food, y= c(PAM_delta), color = food))+
   theme_bw()+
   geom_point(size = 3, position = position_dodge(width=0.3))+
   geom_smooth(aes(group=food), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
  # geom_jitter(aes(), size=1.2, alpha=0.9)+
   geom_line(aes(group = food), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
-  geom_errorbar(aes(x = food, ymax = PAM_avg_day11+se, ymin = PAM_avg_day11-se), width = .2, position = position_dodge(width=0.3)) +
-  #scale_color_manual(name = "Treatment",
-                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
-                    # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
- ylab("PAM_avg_day11 Fv/Fm")+
-  ggtitle("Fed vs. starved PAM day 11")+
-pam_plot_fedvstarved_day11
+  geom_errorbar(aes(x = food, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+ ylab("PAM delta Fv/Fm")+
+  scale_color_manual("Feeding Regime", values=c("orange", "black")) +
+  scale_x_discrete(name="Feeding regime", labels=c("F"="Fed", "S"="Starved")) +
+  ggtitle("No Controls - Fed vs. starved PAM delta, Ammonium")
+pam_plot_fedvstarved_delta
 
-
+# Fed vs. Starved at different N doses
+sum_food_dose_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "PAM_delta", groupvars = c("N_species_dose","food"))
+# Visualize
+gg_sum_food_dose_ammonium<-ggplot(data = sum_food_dose_ammonium,
+       aes(x = N_species_dose,
+           y = PAM_delta, col=food)) + #use fill here or the legends will be really hard to work with
+    geom_point() +
+    geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
+    ggtitle ("PAM delta Fed vs. starved at various doses of Ammonium") +
+   #scale_fill_manual(name="Feeding Regime", labels=c('Fed', 'Starved'))+
+ # scale_fill_manual(values=c("brown", "darkgray"))+
+    labs(x = "Symbiotic state", 
+         y = expression(paste("Day 11 Fv/Fm")), 
+         caption = "data represent mean +/- SEM" ) +
+  scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", A_5="1.5uM", A_7.5="7.5um", A_10="10um"))+
+ scale_color_manual("Food regime", labels=c("F"="Fed", "S"="Starved"),values=c("orange", "black"))
+gg_sum_food_dose_ammonium #seems obvious that food doesnt matter
 ```
 
-
-```{r PAM delta hot vs. ambient overall}
+```{r PAM delta Temperature graphs}
 
 # Temp on its own doesnt seem to matter but sym and apo are driving the models so much we will separate them below
-pam_treatmeans_20vs30 <- summarySE(pam_all_nitrate.data, measurevar=c("PAM_delta"),groupvars =c("temp"), na.rm=TRUE)
+pam_treatmeans_20vs30 <- summarySE(pam_all_ammonium.data, measurevar=c("PAM_delta"),groupvars =c("temp"), na.rm=TRUE)
 
-t.test(pam_all_nitrate.data_simplified_controls$temp=="20", pam_all_nitrate.data_simplified_controls$temp=="30")
+t.test(pam_all_ammonium.data_simplified_controls$temp=="20", pam_all_ammonium.data_simplified_controls$temp=="30")
 
 # Summarize by temperature so we can visualize
-sum_temp_nitrate <- summarySE(pam_all_nitrate.data, measurevar = "PAM_delta", groupvars = c("temp"))
+sum_temp_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "PAM_delta", groupvars = c("temp"))
 # Visualize
-gg_temp_nitrate<-ggplot(data = sum_temp_nitrate,
+gg_temp_ammonium<-ggplot(data = sum_temp_ammonium,
        aes(x = temp,
            y = PAM_delta, col=temp)) +
     geom_point() +
     geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate PAM Delta Temperature summary") +
+    ggtitle ("ammonium PAM Delta Temperature summary") +
   theme(legend.position="none")+
     labs(x = "Temperature", 
          y = expression(paste("Change in Photosynthetic Efficiency Fv/Fm")), 
          caption = "data represent mean +/- SEM" ) +
     scale_x_discrete("Temperature", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
     scale_color_manual("Temperature",labels=c("20C", "30C"), values=c("blue", "red"))
-gg_temp_nitrate
+gg_temp_ammonium
 
 #Let's try this on data without controls
 pam_treatmeans_20vs30 <- summarySE(no_controls, measurevar=c("PAM_delta"),groupvars =c("temp"), na.rm=TRUE)
 # Summarize by temperature so we can visualize
-sum_temp_nitrate <- summarySE(pam_all_nitrate.data, measurevar = "PAM_delta", groupvars = c("temp"))
+sum_temp_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "PAM_delta", groupvars = c("temp"))
 # Visualize
-gg_temp_nitrate<-ggplot(data = sum_temp_nitrate,
+gg_temp_ammonium<-ggplot(data = sum_temp_ammonium,
        aes(x = temp,
            y = PAM_delta, col=temp)) +
     geom_point() +
     geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("No controls Nitrate PAM Delta Temperature summary") +
+    ggtitle ("No controls ammonium PAM Delta Temperature summary") +
   theme(legend.position="none")+
     labs(x = "Temperature", 
          y = expression(paste("Change in Photosynthetic Efficiency Fv/Fm")), 
          caption = "data represent mean +/- SEM" ) +
     scale_x_discrete("Temperature", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
     scale_color_manual("Temperature",labels=c("20C", "30C"), values=c("blue", "red"))
-gg_temp_nitrate
+gg_temp_ammonium
 
 #summarize by temp and sym state with and without controls
-pam_treatmeans_temp_sym <- summarySE(pam_all_nitrate.data, measurevar=c("PAM_delta"),groupvars =c("temp", "sym_state"), na.rm=TRUE)
+pam_treatmeans_temp_sym <- summarySE(pam_all_ammonium.data, measurevar=c("PAM_delta"),groupvars =c("temp", "sym_state"), na.rm=TRUE)
 # Visualize
 gg_pam_treatmeans_temp_sym<-ggplot(data = pam_treatmeans_temp_sym,
        aes(x = sym_state,
@@ -542,7 +540,7 @@ gg_pam_treatmeans_temp_sym<-ggplot(data = pam_treatmeans_temp_sym,
     geom_point() +
     geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate PAM Delta sym state Temperature summary") +
+    ggtitle ("ammonium PAM Delta sym state Temperature summary") +
   theme(legend.position="none")+
     labs(x = "Temperature", 
          y = expression(paste("Change in Photosynthetic Efficiency Fv/Fm")), 
@@ -559,7 +557,7 @@ gg_pam_treatmeans_temp_sym<-ggplot(data = pam_treatmeans_temp_sym,
     geom_point() +
     geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("No controls Nitrate PAM Delta sym state Temperature summary") +
+    ggtitle ("No controls ammonium PAM Delta sym state Temperature summary") +
   theme(legend.position="none")+
     labs(x = "Temperature", 
          y = expression(paste("Change in Photosynthetic Efficiency Fv/Fm")), 
@@ -569,119 +567,91 @@ gg_pam_treatmeans_temp_sym<-ggplot(data = pam_treatmeans_temp_sym,
 gg_pam_treatmeans_temp_sym
 
 # Summarize by temp and N species dose so we can visualize
-sum_N_species_dose_temp_nitrate <- summarySE(pam_all_nitrate.data, measurevar = "PAM_delta", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "PAM_delta", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium$N_species_dose <- factor(sum_N_species_dose_temp_ammonium$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 # Visualize
-gg_N_species_dose_temp_nitrate<-ggplot(data = sum_N_species_dose_temp_nitrate,
+gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
        aes(x = N_species_dose,
            y = PAM_delta, col=temp)) +
     geom_point() +
     geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate PAM Delta Dose and Temperature summary") +
-    labs(x = "Nitrate dose", 
+    ggtitle ("Ammonium PAM Delta Dose and Temperature summary") +
+    labs(x = "Ammonium dose", 
          y = expression(paste("Change in Photosynthetic Efficiency Fv/Fm")), 
          caption = "data represent mean +/- SEM" ) +
-    scale_x_discrete("Nitrate dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="Control", A_5="5uM", A_7.5="7.5um", A_10="10um"))+
     scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
-gg_N_species_dose_temp_nitrate
+gg_N_species_dose_temp_ammonium
 
 # Separate by sym state - temp x N species dose
 
 # Sym corals
-sum_N_species_dose_temp_nitrate_sym <- summarySE(all_sym, measurevar = "PAM_delta", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium_sym <- summarySE(all_sym, measurevar = "PAM_delta", groupvars = c("temp","N_species_dose"))
+#its being a hoe and making me re order
+sum_N_species_dose_temp_ammonium_sym$N_species_dose <- factor(sum_N_species_dose_temp_ammonium_sym$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+
 # Visualize
-gg_N_species_dose_temp_nitrate_sym<-ggplot(data = sum_N_species_dose_temp_nitrate_sym,
+gg_N_species_dose_temp_ammonium_sym<-ggplot(data = sum_N_species_dose_temp_ammonium_sym,
        aes(x = N_species_dose,
            y = PAM_delta, col=temp)) +
     geom_point() +
     geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Symbiotic Corals - Nitrate PAM Delta Dose and Temperature summary") +
-    labs(x = "Nitrate dose", 
+    ggtitle ("Symbiotic Corals - Ammonium PAM Delta Dose and Temperature summary") +
+    labs(x = "Ammonium dose", 
          y = expression(paste("Change in Photosynthetic Efficiency Fv/Fm")), 
          caption = "data represent mean +/- SEM" ) +
-    scale_x_discrete("Nitrate dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="Control", A_5="1.5uM", A_7.5="7.5um", A_10="10um"))+
     scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
-gg_N_species_dose_temp_nitrate_sym
+gg_N_species_dose_temp_ammonium_sym
 
 
 # apo corals
-sum_N_species_dose_temp_nitrate_apo <- summarySE(all_apo, measurevar = "PAM_delta", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium_apo <- summarySE(all_apo, measurevar = "PAM_delta", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium_apo$N_species_dose <- factor(sum_N_species_dose_temp_ammonium_apo$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 # Visualize
-gg_N_species_dose_temp_nitrate_apo<-ggplot(data = sum_N_species_dose_temp_nitrate_apo,
+gg_N_species_dose_temp_ammonium_apo<-ggplot(data = sum_N_species_dose_temp_ammonium_apo,
        aes(x = N_species_dose,
            y = PAM_delta, col=temp)) +
     geom_point() +
     geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Aposymbiotic Corals - Nitrate PAM Delta Dose and Temperature summary") +
-    labs(x = "Nitrate dose", 
+    ggtitle ("Aposymbiotic Corals - Ammonium PAM Delta Dose and Temperature summary") +
+    labs(x = "Ammonium dose", 
          y = expression(paste("Change in Photosynthetic Efficiency Fv/Fm")), 
          caption = "data represent mean +/- SEM" ) +
-    scale_x_discrete("Nitrate dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="Control", A_5="1.5uM", A_7.5="7.5um", A_10="10um"))+
     scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
-gg_N_species_dose_temp_nitrate_apo
+gg_N_species_dose_temp_ammonium_apo
 ```
 
 ```{r N species dose graphs}
 #Make N species dose a factor and give it levels so it will display in this order
-pam_all_nitrate.data$N_species_dose <- factor(pam_all_nitrate.data$N_species_dose, levels=c("CNTRL_0", "N_1.5", "N_5","N_18"))
+pam_all_ammonium.data$N_species_dose <- factor(pam_all_ammonium.data$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 
 #Make everything else a character so they graph nicely 
-pam_all_nitrate.data$treat_ID_full<-as.character(pam_all_nitrate.data$treat_ID_full)
-pam_all_nitrate.data$temp <- as.character(pam_all_nitrate.data$temp)
+pam_all_ammonium.data$treat_ID_full<-as.character(pam_all_ammonium.data$treat_ID_full)
+pam_all_ammonium.data$temp <- as.character(pam_all_ammonium.data$temp)
 
 # Summarize by N_species_dose so we can visualize
-sum_N_species_dose_nitrate <- summarySE(pam_all_nitrate.data, measurevar = "PAM_delta", groupvars = c("N_species_dose"))
+sum_N_species_dose_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "PAM_delta", groupvars = c("N_species_dose"))
 # Visualize
-gg_N_species_dose_nitrate<-ggplot(data = sum_N_species_dose_nitrate,
+gg_N_species_dose_ammonium<-ggplot(data = sum_N_species_dose_ammonium,
        aes(x = N_species_dose,
            y = PAM_delta, col=N_species_dose)) +
     geom_point() +
     geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate - N Species Dose summary") +
+    ggtitle ("Ammonium - PAM delta N Species Dose summary") +
    theme(legend.position="none")+
     labs(x = "\n", 
          y = expression(paste("Change in Photosynthetic Efficiency Fv/Fm")), 
          caption = "data represent mean +/- SEM" ) +
-    scale_x_discrete("Nitrate dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
-    scale_color_manual(labels=labels, values=c("blue", "#9DCE9D","#359C35","darkgreen","black"))
-gg_N_species_dose_nitrate
+    scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
+    scale_color_manual(labels=labels, values=c("blue", "orchid1","blueviolet","purple4"))
+gg_N_species_dose_ammonium
 
-# Summarize by N_species_dose at PAM day 11 so we can visualize
-sum_N_species_dose_nitrate_day11 <- summarySE(pam_all_nitrate.data, measurevar = "PAM_avg_day11", groupvars = c("N_species_dose"))
-# Visualize
-gg_N_species_dose_nitrate_day11<-ggplot(data = sum_N_species_dose_nitrate_day11,
-       aes(x = N_species_dose,
-           y = PAM_avg_day11, col=N_species_dose)) +
-    geom_point() +
-    geom_errorbar(aes(ymin=PAM_avg_day11-se, ymax=PAM_avg_day11+se), width=0.1, size = 1) +
-    #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate - N Species Dose summary") +
-   theme(legend.position="none")+
-    labs(x = "\n", 
-         y = expression(paste("Day 11 Photosynthetic Efficiency Fv/Fm")), 
-         caption = "data represent mean +/- SEM" ) +
-    scale_x_discrete("Nitrate dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
-    scale_color_manual(labels=labels, values=c("blue", "#9DCE9D","#359C35","darkgreen","black"))
-gg_N_species_dose_nitrate_day11
-
-#Jitter day 11 data
-gg_N_species_dose_nitrate_day11_jitter<-ggplot(data = pam_all_nitrate.data,
-       aes(x = N_species_dose,
-           y = PAM_avg_day11, col=N_species_dose)) +
-    geom_boxplot() + 
-   geom_jitter() +
-    #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate - N Species Dose summary") +
-   theme(legend.position="none")+
-    labs(x = "\n", 
-         y = expression(paste("Day 11 Photosynthetic Efficiency Fv/Fm")), 
-         caption = "data represent mean +/- SEM" ) +
-    scale_x_discrete("Nitrate dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
-    scale_color_manual(labels=labels, values=c("blue", "#9DCE9D","#359C35","darkgreen","black"))
-gg_N_species_dose_nitrate_day11_jitter
 
 
 
