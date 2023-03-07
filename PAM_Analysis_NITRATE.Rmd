@@ -175,6 +175,13 @@ summary(emm_pam_temp)
 # Sym state by N species dose
 emm_pam_N_species_dose_sym_state=emmeans(mm_pam_1, specs=pairwise ~ N_species_dose*sym_state)
 summary(emm_pam_N_species_dose_sym_state)
+ # contrast              estimate     SE  df t.ratio p.value
+ # N_1.5 A - N_1.5 S      0.13612 0.0373 462   3.650  0.0070
+ # N_1.5 A - N_18 S       0.11661 0.0369 466   3.164  0.0352
+ # N_1.5 A - N_5 S        0.11772 0.0370 467   3.179  0.0335
+ # N_18 A - N_1.5 S       0.10468 0.0373 454   2.808  0.0956
+ # CNTRL_0 S - N_1.5 S    0.10682 0.0343 425   3.118  0.0405
+
 
 # temp by N species dose
 emm_pam_N_species_dose_temp=emmeans(mm_pam_2, specs=pairwise ~ N_species_dose*temp)
@@ -265,6 +272,7 @@ gg_pam_plot_apovsym
 
 # Summarize by temp and N species dose so we can visualize
 sum_N_species_dose_sym_state_nitrate <- summarySE(pam_all_nitrate.data, measurevar = "PAM_delta", groupvars = c("sym_state","N_species_dose"))
+sum_N_species_dose_sym_state_nitrate$N_species_dose <- factor(sum_N_species_dose_sym_state_nitrate$N_species_dose, levels=c("CNTRL_0", "N_1.5", "N_5","N_18"))
 # Visualize
 gg_N_species_dose_sym_state_nitrate<-ggplot(data = sum_N_species_dose_sym_state_nitrate,
        aes(x = N_species_dose,

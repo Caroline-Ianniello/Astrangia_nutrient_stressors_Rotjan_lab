@@ -384,7 +384,7 @@ gg_e_coli_ammonium<-ggplot(data = sum_e_coli_ammonium,
          y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
          caption = "data represent mean +/- SEM" ) +
         scale_x_discrete("E. coli presence", labels=c("0"="No E. coli", "1"="E. coli")) +
-    scale_color_manual(labels=labels, values=c("gray", "goldenrod"))
+    scale_color_manual(labels=labels, values=c("gray", "darkgreen"))
 gg_e_coli_ammonium
 
 # Summarize by sym state so we can visualize
@@ -410,7 +410,7 @@ gg_sym_state_ammonium<-ggplot(data = sum_sym_state_ammonium,
          caption = "data represent mean +/- SEM" ) +
         theme(legend.position="none")+
         scale_x_discrete("Symbiotic State", labels=c("A"="Apo", "S"="Symbiotic")) +
-        scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "tan4"))
+        scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))
 gg_sym_state_ammonium
 summary(lm(resp_rate ~ sym_state, data=resp_all_ammonium.data))
 # UGH THEY ARE DIFFERENT! But it doesnt  come up in the overall model
@@ -438,7 +438,7 @@ gg_food_ammonium<-ggplot(data = sum_food_ammonium,
          caption = "data represent mean +/- SEM" ) +
     theme(legend.position="none")+
    scale_x_discrete("Food presence", labels=c("F"="Fed", "S"="Starved")) +
-  scale_color_manual("Food Regime", labels=c("Fed","Starved"),values=c("brown", "darkgray"))
+  scale_color_manual("Food Regime", labels=c("Fed","Starved"),values=c("orange", "black"))
 gg_food_ammonium
 summary(lm(resp_rate ~ sym_state, data=resp_all_ammonium.data))
 
@@ -459,7 +459,7 @@ gg_food_sym_state_ammonium<-ggplot(data = sum_food_sym_state_ammonium,
          caption = "data represent mean +/- SEM" ) +
       scale_x_discrete(name="Symboitic state", labels=c("A"="Aposymbiotic", "S"="Symbiotic")) +
   # scale_fill_manual(values=c("brown", "darkgray"))
- scale_color_manual("Food Regime", labels=c("Fed","Starved"),values=c("brown", "black"))
+ scale_color_manual("Food Regime", labels=c("Fed","Starved"),values=c("orange", "black"))
 gg_food_sym_state_ammonium #seems obvious that food doesnt matter
 
 # Summarize by temp and N species dose so we can visualize
@@ -496,7 +496,7 @@ gg_N_species_dose_e_coli_ammonium<-ggplot(data = sum_N_species_dose_e_coli_ammon
          y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
          caption = "data represent mean +/- SEM" ) +
    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
-     scale_color_manual("E.coli presence",labels=c("No E. coli", "E. coli"), values=c("gray", "darkgoldenrod"))
+     scale_color_manual("E.coli presence",labels=c("No E. coli", "E. coli"), values=c("gray", "darkgreen"))
 gg_N_species_dose_e_coli_ammonium
 
 # Summarize by e_coli and temp so we can visualize
@@ -516,6 +516,26 @@ gg_temp_e_coli_ammonium<-ggplot(data = sum_temp_e_coli_ammonium,
      scale_x_discrete("E. coli presence", labels=c("0"="No E. coli", "1"="E coli"))+
      scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
 gg_temp_e_coli_ammonium
+
+
+# Summarize by e_coli and temp so we can visualize
+sum_dose_sym_state <- summarySE(resp_all_ammonium.data, measurevar = "resp_rate", groupvars = c("N_species_dose","sym_state"))
+# Visualize
+gg_sum_dose_sym_state_ammonium<-ggplot(data = sum_dose_sym_state,
+       aes(x = N_species_dose,
+           y = resp_rate, colour=sym_state)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Ammonium- dose and sym state summary") +
+   # scale_x_discrete(labels=c("20C","30C"))+
+    labs(x = "E. coli", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
+     scale_color_manual("Sym State",labels=c("Sym","Apo"), values=c("gray", "brown"))
+
+gg_sum_dose_sym_state_ammonium
 
 ```
 
@@ -539,6 +559,50 @@ t
 
 ```
 
+```{r Plots for randi - models and graphs without controls}
+
+
+
+ammonium_without_control <- read.csv("RESP_Ammonium_without_controls.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+ammonium_without_control <- na.omit(ammonium_without_control)
+#make sure treatID is a character
+ammonium_without_control$treat_ID_full<-as.character(ammonium_without_control$treat_ID_full)
+ammonium_without_control$e_coli_plate<-as.character(ammonium_without_control$e_coli_plate)
+ammonium_without_control$temp <- as.character(ammonium_without_control$temp)
+
+
+full.model <- lmer(resp_rate ~  N_species_dose + temp + food + sym_state + e_coli_plate + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + N_species_dose*e_coli_plate + temp*food + temp*sym_state + temp*e_coli_plate + food*sym_state + food*e_coli_plate + sym_state*e_coli_plate +  (1|col_num) + (1|exp_num) , data= ammonium_without_control)
+print(step.model<- step(full.model))
+
+mm_without_controls <-lmer(resp_rate ~ N_species_dose + temp + (1 | col_num), data=ammonium_without_control)
+
+summary(mm_without_controls)
+
+# Summarize by temperature
+emm_temp=emmeans(mm_without_controls, specs=pairwise ~ temp)
+summary(emm_temp)
+
+#Pairwise by N species dose 
+emm_N_species_dose=emmeans(mm_without_controls, specs=pairwise ~ N_species_dose)
+summary(emm_N_species_dose)
+
+# Visualize
+gg_temp_ammonium<-ggplot(data = sum_temp_ammonium,
+       aes(x = temp,
+           y = resp_rate, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Ammonium- Temperature summary") +
+  theme(legend.position="none")+
+    labs(x = "Temperature", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("Temperature", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
+    scale_color_manual(labels=labels, values=c("blue", "red"))
+gg_temp_ammonium
+
+```
 
 ```{r Looking at ammonium 10uM}
 # We found in the above analyses that there was a statistically significant difference between Control and 10uM under E. coli. Let's zoom out and look at 10uM and see what might be driving that model 

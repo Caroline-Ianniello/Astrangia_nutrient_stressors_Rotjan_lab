@@ -137,8 +137,10 @@ summary(mm_pam_1)
 # WINNER # WINNER # WINNER # WINNER # WINNER # WINNER
 
 #lets try some other models 
-mm_pam_2 <- lmer(PAM_delta ~ N_species_dose + N_species_dose*sym_state + sym_state + food + temp + (1 | col_num) + (1 | exp_num), data=pam_all_ammonium.data)
+mm_pam_2 <- lmer(PAM_delta ~ N_species_dose + (1 | col_num) + (1 | exp_num), data=pam_all_ammonium.data)
 summary(mm_pam_2)
+emm_2=emmeans(mm_pam_2, specs=pairwise ~ N_species_dose)
+summary(emm_2)
 
 
 mm_pam_3 <- lmer(PAM_delta ~ temp + food + sym_state + (1 | col_num) + (1 | exp_num) + temp*food + temp*sym_state, data=pam_all_ammonium.data)
@@ -173,12 +175,9 @@ summary(emm_pam_sym_state_dose)
 # What about N species dose and temp, we added this to the model but let's take it out because NOT SIGNFICANT
 emm_pam_temp_dose=emmeans(mm_pam_1, specs=pairwise ~ N_species_dose*temp)
 summary(emm_pam_temp_dose)
- # contrast              estimate     SE  df t.ratio p.value
- # A_10 A - A_7.5 S       0.12488 0.0349 457   3.575  0.0092
- # A_5 A - A_7.5 S        0.14338 0.0345 460   4.152  0.0010
- # A_7.5 A - A_7.5 S      0.12997 0.0348 456   3.736  0.0052
- # CNTRL_0 A - A_7.5 S    0.15131 0.0348 459   4.353  0.0004
-
+# no significant differences
+summary(aov_sym<-aov(PAM_delta ~ N_species_dose + temp, data = all_sym))
+TukeyHSD(aov_sym, "temp")
 
 # Sym state posthoc
 emm_pam_sym_state=emmeans(mm_pam_1, specs=pairwise ~ sym_state)

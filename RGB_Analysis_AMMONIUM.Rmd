@@ -1,0 +1,502 @@
+---
+title: "PAM data AMMONIUM: last updated 12/9/22 C. Fleming"
+output: html_notebook
+---
+
+# AMMONIUM ONLY
+
+
+```{r Loading all necessary packages}
+# library("knitr")
+# require("knitr")
+# opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox")
+# setwd("C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox")
+# getwd()
+#install.packages("lme4")
+#compare with and without predictor
+library("lme4")
+#install.packages("lmerTest")
+library("lmerTest")
+#install.packages("emmeans")
+library("emmeans")
+#install.packages("pbkrtest")
+library("pbkrtest")
+#reshape melts our datasets in the way we want
+library("reshape2")
+library("dplyr")
+library("plyr")
+library("tidyverse")
+library("Rmisc")
+library("ggplot2")
+#multiple response variables 
+#check model with performance package
+  #model tools R markdown
+  #check for colinearity
+  #r squared figures
+#install.packages("performance")
+#install.packages(c("rlang", "ggplot2", "performance", "dplyr", "ggrepel", "see"), dependencies = TRUE)
+library("performance")
+#install.packages("see")
+library("see")
+#install.packages("ggrepel")
+library("ggrepel")
+#install.packages("sjPlot") #for visualizing linear models
+library(sjPlot)
+#gg effects
+
+#increase the number of results it will show
+options(max.print=1000000)
+```
+
+
+```{r Inputting data & making sure everything is organized correctly}
+rgb_all_ammonium.data <- read.csv("Master_RGB_Spreadsheet_AMMONIUM_Condensed_Red_1_12_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+
+#getting rid of all the extra data at the bottom-- we only want rows 1:959 OR 1:639 if only looking at exp 2 and 3 (remember we got rid of the outlier!)
+rgb_all_ammonium.data  <- rgb_all_ammonium.data[(1:482),]
+rgb_all_ammonium.data <- na.omit(rgb_all_ammonium.data)
+
+
+#Setting everything I need as factors for linear model and stats
+rgb_all_ammonium.data$N_species<-as.factor(rgb_all_ammonium.data$N_species)
+rgb_all_ammonium.data$N_dose<-as.factor(rgb_all_ammonium.data$N_dose)
+rgb_all_ammonium.data$N_species_dose<-as.factor(rgb_all_ammonium.data$N_species_dose)
+rgb_all_ammonium.data$temp<-as.factor(rgb_all_ammonium.data$temp)
+rgb_all_ammonium.data$food<-as.factor(rgb_all_ammonium.data$food)
+rgb_all_ammonium.data$sym_state<-as.character(rgb_all_ammonium.data$sym_state)
+rgb_all_ammonium.data$food_sym_state<-as.factor(rgb_all_ammonium.data$food_sym_state)
+
+summary(rgb_all_ammonium.data$temp)
+
+#lets check for normality in red_delta
+hist(rgb_all_ammonium.data$red_delta)
+qqnorm(rgb_all_ammonium.data$red_delta, main = NULL)
+# it doesnt look normal, let's log it
+
+#log transformed red delta
+rgb_all_ammonium.data$log_red_delta<-log(abs(rgb_all_ammonium.data$red_delta))
+hist(rgb_all_ammonium.data$log_red_delta)
+#that looks good enough to do stats on
+
+hist(rgb_all_ammonium.data$red_day11)
+
+```
+
+
+```{r Basic list of subsets}
+# all aposymbiotic
+all_apo<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$sym_state=="A")
+# all symbiotic
+all_sym<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$sym_state=="S")
+# all fed
+all_fed<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$food=="F")
+# all starved
+all_starved<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$food=="S")
+# all 20C
+all_20<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$temp=="20")
+# all 30C
+all_30<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$temp=="30")
+
+#without controls
+no_controls <- subset(rgb_all_ammonium.data, rgb_all_ammonium.data$N_dose!=0)
+```
+
+
+
+
+# LINEAR MODELS
+
+```{r getting data ready for lmer}
+rgb_all_ammonium.data$N_species<-as.factor(rgb_all_ammonium.data$N_species)
+rgb_all_ammonium.data$N_dose<-as.factor(rgb_all_ammonium.data$N_dose)
+rgb_all_ammonium.data$N_species_dose<-as.factor(rgb_all_ammonium.data$N_species_dose)
+rgb_all_ammonium.data$temp<-as.factor(rgb_all_ammonium.data$temp)
+rgb_all_ammonium.data$food<-as.factor(rgb_all_ammonium.data$food)
+rgb_all_ammonium.data$sym_state<-as.factor(rgb_all_ammonium.data$sym_state)
+
+summary(rgb_all_ammonium.data$sym_state)
+```
+
+
+```{r rgb delta Model selection }
+full.model_rgb_ammonium <- lmer(log_red_delta ~  N_species_dose + temp + food + sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state + food*sym_state +  (1|col_num) + (1|exp_num) , data= rgb_all_ammonium.data)
+summary(full.model_rgb_ammonium)
+print(step.model<- step(full.model_rgb_ammonium))
+#Model found:
+#log_red_delta ~ N_species_dose + sym_state + (1 | col_num)
+
+mm_rgb_1 <- lmer(log_red_delta ~ N_species_dose + sym_state +(1|col_num) + (1|exp_num) , data= rgb_all_ammonium.data)
+summary(mm_rgb_1)
+
+
+
+
+plot_model(mm_rgb_1, type="diag") #data fitness looks decent
+r2(mm_rgb_1) #random explains 30%
+
+```
+
+```{r rgb delta Model posthocs}
+# ammonium dose posthoc
+emm_rgb_N_species_dose=emmeans(mm_rgb_1, specs=pairwise ~ N_species_dose)
+summary(emm_rgb_N_species_dose)
+ # contrast     estimate    SE  df t.ratio p.value
+ # A_0 - A_10    -0.2228 0.158 443  -1.406  0.4964
+ # A_0 - A_5     -0.2585 0.158 431  -1.639  0.3576
+ # A_0 - A_7.5   -0.5535 0.159 446  -3.490  0.0030 **********
+ # A_10 - A_5    -0.0357 0.158 445  -0.226  0.9959
+ # A_10 - A_7.5  -0.3307 0.158 438  -2.095  0.1564
+ # A_5 - A_7.5   -0.2951 0.158 441  -1.871  0.2422
+
+# Sym state posthoc
+emm_rgb_sym_state=emmeans(mm_rgb_1, specs=pairwise ~ sym_state)
+summary(emm_rgb_sym_state) #p=0.02
+
+# Sym state by N species dose
+emm_rgb_N_species_dose_sym_state=emmeans(mm_rgb_1, specs=pairwise ~ N_species_dose*sym_state)
+summary(emm_rgb_N_species_dose_sym_state)
+ # contrast          estimate    SE  df t.ratio p.value
+ # A_0 A - A_7.5 A    -0.5535 0.159 446  -3.490  0.0123
+ # A_0 A - A_7.5 S    -0.8238 0.201 455  -4.098  0.0013
+ # A_10 A - A_7.5 S   -0.6010 0.200 460  -3.009  0.0553
+ # A_5 A - A_7.5 S    -0.5653 0.199 460  -2.834  0.0892
+ # A_0 S - A_7.5 S    -0.5535 0.159 446  -3.490  0.0123
+
+```
+
+
+```{r Day 11 models}
+#Day 11 is normally distributed so let's take a look at its model, since red delta wasnt as informative as we'd like
+full.model_red_day11_ammonium <- lmer(red_day11~  N_species_dose + temp + food + sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state + food*sym_state +  (1|col_num) + (1|exp_num) , data= rgb_all_ammonium.data)
+summary(full.model_red_day11_ammonium )
+print(step.model<- step(full.model_red_day11_ammonium ))
+
+
+# DAY 11 IS NOT VERY INFORMATIVE
+```
+
+
+```{r Exploratory t tests}
+t.test(all_20$log_red_delta, all_30$log_red_delta) #no difference
+
+t.test(all_fed$log_red_delta, all_starved$log_red_delta) #no difference
+
+t.test(all_sym$log_red_delta, all_apo$log_red_delta) #p=0.009
+```
+
+# VISUALIZATIONS
+```{r Prepping for visualizations}
+rgb_all_ammonium.data$N_species_dose <- factor(rgb_all_ammonium.data$N_species_dose, levels=c("A_0", "A_5", "A_7.5","A_10"))
+rgb_all_ammonium.data$N_species_dose<-as.character(rgb_all_ammonium.data$N_species_dose)
+rgb_all_ammonium.data$sym_state<-as.character(rgb_all_ammonium.data$sym_state)
+rgb_all_ammonium.data$temp <- as.character(rgb_all_ammonium.data$temp)
+```
+
+
+```{r Symbiotic State - red_delta}
+
+
+
+#ammonium ONLY 
+# plot, treatment x axis colored by site data figure
+rgb_treatmeans_apovsym <- summarySE(rgb_all_ammonium.data, measurevar=c("red_delta"),groupvars =c("sym_state"), na.rm=TRUE)
+gg_rgb_plot_apovsym <- ggplot(rgb_treatmeans_apovsym, aes(x = sym_state, y= c(red_delta), color = sym_state))+
+  theme_bw()+
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  geom_smooth(aes(group=sym_state), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+ # geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_line(aes(group = sym_state), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
+  geom_errorbar(aes(x = sym_state, ymax = red_delta+se, ymin = red_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  #scale_color_manual(name = "Treatment",
+                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Change in Red channel value Pre vs. Post-experiment")+
+  ggtitle("Change in Red channel value Sym vs. Apo")+
+ labs(caption = "data represent mean +/- SEM")+
+  scale_x_discrete("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
+    scale_color_manual("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"), values=c("gray", "brown")) #gives you the colors for each point on the graph
+gg_rgb_plot_apovsym
+
+# Summarize by temp and N species dose so we can visualize
+sum_N_species_dose_sym_state_ammonium <- summarySE(rgb_all_ammonium.data, measurevar = "red_delta", groupvars = c("sym_state","N_species_dose"))
+sum_N_species_dose_sym_state_ammonium$N_species_dose <- factor(sum_N_species_dose_sym_state_ammonium$N_species_dose, levels=c("A_0", "A_5", "A_7.5","A_10"))
+# Visualize
+gg_N_species_dose_sym_state_ammonium<-ggplot(data = sum_N_species_dose_sym_state_ammonium,
+       aes(x = N_species_dose,
+           y = red_delta, colour=sym_state)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium - Change in Red channel value by sym state and dose") +
+    
+   # scale_x_discrete(labels=c("20C","30C"))+
+    labs(x = "ammonium dose", 
+         y = expression(paste("Change in  Red channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_color_manual("Sym State", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))
+gg_N_species_dose_sym_state_ammonium
+# Summarize by food and sym state so we can visualize
+sum_food_sym_state_ammonium <- summarySE(rgb_all_ammonium.data, measurevar = "red_delta", groupvars = c("sym_state","food"))
+# Visualize
+gg_food_sym_state_ammonium<-ggplot(data = sum_food_sym_state_ammonium,
+       aes(x = sym_state,
+           y = red_delta, col=food)) + #use fill here or the legends will be really hard to work with
+    geom_point() +
+    geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
+    ggtitle ("rgb delta Red channel value Sym vs. Apo at various ammonium doses") +
+   #scale_fill_manual(name="Feeding Regime", labels=c('Fed', 'Starved'))+
+ # scale_fill_manual(values=c("brown", "darkgray"))+
+    labs(x = "Symbiotic state", 
+         y = expression(paste("Change in  Red channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+      scale_x_discrete(name="Symboitic state", labels=c("A"="Aposymbiotic", "S"="Symbiotic")) +
+  # scale_fill_manual(values=c("brown", "darkgray"))
+ scale_color_manual(values=c("orange", "black"))
+gg_food_sym_state_ammonium 
+
+ 
+# WITHOUT CONTROLS #
+# plot, treatment x axis colored by site data figure
+rgb_treatmeans_apovsym <- summarySE(no_controls, measurevar=c("red_delta"),groupvars =c("sym_state"), na.rm=TRUE)
+gg_rgb_plot_apovsym <- ggplot(rgb_treatmeans_apovsym, aes(x = sym_state, y= c(red_delta), color = sym_state))+
+  theme_bw()+
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  geom_smooth(aes(group=sym_state), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
+ # geom_jitter(aes(), size=1.2, alpha=0.9)+
+  geom_line(aes(group = sym_state), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
+  geom_errorbar(aes(x = sym_state, ymax = red_delta+se, ymin = red_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  #scale_color_manual(name = "Treatment",
+                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Change in  Red channel value")+
+  ggtitle("No Controls rgb delta Red channel value Sym vs. Apo")+
+ labs(caption = "data represent mean +/- SEM, p=")+
+  scale_x_discrete("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
+    scale_color_manual("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"), values=c("gray", "brown")) #gives you the colors for each point on the graph
+gg_rgb_plot_apovsym
+summary(aov( red_delta ~ sym_state, data=no_controls)) #When you take out controls, it is significant! Weird
+summary(aov( red_delta ~ sym_state, data=rgb_all_ammonium.data))
+
+# Summarize by food and sym state so we can visualize
+sum_food_sym_state_ammonium <- summarySE(no_controls, measurevar = "red_delta", groupvars = c("sym_state","food"))
+# Visualize
+gg_food_sym_state_ammonium<-ggplot(data = sum_food_sym_state_ammonium,
+       aes(x = sym_state,
+           y = red_delta, col=food)) + #use fill here or the legends will be really hard to work with
+    geom_point() +
+    geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
+    ggtitle ("No Controls rgb delta Red channel value Sym vs. Apo at various ammonium doses") +
+   #scale_fill_manual(name="Feeding Regime", labels=c('Fed', 'Starved'))+
+ # scale_fill_manual(values=c("brown", "darkgray"))+
+    labs(x = "Symbiotic state", 
+         y = expression(paste("Change in  Red channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+      scale_x_discrete(name="Symboitic state", labels=c("A"="Aposymbiotic", "S"="Symbiotic")) +
+  # scale_fill_manual(values=c("brown", "darkgray"))
+ scale_color_manual(values=c("orange", "black"))
+gg_food_sym_state_ammonium #seems obvious that food doesnt matter
+
+```
+
+
+```{r rgb delta hot vs. ambient overall}
+
+# Temp on its own doesnt seem to matter but sym and apo are driving the models so much we will separate them below
+rgb_treatmeans_20vs30 <- summarySE(rgb_all_ammonium.data, measurevar=c("red_delta"),groupvars =c("temp"), na.rm=TRUE)
+
+t.test(rgb_all_ammonium.data_simplified_controls$temp=="20", rgb_all_ammonium.data_simplified_controls$temp=="30")
+
+# Summarize by temperature so we can visualize
+sum_temp_ammonium <- summarySE(rgb_all_ammonium.data, measurevar = "red_delta", groupvars = c("temp"))
+# Visualize
+gg_temp_ammonium<-ggplot(data = sum_temp_ammonium,
+       aes(x = temp,
+           y = red_delta, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium rgb Delta Temperature summary") +
+  theme(legend.position="none")+
+    labs(x = "Temperature", 
+         y = expression(paste("Day 11  Red channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("Temperature", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
+    scale_color_manual("Temperature",labels=c("20C", "30C"), values=c("blue", "red"))
+gg_temp_ammonium
+
+#Let's try this on data without controls
+rgb_treatmeans_20vs30 <- summarySE(no_controls, measurevar=c("red_delta"),groupvars =c("temp"), na.rm=TRUE)
+# Summarize by temperature so we can visualize
+sum_temp_ammonium <- summarySE(rgb_all_ammonium.data, measurevar = "red_delta", groupvars = c("temp"))
+# Visualize
+gg_temp_ammonium<-ggplot(data = sum_temp_ammonium,
+       aes(x = temp,
+           y = red_delta, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("No controls ammonium rgb Delta Temperature summary") +
+  theme(legend.position="none")+
+    labs(x = "Temperature", 
+         y = expression(paste("Day 11  Red channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("Temperature", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
+    scale_color_manual("Temperature",labels=c("20C", "30C"), values=c("blue", "red"))
+gg_temp_ammonium
+
+#summarize by temp and sym state with and without controls
+rgb_treatmeans_temp_sym <- summarySE(rgb_all_ammonium.data, measurevar=c("red_delta"),groupvars =c("temp", "sym_state"), na.rm=TRUE)
+# Visualize
+gg_rgb_treatmeans_temp_sym<-ggplot(data = rgb_treatmeans_temp_sym,
+       aes(x = sym_state,
+           y = red_delta, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium rgb Delta sym state Temperature summary") +
+  theme(legend.position="none")+
+    labs(x = "Temperature", 
+         y = expression(paste("Day 11  Red channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("Sym State", labels=c("A"="Apo", "S"="Sym")) +
+    scale_color_manual("Temp",labels=c("20", "30"), values=c("blue", "red"))
+gg_rgb_treatmeans_temp_sym
+#Let's try this on data without controls
+rgb_treatmeans_temp_sym <- summarySE(no_controls, measurevar=c("red_delta"),groupvars =c("temp", "sym_state"), na.rm=TRUE)
+# Visualize
+gg_rgb_treatmeans_temp_sym<-ggplot(data = rgb_treatmeans_temp_sym,
+       aes(x = sym_state,
+           y = red_delta, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("No controls ammonium rgb Delta sym state Temperature summary") +
+  theme(legend.position="none")+
+    labs(x = "Temperature", 
+         y = expression(paste("Day 11  Red channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("Sym State", labels=c("A"="Apo", "S"="Sym")) +
+    scale_color_manual("Temp",labels=c("20", "30"), values=c("blue", "red"))
+gg_rgb_treatmeans_temp_sym
+
+# Summarize by temp and N species dose so we can visualize
+sum_N_species_dose_temp_ammonium <- summarySE(rgb_all_ammonium.data, measurevar = "red_delta", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium$N_species_dose <- factor(sum_N_species_dose_temp_ammonium$N_species_dose, levels=c("A_0", "A_5", "A_7.5","A_10"))
+# Visualize
+gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
+       aes(x = N_species_dose,
+           y = red_delta, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Ammonium rgb Delta Dose and Temperature summary") +
+    labs(x = "Ammonium dose", 
+         y = expression(paste("Day 11  Red channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
+gg_N_species_dose_temp_ammonium
+
+# Separate by sym state - temp x N species dose
+
+# Sym corals
+sum_N_species_dose_temp_ammonium_sym <- summarySE(all_sym, measurevar = "red_delta", groupvars = c("temp","N_species_dose"))
+# Visualize
+gg_N_species_dose_temp_ammonium_sym<-ggplot(data = sum_N_species_dose_temp_ammonium_sym,
+       aes(x = N_species_dose,
+           y = red_delta, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Symbiotic Corals - ammonium Red Delta Dose and Temperature summary") +
+    labs(x = "ammonium dose", 
+         y = expression(paste("Day 11  Red channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
+gg_N_species_dose_temp_ammonium_sym
+
+
+# apo corals
+sum_N_species_dose_temp_ammonium_apo <- summarySE(all_apo, measurevar = "red_delta", groupvars = c("temp","N_species_dose"))
+# Visualize
+gg_N_species_dose_temp_ammonium_apo<-ggplot(data = sum_N_species_dose_temp_ammonium_apo,
+       aes(x = N_species_dose,
+           y = red_delta, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Aposymbiotic Corals - ammonium rgb Delta Dose and Temperature summary") +
+    labs(x = "ammonium dose", 
+         y = expression(paste("Day 11  Red channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
+gg_N_species_dose_temp_ammonium_apo
+```
+
+```{r N species dose graphs}
+#Make N species dose a factor and give it levels so it will display in this order
+
+#Make everything else a character so they graph nicely 
+rgb_all_ammonium.data$treat_ID_full<-as.character(rgb_all_ammonium.data$treat_ID_full)
+rgb_all_ammonium.data$temp <- as.character(rgb_all_ammonium.data$temp)
+
+# Summarize by N_species_dose so we can visualize
+sum_N_species_dose_ammonium <- summarySE(rgb_all_ammonium.data, measurevar = "red_delta", groupvars = c("N_species_dose"))
+sum_N_species_dose_ammonium$N_species_dose <- factor(sum_N_species_dose_ammonium$N_species_dose, levels=c("A_0", "A_5", "A_7.5","A_10"))
+
+# Visualize
+gg_N_species_dose_ammonium<-ggplot(data = sum_N_species_dose_ammonium,
+       aes(x = N_species_dose,
+           y = red_delta, col=N_species_dose)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium - Red channel change N Species Dose summary") +
+   theme(legend.position="none")+
+    labs(x = "\n", 
+         y = expression(paste("Change in  Red channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+      scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
+    scale_color_manual(labels=labels, values=c("blue", "orchid1","blueviolet","purple4"))
+gg_N_species_dose_ammonium
+
+# Summarize by N_species_dose at rgb day 11 so we can visualize
+sum_N_species_dose_ammonium_day11 <- summarySE(rgb_all_ammonium.data, measurevar = "rgb_avg_day11", groupvars = c("N_species_dose"))
+# Visualize
+gg_N_species_dose_ammonium_day11<-ggplot(data = sum_N_species_dose_ammonium_day11,
+       aes(x = N_species_dose,
+           y = rgb_avg_day11, col=N_species_dose)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=rgb_avg_day11-se, ymax=rgb_avg_day11+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium - N Species Dose summary") +
+   theme(legend.position="none")+
+    labs(x = "\n", 
+         y = expression(paste("Day 11  Red channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_color_manual(labels=labels, values=c("blue", "#9DCE9D","#359C35","darkgreen","black"))
+gg_N_species_dose_ammonium_day11
+
+#Jitter day 11 data
+gg_N_species_dose_ammonium_day11_jitter<-ggplot(data = rgb_all_ammonium.data,
+       aes(x = N_species_dose,
+           y = rgb_avg_day11, col=N_species_dose)) +
+    geom_boxplot() + 
+   geom_jitter() +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium - N Species Dose summary") +
+   theme(legend.position="none")+
+    labs(x = "\n", 
+         y = expression(paste("Day 11  Red channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_color_manual(labels=labels, values=c("blue", "#9DCE9D","#359C35","darkgreen","black"))
+gg_N_species_dose_ammonium_day11_jitter
+
+
+
+```
