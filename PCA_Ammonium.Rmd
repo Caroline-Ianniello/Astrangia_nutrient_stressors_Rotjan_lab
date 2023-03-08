@@ -1,0 +1,357 @@
+---
+title: "PCA - Ammonium"
+author: "Caroline Fleming"
+date: "2023-03-08"
+output: html_document
+---
+
+```{r Loading all necessary packages}
+#install.packages("lme4")
+#compare with and without predictor
+library("lme4")
+#install.packages("lmerTest")
+library("lmerTest")
+#install.packages("emmeans")
+library("emmeans")
+#install.packages("pbkrtest")
+library("pbkrtest")
+#reshape melts our datasets in the way we want
+library("reshape2")
+library("dplyr")
+library("plyr")
+library("tidyverse")
+library("Rmisc")
+library("ggplot2")
+#install.packages("ggrepel")
+library("ggrepel")
+#install.packages("sjPlot") #for visualizing linear models
+library(sjPlot)
+#gg effects
+library(ggpubr)
+#install.packages("ggfortify")
+library(ggfortify)
+library(ggplot2)
+#install.packages("cluster")
+library(cluster)
+#install.packages("FactoMineR")
+library(FactoMineR) # this is my favorite PCA package! lots of options for visuals and summary stats
+#install.packages("factoextra")
+library(factoextra)
+#install.packages("corrplot")
+library(corrplot)
+#install.packages("cowplot")
+library(cowplot)
+#install.packages("vegan")
+library(vegan)
+
+
+#increase the number of results it will show
+options(max.print=1000000)
+
+# http://factominer.free.fr/factomethods/principal-components-analysis.html
+```
+
+```{r}
+#Upload your data
+nitrate_all_data <- read.csv("AMMONIUM_all_data_PCA.csv", header = TRUE)
+```
+
+```{r Lets graph some relationships between variables}
+
+gg_1<-ggplot(data = nitrate_all_data, #the data is the dataframe it will pull from
+       aes(x = PAM_delta,
+           y = red_delta, col="black")) + #col= tells it how you want the colors to be categorized
+    geom_point() + #you want points
+    ggtitle ("Nitrate - Relationship between PAM delta and red delta") + #title for the plot
+   theme(legend.position="none")+ #this turns off the legend
+    labs(x = "PAM delta", 
+         y = expression(paste("Red Delta")))  #x and y labels
+gg_1
+```
+
+```{r PCA}
+
+```
+
+
+
+# https://github.com/hannahaichelman/DielTempVariability/blob/main/Physiology_Data/CombinedPhysiology.R
+```{r}
+#### Prep data for PCA ####
+
+# separating data frames by metric and by time point to consider
+calc_pca_end = calc_phys %>%
+  filter(treat!="Control 2") %>%
+  select(frag,treat,sitename,reef,T2_T0_perc)
+
+hcarb_pca_t0 = hcarb_phys %>%
+  filter(treat=="Initial") %>%
+  select(frag,treat,sitename,reef,hcarb_mgcm2)
+
+hcarb_pca_end = hcarb_phys %>%
+  filter(treat!="Initial" & treat!="Control 2") %>%
+  select(frag,treat,sitename,reef,hcarb_mgcm2)
+
+scarb_pca_t0 = scarb_phys %>%
+  filter(treat=="Initial") %>%
+  select(frag,treat,sitename,reef,scarb_mgcm2)
+
+scarb_pca_end = scarb_phys %>%
+  filter(treat!="Initial" & treat!="Control 2") %>%
+  select(frag,treat,sitename,reef,scarb_mgcm2)
+
+hprot_pca_t0 = hprot_phys %>%
+  filter(treat=="Initial") %>%
+  select(frag,treat,sitename,reef,prot_mgcm2)
+
+hprot_pca_end = hprot_phys %>%
+  filter(treat!="Initial" & treat!="Control 2") %>%
+  select(frag,treat,sitename,reef,prot_mgcm2)
+
+tissthick_pca_t0 = tiss_phys %>%
+  select(frag,treat,sitename,reef,avgtiss)
+
+chla_pca_t0 = chl_phys %>%
+  filter(treat=="Initial") %>%
+  select(frag,treat,sitename,reef,chlA)
+
+chla_pca_end = chl_phys %>%
+  filter(treat!="Initial" & treat!="Control 2") %>%
+  select(frag,treat,sitename,reef,chlA)
+
+corrsa_pca_t0 = corrsa_phys %>%
+  select(frag,treat,sitename,reef,corallite.avg.poly.mm2)
+
+# Initial PAM measurements were not taken, so no t0 PAM
+pam_pca_end = phys_pam_long %>%
+  filter(time=="46") %>%
+  select(frag,treat,sitename,reef,pam)
+
+sym_pca_t0 = sym_phys %>%
+  filter(treat=="Initial") %>%
+  select(frag,treat,sitename,reef,sym_cm2)
+
+sym_pca_end = sym_phys %>%
+  filter(treat!="Initial" & treat!="Control 2") %>%
+  select(frag,treat,sitename,reef,sym_cm2)
+
+# Make T0 combined data frame
+t0_full = join_all(list(hcarb_pca_t0,scarb_pca_t0,hprot_pca_t0,sym_pca_t0,tissthick_pca_t0,chla_pca_t0,corrsa_pca_t0), by = c("frag","treat","sitename","reef"), type = "full")
+
+str(t0_full)
+#write.csv(t0_full, "/Users/hannahaichelman/Documents/BU/TVE/PCAs/t0_full.csv",row.names=FALSE)
+
+t0_full_log = t0_full %>%
+  filter(complete.cases(.)) %>% #drop any row that has an NA for any time point
+  mutate_if(is.numeric, log)
+
+str(t0_full_log)
+
+t0_full_log$sitename <- as.factor(t0_full_log$sitename)
+t0_full_log$treat <- as.factor(t0_full_log$treat)
+
+# Make end of variability combined data frame
+end_full = join_all(list(calc_pca_end,hcarb_pca_end,scarb_pca_end,hprot_pca_end,pam_pca_end,sym_pca_end,chla_pca_end), by = c("frag","treat","sitename","reef"), type = "full")
+
+str(end_full)
+#write.csv(end_full, "/Users/hannahaichelman/Documents/BU/TVE/PCAs/end_full.csv", row.names = FALSE)
+
+end_full_log = end_full %>%
+  filter(complete.cases(.)) %>% #drop any row that has an NA for any time point
+  mutate(T2_T0_perc_2 = T2_T0_perc + 2) %>%
+  select(-T2_T0_perc) %>% #get rid of the column with negative growth values before log transforming
+  mutate_if(is.numeric, log) # log transform the numeric columns
+
+str(end_full_log)
+
+end_full_log$sitename <- as.factor(end_full_log$sitename)
+end_full_log$treat <- as.factor(end_full_log$treat)
+#write.csv(end_full_log, "/Users/hannahaichelman/Documents/BU/TVE/PCAs/end_full_log.csv", row.names = FALSE)
+
+##### Make our PCAs #####
+
+# try exporting data files as csv and see what we get
+t0_pca = read.csv("/Users/hannahaichelman/Documents/BU/TVE/PCAs/t0_full_log.csv")
+end_pca = read.csv("/Users/hannahaichelman/Documents/BU/TVE/PCAs/end_full_log.csv")
+
+# format t0 physiology data:
+str(t0_pca)
+
+t0_pca$sitename <- as.factor(t0_pca$sitename)
+t0_pca$treat <- as.factor(t0_pca$treat)
+t0_pca$reef <- as.factor(t0_pca$reef)
+
+# add in genet id and combine with lineage dataframe to include 2bRAD population data in our T0 PCAs
+t0_pca$gen_site <- substr(t0_pca$frag,1,3)
+
+lineages = read.csv("/Users/hannahaichelman/Documents/BU/TVE/2bRAD/Analysis/tuftscustompipeline_denovo_nosyms/tve_lineages_noclones.csv")
+
+t0_pca_lineage <- left_join(t0_pca, lineages, by = "gen_site")
+# all of the samples that have NA's for lineage are ones that didn't prep so we don't have lineage data for those genets
+
+colnames(t0_pca_lineage)[colnames(t0_pca_lineage)=="hcarb_mgcm2"] <-"hcarb"
+colnames(t0_pca_lineage)[colnames(t0_pca_lineage)=="scarb_mgcm2"] <-"scarb"
+colnames(t0_pca_lineage)[colnames(t0_pca_lineage)=="prot_mgcm2"] <-"prot"
+colnames(t0_pca_lineage)[colnames(t0_pca_lineage)=="sym_cm2"] <-"syms"
+colnames(t0_pca_lineage)[colnames(t0_pca_lineage)=="avgtiss"] <-"tiss"
+colnames(t0_pca_lineage)[colnames(t0_pca_lineage)=="corallite.avg.poly.mm2"] <-"corr_sa"
+
+t0_pca_all_lin = t0_pca_lineage %>%
+  drop_na(lineage)
+
+t0_pca_2_lin = t0_pca_all_lin %>%
+  filter(is.na(lineage) | lineage!="L3") # want to keep NA values for lineage here since they still have other info, will remove na's for lineage specific plots
+
+t0_pca_lineage_CI = t0_pca_2_lin %>%
+  filter(sitename == "CI")
+
+t0_pca_proposed = t0_pca_lineage %>%
+  filter(sitename != "SP") %>%
+  filter(sitename != "BN") %>%
+  filter(sitename != "BS") %>%
+  filter(sitename != "CA") %>%
+  filter(frag != "I3C6") # this fragment is from Cristobal, looks like a loser across all measures so removing
+
+# now end of variability pca data:
+str(end_pca)
+
+end_pca$sitename <- as.factor(end_pca$sitename)
+end_pca$treat <- as.factor(end_pca$treat)
+end_pca$reef <- as.factor(end_pca$reef)
+
+# re-level and re-name treatment
+end_pca$treat <- factor(end_pca$treat, levels = c("Control","Low Var","Mod Var","High Var"))
+
+# add in genet id and combine with lineage dataframe to include 2bRAD population data in our T0 PCAs
+end_pca$gen_site <- substr(end_pca$frag,1,3)
+end_pca_lineage <- left_join(end_pca, lineages, by = "gen_site")
+end_pca_lineage$lineage <- as.factor(end_pca_lineage$lineage)
+
+# re-name columns for legibility on plots
+colnames(end_pca_lineage)[colnames(end_pca_lineage)=="hcarb_mgcm2"] <-"hcarb"
+colnames(end_pca_lineage)[colnames(end_pca_lineage)=="scarb_mgcm2"] <-"scarb"
+colnames(end_pca_lineage)[colnames(end_pca_lineage)=="prot_mgcm2"] <-"prot"
+colnames(end_pca_lineage)[colnames(end_pca_lineage)=="sym_cm2"] <-"syms"
+colnames(end_pca_lineage)[colnames(end_pca_lineage)=="T2_T0_perc_2"] <-"growth"
+
+# add in dominant symbiont type dataframe
+its2_types = read.csv("/Users/hannahaichelman/Documents/BU/TVE/16S_ITS2/ITS_PreStress_Timepoint/ITS2.dominanttype.csv") %>%
+  select(frag, dominant_type) #%>%
+#mutate(D1_1 = D1_sum+1) %>%
+#select(-D1_sum) %>%
+#mutate(propD1 = log(D1_1)) %>%
+#select(-D1_1)
+its2_types$dominant_type = as.factor(its2_types$dominant_type)
+
+end_pca_lin_sym <- left_join(end_pca_lineage, its2_types, by = "frag")
+str(end_pca_lin_sym)
+
+end_pca_all_lin = end_pca_lin_sym %>%
+  drop_na(lineage) %>%
+  #drop_na(propD1) %>%
+  drop_na(dominant_type) %>%
+  unite(lin_sym, c(lineage,dominant_type), sep = "_", remove = FALSE) %>% # make new lineage_dominant type combined factor
+  mutate(lin_sym = as.factor(lin_sym)) %>%
+  select(frag, treat, sitename, reef, gen_site, lineage, dominant_type, lin_sym, hcarb, scarb, prot, pam, syms, chlA, growth)
+
+end_pca_2_lin = end_pca_all_lin %>%
+  filter(lineage!="L3")
+
+end_pca_lineage_CI = end_pca_2_lin %>%
+  filter(sitename == "CI")
+
+###
+# this part of the code uses the PCA function and stats from the FactoMineR package
+# T0 both lineage df's
+facto_t0_all_lin <- PCA(t0_pca_all_lin[,5:11], scale.unit = TRUE, ncp = 10, graph = TRUE)
+facto_t0_2_lin <- PCA(t0_pca_2_lin[,5:11], scale.unit = TRUE, ncp = 10, graph = TRUE)
+
+facto_end_all_lin <- PCA(end_pca_all_lin[,9:15], scale.unit = TRUE, ncp = 10, graph = TRUE) # no sym type info
+facto_end_2_lin <- PCA(end_pca_2_lin[,9:15], scale.unit = TRUE, ncp = 10, graph = TRUE)
+
+#facto_t0_CI <- PCA(t0_pca_lineage_CI[,5:11], scale.unit = TRUE, ncp = 10, graph = TRUE)
+#facto_end_CI <- PCA(end_pca_lineage_CI[,5:11], scale.unit = TRUE, ncp = 10, graph = TRUE)
+
+# correlations variables - dimensions
+facto_end_2_lin$var$cor
+# mean of the variables
+facto_end_2_lin$call$centre
+# standard error of variables
+facto_end_2_lin$call$ecart.type
+eig.val1 <- get_eigenvalue(facto_end_2_lin)
+eig.val1
+fviz_eig(facto_end_2_lin, addlabels = TRUE) # get percentage of explained variances per dimension
+var1 <- get_pca_ind(facto_end_2_lin)
+var1
+var2 <- get_pca_var(facto_end_2_lin)
+var2
+
+# Contributions to the principal components
+head(var2$contrib, 10)
+
+# make a corrplot on contribution to PC
+corrplot(var2$contrib, is.corr=FALSE)
+
+## red line = expected average contribution... "In this case, the expected average contribution (cutoff) is calculated as follow: As mentioned above, if the contributions of the 10 variables were uniform, the expected average contribution on a given PC would be 1/10 = 10%. The expected average contribution of a variable for PC1 and PC2 is : [(10* Eig1) + (10 * Eig2)]/(Eig1 + Eig2)"
+# bar graphs of contributions for all of the dimensions... for variables
+c <- fviz_contrib(facto_end_2_lin, choice = "var", axes = 1, top = 10)
+save_plot("pc1_contribution_of_var.png",c, base_aspect_ratio = 1.6)
+d <- fviz_contrib(facto_end_2_lin, choice = "var", axes = 2, top = 10)
+save_plot("pc2_contribution_of_var.png",d, base_aspect_ratio = 1.6)
+fviz_contrib(facto_end_2_lin, choice = "var", axes = 3, top = 10)
+fviz_pca_var(facto_end_2_lin, col.var = "contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07")
+)
+
+### describe dimensions
+dim_descript <- dimdesc(facto_t0_2_lin, axes = c(1,2,3,4), proba = 0.05)
+# dim1
+dim_descript$Dim.1
+# dim2
+dim_descript$Dim.2
+
+### make the biplot
+# this fuses the facto package and ggplot features (uses base facto biplot and overlays with geom_point so can have shape demark one factor and color another factor)
+fviz_pca_biplot(facto_t0_all_lin)
+fviz_pca_biplot(facto_t0_2_lin)
+
+fviz_pca_biplot(facto_end_all_lin)
+fviz_pca_biplot(facto_end_2_lin)
+
+fviz_pca_biplot(facto_end_CI)
+fviz_pca_biplot(facto_t0_CI)
+
+# these are the color schemes, defined in first section of code
+cols_treat
+cols_site
+cols_lineage
+cols_reef = c("red4","royalblue4")
+#cols_proposed_sites <- c("I-Cristobal" = "#fc4e2a", "I-Punta Donato"= "#fed976")
+
+# PCA for T0 Physiology - color = sitename
+fviz_pca_biplot(facto_t0_2_lin)
+pca_t0_site <- fviz_pca_biplot(facto_t0_2_lin,
+                               label = "var",
+                               col.var = "black", labelsize = 4,
+                               alpha.ind = 0) + # makes individs transparent so they can be overwritten by geom_point()
+  theme_bw()+
+  geom_point(aes(colour=t0_pca_2_lin$sitename), size = 2, stroke = 1) +
+  scale_color_manual(values = cols_site,
+                     #breaks=c("CI","I-Punta Donato","I-STRI Point","O-Bastimentos N","O-Bastimentos S","O-Cayo de Agua"),
+                     labels=c("CI","PD","SP","BN","BS","CA"),
+                     name = "Site") +
+  #  stat_ellipse(geom = "polygon", type = "t", alpha = 0.2,
+  #               aes(fill= t0_pca_lineage$sitename), show.legend = FALSE) + scale_fill_manual(values=cols_site) + # ellipses assumes multivariate distribution using default confidence level (0.95)
+  stat_ellipse(aes(color=t0_pca_2_lin$sitename), type = "t", lwd = 1)+
+  labs(x = "PC1 (51.1% explained variance)",
+       y = "PC2 (13.3% explained variance)") +
+  theme(plot.title = element_blank(),
+        axis.title = element_text(face = "bold"),
+        legend.title.align =  0.5, legend.text.align = 0,
+        legend.title = element_text(face = "bold"))
+pca_t0_site
+
+ggsave(pca_t0_site, filename = "/Users/hannahaichelman/Documents/BU/TVE/PCAs/pca_t0_site_2_lin.pdf", width=6, height=5, units=c("in"), useDingbats=FALSE)
+
+```
+
