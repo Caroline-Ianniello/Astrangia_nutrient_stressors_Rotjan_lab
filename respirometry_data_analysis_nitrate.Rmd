@@ -124,6 +124,8 @@ print(step.model<- step(full.model))
 # here is the model that it recommends
 mm_resp_2 <- lmer(resp_rate ~ N_species_dose + temp + e_coli_plate + (1 | col_num) + N_species_dose*e_coli_plate, data=resp_all_nitrate.data)
 summary(mm_resp_2)
+# WINNER # # WINNER # # WINNER #
+
 
 dose_aov<- aov(resp_all_nitrate.data$resp_rate ~ resp_all_nitrate.data$N_species_dose)
 TukeyHSD(dose_aov)
@@ -202,7 +204,7 @@ gg_genet_nitrate<-ggplot(data = resp_all_nitrate.data,
           # panel.grid.major = element_blank(), 
           # panel.grid.minor = element_blank(),
           # axis.text = element_text(size = 12)) +
-   legend.position=”none” +
+   legend.position="none" +
     labs(x = "Genet", 
          y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
          caption = "data represent mean +/- SEM" ) +
@@ -327,7 +329,7 @@ pred_nitrate <- ggplot(int_pred_nitrate, aes(facet,predicted, colour = group))
 
 ```
 
-```{r Graphs - Summarizing by each variable}
+```{r Graphs - Fix data so they plot nicely}
 #Make N species dose a factor and give it levels so it will display in this order
 resp_all_nitrate.data$N_species_dose <- factor(resp_all_nitrate.data$N_species_dose, levels=c("CNTRL_0", "N_1.5", "N_5","N_18"))
 
@@ -335,7 +337,10 @@ resp_all_nitrate.data$N_species_dose <- factor(resp_all_nitrate.data$N_species_d
 resp_all_nitrate.data$treat_ID_full<-as.character(resp_all_nitrate.data$treat_ID_full)
 resp_all_nitrate.data$e_coli_plate<-as.character(resp_all_nitrate.data$e_coli_plate)
 resp_all_nitrate.data$temp <- as.character(resp_all_nitrate.data$temp)
+```
 
+
+```{r Graphs - Summarizing by each variable}
 # Summarize by N_species_dose so we can visualize
 sum_N_species_dose_nitrate <- summarySE(resp_all_nitrate.data, measurevar = "resp_rate", groupvars = c("N_species_dose"))
 # Visualize
@@ -466,7 +471,7 @@ gg_food_nitrate<-ggplot(data = sum_food_nitrate,
          caption = "data represent mean +/- SEM" ) +
     theme(legend.position="none")+
    scale_x_discrete("Food presence", labels=c("F"="Fed", "S"="Starved")) +
-   scale_color_manual(labels=labels, values=c("brown", "black"))
+   scale_color_manual(labels=labels, values=c("orange", "black"))
 gg_food_nitrate
 summary(lm(resp_rate ~ sym_state, data=resp_all_nitrate.data))
 
@@ -641,7 +646,7 @@ gg_sym_state_nitrate<-ggplot(data = sum_sym_state,
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate- Sym state summary") +
+    ggtitle ("Nitrate without control - Sym state summary") +
   theme(legend.position="none")+
     labs(x = "Temperature", 
          y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 

@@ -211,6 +211,80 @@ summary(emm_pam_temp_sym_state)
 # LETS SKIP FOR NOW BECAUSE DAY 11 DISTRIBUTION LOOKS JANKY
 ```
 
+```{r Subsetting by sym state with visualizations}
+#We're interested to see how sym state drives reaction to dose and temperature seperately
+
+#Symbiotic corals
+full.model_pam_ammonium_sym <- lmer(PAM_delta ~  N_species_dose + temp + food +  N_species_dose*temp + N_species_dose*food + temp*food + (1|col_num) + (1|exp_num) , data= all_sym)
+summary(full.model_pam_ammonium_sym )
+print(step.model<- step(full.model_pam_ammonium_sym ))
+#lets just add N species dose and temperature cause thats what were interested in
+summary(mm_ammonium_sym <- lmer(PAM_delta ~  N_species_dose + temp + (1|col_num) + (1|exp_num) , data= all_sym))
+#posthoc to see differences
+emm_temp_dose_sym=emmeans(mm_ammonium_sym, specs=pairwise ~ temp*N_species_dose)
+summary(emm_temp_dose_sym)
+ # contrast                        estimate     SE  df t.ratio p.value
+ # temp20 A_10 - temp30 A_10       -0.09736 0.0280 228  -3.473  0.0141 `
+ # temp30 A_10 - temp20 A_7.5       0.15775 0.0479 217   3.294  0.0250
+ # temp20 A_5 - temp30 A_5         -0.09736 0.0280 228  -3.473  0.0141 `
+ # temp30 A_5 - temp20 A_7.5        0.15491 0.0477 212   3.248  0.0290 
+ # temp20 A_7.5 - temp30 A_7.5     -0.09736 0.0280 228  -3.473  0.0141 `
+ # temp20 A_7.5 - temp30 CNTRL_0   -0.16653 0.0476 210  -3.498  0.0131
+ # temp20 CNTRL_0 - temp30 CNTRL_0 -0.09736 0.0280 228  -3.473  0.0141 `
+
+#now plot
+sum_temp_dose_ammonium_sym <- summarySE(all_sym, measurevar = "PAM_delta", groupvars = c("temp", "N_species_dose"))
+sum_temp_dose_ammonium_sym$N_species_dose <- factor(sum_temp_dose_ammonium_sym$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+gg_sum_temp_dose_ammonium_sym<-ggplot(data = sum_temp_dose_ammonium_sym,
+       aes(x = N_species_dose,
+           y = PAM_delta, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Ammonium- Temperature and dose summary - Sym corals") +
+  theme(legend.position="none")+
+    labs(x = "Ammonium dose", 
+         y = expression(paste("Change in Fv/Fm")), 
+         caption = "data represent mean +/- SEM" ) +
+      scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
+    scale_color_manual(labels=labels, values=c("blue", "red"))
+gg_sum_temp_dose_ammonium_sym
+
+#Aposymbiotic corals
+full.model_pam_ammonium_apo <- lmer(PAM_delta ~  N_species_dose + temp + food +  N_species_dose*temp + N_species_dose*food + temp*food + (1|col_num) + (1|exp_num) , data= all_apo)
+summary(full.model_pam_ammonium_apo )
+print(step.model<- step(full.model_pam_ammonium_apo ))
+#lets just add N species dose and temperature cause thats what were interested in
+summary(mm_ammonium_apo <- lmer(PAM_delta ~  N_species_dose + temp + (1|col_num) + (1|exp_num) , data= all_apo))
+#posthoc to see differences
+emm_temp_dose_apo=emmeans(mm_ammonium_apo, specs=pairwise ~ temp*N_species_dose)
+summary(emm_temp_dose_apo)
+ # NO STAT DIFFERENCES!
+
+#now plot
+sum_temp_dose_ammonium_apo <- summarySE(all_apo, measurevar = "PAM_delta", groupvars = c("temp", "N_species_dose"))
+sum_temp_dose_ammonium_apo$N_species_dose <- factor(sum_temp_dose_ammonium_apo$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+gg_sum_temp_dose_ammonium_apo<-ggplot(data = sum_temp_dose_ammonium_apo,
+       aes(x = N_species_dose,
+           y = PAM_delta, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Ammonium- Temperature and dose summary - Apo corals") +
+  theme(legend.position="none")+
+    labs(x = "Ammonium dose", 
+         y = expression(paste("Change in Fv/Fm")), 
+         caption = "data represent mean +/- SEM" ) +
+      scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
+    scale_color_manual(labels=labels, values=c("blue", "red"))
+gg_sum_temp_dose_ammonium_apo
+
+
+```
+
+
+
+
 # VISUALIZATIONS
 ```{r Prepping for visualizations}
 pam_all_ammonium.data$N_species_dose <- factor(pam_all_ammonium.data$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
@@ -218,6 +292,7 @@ no_controls$N_species_dose <- factor(no_controls$N_species_dose, levels=c("CNTRL
 pam_all_ammonium.data$N_species_dose<-as.character(pam_all_ammonium.data$N_species_dose)
 pam_all_ammonium.data$sym_state<-as.character(pam_all_ammonium.data$sym_state)
 pam_all_ammonium.data$temp <- as.character(pam_all_ammonium.data$temp)
+
 ```
 
 

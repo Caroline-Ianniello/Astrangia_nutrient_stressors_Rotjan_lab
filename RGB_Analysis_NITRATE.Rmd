@@ -106,6 +106,7 @@ rgb_all_nitrate.data$N_species_dose<-as.factor(rgb_all_nitrate.data$N_species_do
 rgb_all_nitrate.data$temp<-as.factor(rgb_all_nitrate.data$temp)
 rgb_all_nitrate.data$food<-as.factor(rgb_all_nitrate.data$food)
 rgb_all_nitrate.data$sym_state<-as.factor(rgb_all_nitrate.data$sym_state)
+rgb_all_nitrate.data$col_num<-as.factor(rgb_all_nitrate.data$col_num)
 
 summary(rgb_all_nitrate.data$sym_state)
 ```
@@ -118,7 +119,7 @@ print(step.model<- step(full.model_rgb_nitrate))
 #Model found:
 #red_delta ~ (1 | exp_num)
 
-mm_rgb_1 <- lmer(red_delta ~ N_species_dose + sym_state + N_species_dose*sym_state +(1|col_num) + (1|exp_num) , data= rgb_all_nitrate.data)
+mm_rgb_1 <- lmer(red_delta ~ N_species_dose + sym_state + temp  +(1|col_num) + (1|exp_num) , data= rgb_all_nitrate.data)
 summary(mm_rgb_1)
 
 
@@ -143,12 +144,27 @@ summary(emm_rgb_N_species_dose)
 
 # Sym state posthoc
 emm_rgb_sym_state=emmeans(mm_rgb_1, specs=pairwise ~ sym_state)
-summary(emm_rgb_sym_state)
+summary(emm_rgb_sym_state) # p=0.1711
 
 # Sym state by N species dose
 emm_rgb_N_species_dose_sym_state=emmeans(mm_rgb_1, specs=pairwise ~ N_species_dose*sym_state)
 summary(emm_rgb_N_species_dose_sym_state)
 #nothing significant
+
+
+# Dose by temperature
+emm_rgb_N_species_dose_temp=emmeans(mm_rgb_1, specs=pairwise ~ N_species_dose*temp)
+summary(emm_rgb_N_species_dose_temp)
+#nothing significant
+
+# Sym state and temp posthoc
+emm_rgb_sym_state_temp=emmeans(mm_rgb_1, specs=pairwise ~ sym_state*temp)
+summary(emm_rgb_sym_state_temp) # Nothing significant
+
+# Dose and temp posthoc
+emm_rgb_dose_temp=emmeans(mm_rgb_1, specs=pairwise ~ N_species_dose*temp)
+summary(emm_rgb_dose_temp) # Nothing significant
+
 
 ```
 
@@ -295,8 +311,17 @@ gg_rgb_plot_apovsym <- ggplot(rgb_treatmeans_apovsym, aes(x = sym_state, y= c(re
   scale_x_discrete("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
     scale_color_manual("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"), values=c("gray", "brown")) #gives you the colors for each point on the graph
 gg_rgb_plot_apovsym
-summary(aov( red_delta ~ sym_state, data=no_controls)) #When you take out controls, it is significant! Weird
-summary(aov( red_delta ~ sym_state, data=rgb_all_nitrate.data))
+# Stats on this:
+full.model_nitrate_no_controls <- lmer(red_delta~  N_species_dose + temp + food + sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state + food*sym_state +  (1|col_num) + (1|exp_num) , data= no_controls)
+summary(full.model_nitrate_no_controls)
+print(step.model<- step(full.model_nitrate_no_controls))
+# Model we will use to check this out:
+mm_1_no_controls <- lmer(red_day11 ~ sym_state, data=no_controls)
+summary(mm_1_no_controls)
+# Posthocs
+emm_no_controls_sym_state=emmeans(mm_1_no_controls, specs=pairwise ~ sym_state)
+summary(emm_no_controls_sym_state)
+
 
 # Summarize by food and sym state so we can visualize
 sum_food_sym_state_nitrate <- summarySE(no_controls, measurevar = "red_delta", groupvars = c("sym_state","food"))
@@ -446,7 +471,7 @@ gg_temp_nitrate<-ggplot(data = sum_temp_nitrate,
     ggtitle ("Nitrate rgb Delta Temperature summary") +
   theme(legend.position="none")+
     labs(x = "Temperature", 
-         y = expression(paste("Day 11 Photosynthetic Efficiency Red channel value")), 
+         y = expression(paste("Delta Red channel value")), 
          caption = "data represent mean +/- SEM" ) +
     scale_x_discrete("Temperature", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
     scale_color_manual("Temperature",labels=c("20C", "30C"), values=c("blue", "red"))
@@ -466,7 +491,7 @@ gg_temp_nitrate<-ggplot(data = sum_temp_nitrate,
     ggtitle ("No controls Nitrate rgb Delta Temperature summary") +
   theme(legend.position="none")+
     labs(x = "Temperature", 
-         y = expression(paste("Day 11 Photosynthetic Efficiency Red channel value")), 
+         y = expression(paste("Delta Red channel value")), 
          caption = "data represent mean +/- SEM" ) +
     scale_x_discrete("Temperature", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
     scale_color_manual("Temperature",labels=c("20C", "30C"), values=c("blue", "red"))
@@ -481,10 +506,10 @@ gg_rgb_treatmeans_temp_sym<-ggplot(data = rgb_treatmeans_temp_sym,
     geom_point() +
     geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate rgb Delta sym state Temperature summary") +
+    ggtitle ("Nitrate Red Delta sym state Temperature summary") +
   theme(legend.position="none")+
     labs(x = "Temperature", 
-         y = expression(paste("Day 11 Photosynthetic Efficiency Red channel value")), 
+         y = expression(paste("Delta Red channel value")), 
          caption = "data represent mean +/- SEM" ) +
     scale_x_discrete("Sym State", labels=c("A"="Apo", "S"="Sym")) +
     scale_color_manual("Temp",labels=c("20", "30"), values=c("blue", "red"))
@@ -498,10 +523,10 @@ gg_rgb_treatmeans_temp_sym<-ggplot(data = rgb_treatmeans_temp_sym,
     geom_point() +
     geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("No controls Nitrate rgb Delta sym state Temperature summary") +
+    ggtitle ("No controls Nitrate Red Delta sym state Temperature summary") +
   theme(legend.position="none")+
     labs(x = "Temperature", 
-         y = expression(paste("Day 11 Photosynthetic Efficiency Red channel value")), 
+         y = expression(paste("Delta Red channel value")), 
          caption = "data represent mean +/- SEM" ) +
     scale_x_discrete("Sym State", labels=c("A"="Apo", "S"="Sym")) +
     scale_color_manual("Temp",labels=c("20", "30"), values=c("blue", "red"))
@@ -516,9 +541,9 @@ gg_N_species_dose_temp_nitrate<-ggplot(data = sum_N_species_dose_temp_nitrate,
     geom_point() +
     geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Nitrate rgb Delta Dose and Temperature summary") +
+    ggtitle ("Nitrate Red Delta Dose and Temperature summary") +
     labs(x = "Nitrate dose", 
-         y = expression(paste("Day 11 Photosynthetic Efficiency Red channel value")), 
+         y = expression(paste("R channel delta")), 
          caption = "data represent mean +/- SEM" ) +
     scale_x_discrete("Nitrate dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
     scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
@@ -537,11 +562,20 @@ gg_N_species_dose_temp_nitrate_sym<-ggplot(data = sum_N_species_dose_temp_nitrat
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("Symbiotic Corals - Nitrate Red Delta Dose and Temperature summary") +
     labs(x = "Nitrate dose", 
-         y = expression(paste("Day 11 Photosynthetic Efficiency Red channel value")), 
+         y = expression(paste("Delta Red channel value")), 
          caption = "data represent mean +/- SEM" ) +
     scale_x_discrete("Nitrate dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
     scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
 gg_N_species_dose_temp_nitrate_sym
+
+#sym linear model
+full.model_delta_sym <- lmer(red_delta ~  N_species_dose + temp + food + N_species_dose*temp + N_species_dose*food + temp*food +  (1|col_num) , data= all_sym)
+summary(full.model_delta_sym)
+print(step.model<- step(full.model_delta_sym))
+mm_1_sym <- lmer(red_delta ~  N_species_dose + temp + (1|col_num) , data= all_sym)
+summary(mm_1_sym)
+emm_1=emmeans(mm_1_sym, specs=pairwise ~ N_species_dose*temp)
+summary(emm_1)
 
 
 # apo corals
@@ -555,11 +589,20 @@ gg_N_species_dose_temp_nitrate_apo<-ggplot(data = sum_N_species_dose_temp_nitrat
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("Aposymbiotic Corals - Nitrate rgb Delta Dose and Temperature summary") +
     labs(x = "Nitrate dose", 
-         y = expression(paste("Day 11 Photosynthetic Efficiency Red channel value")), 
+         y = expression(paste("Delta Red channel value")), 
          caption = "data represent mean +/- SEM" ) +
     scale_x_discrete("Nitrate dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
     scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
 gg_N_species_dose_temp_nitrate_apo
+
+#apo linear model
+full.model_delta_apo <- lmer(red_delta ~  N_species_dose + temp + food + N_species_dose*temp + N_species_dose*food + temp*food +  (1|col_num) , data= all_apo)
+summary(full.model_delta_apo)
+print(step.model<- step(full.model_delta_apo))
+mm_1_apo <- lmer(red_delta ~  N_species_dose + temp + (1|col_num) , data= all_apo)
+summary(mm_1_apo)
+emm_1=emmeans(mm_1_apo, specs=pairwise ~ N_species_dose*temp)
+summary(emm_1)
 ```
 
 ```{r N species dose graphs}

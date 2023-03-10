@@ -157,12 +157,12 @@ r2(mm_pam_1) #random explains 30%
 emm_pam_N_species_dose=emmeans(mm_pam_1, specs=pairwise ~ N_species_dose)
 summary(emm_pam_N_species_dose)
  # contrast        estimate     SE  df t.ratio p.value
- # CNTRL_0 - N_1.5  0.03361 0.0242 420   1.388  0.6358
- # CNTRL_0 - N_18   0.03957 0.0243 433   1.630  0.4787
- # CNTRL_0 - N_5    0.03508 0.0243 429   1.443  0.6004
- # N_1.5 - N_18     0.00597 0.0243 432   0.245  0.9992
- # N_1.5 - N_5      0.00147 0.0243 426   0.060  1.0000
- # N_18 - N_5      -0.00450 0.0240 413  -0.188  0.9997
+ # CNTRL_0 - N_1.5  0.03361 0.0242 420   1.388  0.5076
+ # CNTRL_0 - N_18   0.03957 0.0243 433   1.630  0.3626
+ # CNTRL_0 - N_5    0.03508 0.0243 429   1.443  0.4734
+ # N_1.5 - N_18     0.00597 0.0243 432   0.245  0.9948
+ # N_1.5 - N_5      0.00147 0.0243 426   0.060  0.9999
+ # N_18 - N_5      -0.00450 0.0240 413  -0.188  0.9977
 
 # Sym state posthoc
 emm_pam_sym_state=emmeans(mm_pam_1, specs=pairwise ~ sym_state)
@@ -233,6 +233,72 @@ t.test(all_20$PAM_delta, all_30$PAM_delta) #no difference
 t.test(all_fed$PAM_delta, all_starved$PAM_delta) #no difference
 
 t.test(all_sym$PAM_delta, all_apo$PAM_delta) #p-value = 0.0000002325
+```
+
+
+```{r Subsetting by sym state with visualizations}
+#We're interested to see how sym state drives reaction to dose and temperature seperately
+
+#Symbiotic corals
+full.model_pam_nitrate_sym <- lmer(PAM_delta ~  N_species_dose + temp + food +  N_species_dose*temp + N_species_dose*food + temp*food + (1|col_num) + (1|exp_num) , data= all_sym)
+summary(full.model_pam_nitrate_sym )
+print(step.model<- step(full.model_pam_nitrate_sym ))
+#lets just add N species dose and temperature cause thats what were interested in
+summary(mm_nitrate_sym <- lmer(PAM_delta ~  N_species_dose + temp + (1|col_num) + (1|exp_num) , data= all_sym))
+#posthoc to see differences
+emm_temp_dose_sym=emmeans(mm_nitrate_sym, specs=pairwise ~ temp*N_species_dose)
+summary(emm_temp_dose_sym)
+ # NO SIGNIFICANT COMPARISONS
+
+#now plot
+sum_temp_dose_nitrate_sym <- summarySE(all_sym, measurevar = "PAM_delta", groupvars = c("temp", "N_species_dose"))
+sum_temp_dose_nitrate_sym$N_species_dose <- factor(sum_temp_dose_nitrate_sym$N_species_dose, levels=c("CNTRL_0", "N_1.5", "N_5","N_18"))
+gg_sum_temp_dose_nitrate_sym<-ggplot(data = sum_temp_dose_nitrate_sym,
+       aes(x = N_species_dose,
+           y = PAM_delta, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Nitrate- Temperature and dose summary - Sym corals") +
+  theme(legend.position="none")+
+    labs(x = "Nitrate dose", 
+         y = expression(paste("Change in Fv/Fm")), 
+         caption = "data represent mean +/- SEM" ) +
+      scale_x_discrete("nitrate dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_color_manual(labels=labels, values=c("blue", "red"))
+gg_sum_temp_dose_nitrate_sym
+
+#Aposymbiotic corals
+full.model_pam_nitrate_apo <- lmer(PAM_delta ~  N_species_dose + temp + food +  N_species_dose*temp + N_species_dose*food + temp*food + (1|col_num) + (1|exp_num) , data= all_apo)
+summary(full.model_pam_nitrate_apo )
+print(step.model<- step(full.model_pam_nitrate_apo ))
+#lets just add N species dose and temperature cause thats what were interested in
+summary(mm_nitrate_apo <- lmer(PAM_delta ~  N_species_dose + temp + (1|col_num) + (1|exp_num) , data= all_apo))
+#posthoc to see differences
+emm_temp_dose_apo=emmeans(mm_nitrate_apo, specs=pairwise ~ temp*N_species_dose)
+summary(emm_temp_dose_apo)
+ # NO STAT DIFFERENCES!
+
+#now plot
+sum_temp_dose_nitrate_apo <- summarySE(all_apo, measurevar = "PAM_delta", groupvars = c("temp", "N_species_dose"))
+sum_temp_dose_nitrate_apo$N_species_dose <- factor(sum_temp_dose_nitrate_apo$N_species_dose, levels=c("CNTRL_0", "N_1.5", "N_5","N_18"))
+gg_sum_temp_dose_nitrate_apo<-ggplot(data = sum_temp_dose_nitrate_apo,
+       aes(x = N_species_dose,
+           y = PAM_delta, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("nitrate- Temperature and dose summary - Apo corals") +
+  theme(legend.position="none")+
+    labs(x = "nitrate dose", 
+         y = expression(paste("Change in Fv/Fm")), 
+         caption = "data represent mean +/- SEM" ) +
+  scale_x_discrete("nitrate dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_color_manual(labels=labels, values=c("blue", "red"))
+gg_sum_temp_dose_nitrate_apo
+
+
+
 ```
 
 # VISUALIZATIONS

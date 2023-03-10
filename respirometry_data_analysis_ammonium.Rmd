@@ -121,15 +121,17 @@ print(step.model<- step(full.model))
 mm_resp_2 <- lmer(resp_rate ~ N_species_dose + e_coli_plate + sym_state + (1 | col_num) + (1|vial_ID), data=resp_all_ammonium.data)
 summary(mm_resp_2)
 
+
 # lets add temp for fun and see what happens
 mm_resp_3 <- lmer(resp_rate ~ N_species_dose + e_coli_plate + sym_state + temp + (1|vial_ID) + (1 | col_num), data=resp_all_ammonium.data)
 summary(mm_resp_3) 
 
-AIC(mm_resp_2, mm_resp_3) # mm_resp_2 wins AIC, but only by 14 so I feel pretty good about keeping e coli in there
+
+AIC(mm_resp_2, mm_resp_3) # mm_resp_2 wins AIC, but only by 14 so I feel pretty good about keeping temp in there
 
 mm_resp_2 <- lmer(resp_rate ~ N_species_dose + e_coli_plate + sym_state + temp + (1|vial_ID) + (1 | col_num), data=resp_all_ammonium.data)
 summary(mm_resp_2)
-
+# WINNER # WINNER # WINNER
 
 #  CHECKING MODEL FITNESS AND VISUALIZING MODEL for our winning model mm_resp_2
 #checking for model fit
@@ -173,6 +175,7 @@ calc.relimp(lm_resp_2_relimp, type="lmg", rela=TRUE)
 
 
 ```{r Posthocs and Pairwise Comparisons}
+
 # Reminder: this is our model
 mm_resp_2 <- lmer(resp_rate ~ N_species_dose + e_coli_plate + sym_state + temp + (1|vial_ID) + (1 | col_num), data=resp_all_ammonium.data)
 summary(mm_resp_2)
@@ -285,6 +288,12 @@ summary(emm_resp_2_sym_state_temp)
 # Question: what is the relationship between sym state and Ammonium dose?
 emm_resp_2_sym_state_N_species_dose=emmeans(mm_resp_2, specs=pairwise ~ sym_state*N_species_dose)
 summary(emm_resp_2_sym_state_N_species_dose)
+ # contrast                estimate       SE    df t.ratio p.value
+ # A A_10 - A A_7.5      -0.0008286 0.000283 110.6  -2.926  0.0771
+ # S A_10 - A A_7.5      -0.0013351 0.000361 199.7  -3.695  0.0068 **
+ # S A_10 - S A_7.5      -0.0008286 0.000283 110.6  -2.926  0.0771
+ # S A_10 - A CNTRL_0    -0.0011011 0.000367 177.4  -3.004  0.0596 **
+ # S A_5 - A A_7.5       -0.0011946 0.000365 202.5  -3.269  0.0273 **
 
 ```
 
@@ -316,7 +325,7 @@ pred_ammonium
 
 ```
 
-```{r Ammonium plots}
+```{r Graphs by variable}
 #Make N species dose a factor and give it levels so it will display in this order
 resp_all_ammonium.data$N_species_dose <- factor(resp_all_ammonium.data$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 
@@ -464,6 +473,7 @@ gg_food_sym_state_ammonium #seems obvious that food doesnt matter
 
 # Summarize by temp and N species dose so we can visualize
 sum_N_species_dose_temp_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "resp_rate", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium$N_species_dose <- factor(sum_N_species_dose_temp_ammonium$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 # Visualize
 gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
        aes(x = N_species_dose,
@@ -483,6 +493,7 @@ gg_N_species_dose_temp_ammonium
 
 # Summarize by e_coli and N species dose so we can visualize
 sum_N_species_dose_e_coli_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "resp_rate", groupvars = c("e_coli_plate","N_species_dose"))
+sum_N_species_dose_e_coli_ammonium$N_species_dose <- factor(sum_N_species_dose_e_coli_ammonium$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 # Visualize
 gg_N_species_dose_e_coli_ammonium<-ggplot(data = sum_N_species_dose_e_coli_ammonium,
        aes(x = N_species_dose,
@@ -520,6 +531,7 @@ gg_temp_e_coli_ammonium
 
 # Summarize by e_coli and temp so we can visualize
 sum_dose_sym_state <- summarySE(resp_all_ammonium.data, measurevar = "resp_rate", groupvars = c("N_species_dose","sym_state"))
+sum_dose_sym_state$N_species_dose <- factor(sum_dose_sym_state$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 # Visualize
 gg_sum_dose_sym_state_ammonium<-ggplot(data = sum_dose_sym_state,
        aes(x = N_species_dose,
@@ -587,22 +599,95 @@ emm_N_species_dose=emmeans(mm_without_controls, specs=pairwise ~ N_species_dose)
 summary(emm_N_species_dose)
 
 # Visualize
+sum_temp_ammonium <- summarySE(ammonium_without_control, measurevar = "resp_rate", groupvars = c("temp"))
+
 gg_temp_ammonium<-ggplot(data = sum_temp_ammonium,
        aes(x = temp,
            y = resp_rate, col=temp)) +
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Ammonium- Temperature summary") +
+    ggtitle ("Ammonium- Temperature and dose summary without controls") +
   theme(legend.position="none")+
     labs(x = "Temperature", 
          y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
          caption = "data represent mean +/- SEM" ) +
     scale_x_discrete("Temperature", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
-    scale_color_manual(labels=labels, values=c("blue", "red"))
+      scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
 gg_temp_ammonium
 
 ```
+
+
+```{r Looking at E. coli subsets}
+
+# E. coli
+sum_temp_dose_ammonium_e_coli <- summarySE(e_coli, measurevar = "resp_rate", groupvars = c("temp", "N_species_dose"))
+sum_temp_dose_ammonium_e_coli$N_species_dose <- factor(sum_temp_dose_ammonium_e_coli$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+
+gg_sum_temp_dose_ammonium_e_coli<-ggplot(data = sum_temp_dose_ammonium_e_coli,
+       aes(x = N_species_dose,
+           y = resp_rate, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Ammonium- Temperature and dose summary - E. coli treated corals") +
+  theme(legend.position="none")+
+    labs(x = "Ammonium dose", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+      scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
+    scale_color_manual(labels=labels, values=c("blue", "red"))
+gg_sum_temp_dose_ammonium_e_coli
+
+full.model.e_coli <- lmer(resp_rate ~  N_species_dose + temp + food + sym_state  + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state +  food*sym_state +  (1|col_num) + (1|exp_num) , data= e_coli)
+print(step.model<- step(full.model.e_coli))
+
+summary(mm_e_coli <- lmer(resp_rate ~  N_species_dose + temp + (1|col_num), data= e_coli))
+
+# Summarize by temperature
+emm_temp=emmeans(mm_e_coli, specs=pairwise ~ temp*N_species_dose)
+summary(emm_temp)
+ # contrast                          estimate       SE  df t.ratio p.value
+ # temp20 A_10 - temp20 A_7.5      -0.0011139 0.000391 160  -2.848  0.0908
+ # temp20 A_10 - temp30 A_7.5      -0.0016759 0.000491 169  -3.415  0.0178 **
+ # temp20 A_10 - temp30 CNTRL_0    -0.0016040 0.000489 165  -3.280  0.0272 **
+ # temp30 A_10 - temp30 A_7.5      -0.0011139 0.000391 160  -2.848  0.0908
+
+
+# No E. coli
+sum_temp_dose_ammonium_no_e_coli <- summarySE(no_e_coli, measurevar = "resp_rate", groupvars = c("temp", "N_species_dose"))
+sum_temp_dose_ammonium_no_e_coli$N_species_dose <- factor(sum_temp_dose_ammonium_no_e_coli$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+
+gg_sum_temp_dose_ammonium_no_e_coli<-ggplot(data = sum_temp_dose_ammonium_no_e_coli,
+       aes(x = N_species_dose,
+           y = resp_rate, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Ammonium- Temperature and dose summary - No E. coli treated corals") +
+  theme(legend.position="none")+
+    labs(x = "Ammonium dose", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+      scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
+    scale_color_manual(labels=labels, values=c("blue", "red"))
+gg_sum_temp_dose_ammonium_no_e_coli
+
+full.model.no_e_coli <- lmer(resp_rate ~  N_species_dose + temp + food + sym_state  + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state +  food*sym_state +  (1|col_num) + (1|exp_num) , data= no_e_coli)
+print(step.model<- step(full.model.no_e_coli))
+
+summary(mm_no_e_coli <- lmer(resp_rate ~  N_species_dose + temp + (1|col_num), data= no_e_coli))
+
+# Summarize by temperature
+emm_temp=emmeans(mm_no_e_coli, specs=pairwise ~ temp*N_species_dose)
+summary(emm_temp)
+# NO STATISTICALLY SIGNIFICANT DIFFERENCES
+
+
+```
+
+
 
 ```{r Looking at ammonium 10uM}
 # We found in the above analyses that there was a statistically significant difference between Control and 10uM under E. coli. Let's zoom out and look at 10uM and see what might be driving that model 

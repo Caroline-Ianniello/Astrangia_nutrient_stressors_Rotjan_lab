@@ -52,6 +52,8 @@ options(max.print=1000000)
 ```{r Inputting data & making sure everything is organized correctly}
 rgb_all_ammonium.data <- read.csv("Master_RGB_Spreadsheet_AMMONIUM_Condensed_Red_1_12_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 
+str(rgb_all_ammonium.data)
+
 #getting rid of all the extra data at the bottom-- we only want rows 1:959 OR 1:639 if only looking at exp 2 and 3 (remember we got rid of the outlier!)
 rgb_all_ammonium.data  <- rgb_all_ammonium.data[(1:482),]
 rgb_all_ammonium.data <- na.omit(rgb_all_ammonium.data)
@@ -65,6 +67,8 @@ rgb_all_ammonium.data$temp<-as.factor(rgb_all_ammonium.data$temp)
 rgb_all_ammonium.data$food<-as.factor(rgb_all_ammonium.data$food)
 rgb_all_ammonium.data$sym_state<-as.character(rgb_all_ammonium.data$sym_state)
 rgb_all_ammonium.data$food_sym_state<-as.factor(rgb_all_ammonium.data$food_sym_state)
+#We want the math to treat colony number as a factor
+rgb_all_ammonium.data$col_num<-as.factor(rgb_all_ammonium.data$col_num)
 
 summary(rgb_all_ammonium.data$temp)
 
@@ -128,39 +132,53 @@ print(step.model<- step(full.model_rgb_ammonium))
 mm_rgb_1 <- lmer(log_red_delta ~ N_species_dose + sym_state +(1|col_num) + (1|exp_num) , data= rgb_all_ammonium.data)
 summary(mm_rgb_1)
 
+mm_rgb_2 <- lmer(log_red_delta ~ N_species_dose + sym_state + temp +(1|col_num), data= rgb_all_ammonium.data)
+summary(mm_rgb_2)
+emm_2_temp=emmeans(mm_rgb_2, specs=pairwise ~ temp)
+summary(emm_2_temp)
+# LETS USE THIS MODEL BECAUSE TEMP IS ACTUALLY INTERESTING
 
-
-
-plot_model(mm_rgb_1, type="diag") #data fitness looks decent
-r2(mm_rgb_1) #random explains 30%
+plot_model(mm_rgb_2, type="diag") #data fitness looks decent
+r2(mm_rgb_2) #random explains 8%
 
 ```
 
 ```{r rgb delta Model posthocs}
 # ammonium dose posthoc
-emm_rgb_N_species_dose=emmeans(mm_rgb_1, specs=pairwise ~ N_species_dose)
+emm_rgb_N_species_dose=emmeans(mm_rgb_2, specs=pairwise ~ N_species_dose)
 summary(emm_rgb_N_species_dose)
  # contrast     estimate    SE  df t.ratio p.value
- # A_0 - A_10    -0.2228 0.158 443  -1.406  0.4964
- # A_0 - A_5     -0.2585 0.158 431  -1.639  0.3576
- # A_0 - A_7.5   -0.5535 0.159 446  -3.490  0.0030 **********
- # A_10 - A_5    -0.0357 0.158 445  -0.226  0.9959
- # A_10 - A_7.5  -0.3307 0.158 438  -2.095  0.1564
- # A_5 - A_7.5   -0.2951 0.158 441  -1.871  0.2422
-
+ # A_0 - A_10    -0.2231 0.159 442  -1.407  0.4957
+ # A_0 - A_5     -0.2583 0.158 430  -1.637  0.3589
+ # A_0 - A_7.5   -0.5537 0.159 446  -3.488  0.0030
+ # A_10 - A_5    -0.0352 0.158 445  -0.223  0.9961
+ # A_10 - A_7.5  -0.3306 0.158 437  -2.092  0.1574
+ # A_5 - A_7.5   -0.2953 0.158 440  -1.871  0.2421
 # Sym state posthoc
-emm_rgb_sym_state=emmeans(mm_rgb_1, specs=pairwise ~ sym_state)
-summary(emm_rgb_sym_state) #p=0.02
+emm_rgb_sym_state=emmeans(mm_rgb_2, specs=pairwise ~ sym_state)
+summary(emm_rgb_sym_state) #p=0.027
 
 # Sym state by N species dose
-emm_rgb_N_species_dose_sym_state=emmeans(mm_rgb_1, specs=pairwise ~ N_species_dose*sym_state)
+emm_rgb_N_species_dose_sym_state=emmeans(mm_rgb_2, specs=pairwise ~ N_species_dose*sym_state)
 summary(emm_rgb_N_species_dose_sym_state)
  # contrast          estimate    SE  df t.ratio p.value
- # A_0 A - A_7.5 A    -0.5535 0.159 446  -3.490  0.0123
- # A_0 A - A_7.5 S    -0.8238 0.201 455  -4.098  0.0013
- # A_10 A - A_7.5 S   -0.6010 0.200 460  -3.009  0.0553
- # A_5 A - A_7.5 S    -0.5653 0.199 460  -2.834  0.0892
- # A_0 S - A_7.5 S    -0.5535 0.159 446  -3.490  0.0123
+ # A_0 A - A_7.5 A    -0.5537 0.159 446  -3.488  0.0124 *
+ # A_0 A - A_7.5 S    -0.8237 0.201 457  -4.098  0.0013
+ # A_10 A - A_7.5 S   -0.6006 0.200 462  -3.007  0.0558
+ # A_5 A - A_7.5 S    -0.5653 0.199 462  -2.834  0.0892
+ # A_0 S - A_7.5 S    -0.5537 0.159 446  -3.488  0.0124 *
+
+
+emm_rgb_N_species_dose_temp=emmeans(mm_rgb_2, specs=pairwise ~ N_species_dose*temp)
+summary(emm_rgb_N_species_dose_temp)
+ # contrast                    estimate    SE  df t.ratio p.value
+ # A_0 temp20 - A_7.5 temp20   -0.55366 0.159 446  -3.488  0.0124
+ # A_0 temp30 - A_7.5 temp30   -0.55366 0.159 446  -3.488  0.0124
+
+
+emm_rgb_sym_state_temp=emmeans(mm_rgb_2, specs=pairwise ~ sym_state*temp)
+summary(emm_rgb_sym_state_temp)
+ # nothing significant
 
 ```
 
@@ -277,6 +295,19 @@ gg_rgb_plot_apovsym <- ggplot(rgb_treatmeans_apovsym, aes(x = sym_state, y= c(re
 gg_rgb_plot_apovsym
 summary(aov( red_delta ~ sym_state, data=no_controls)) #When you take out controls, it is significant! Weird
 summary(aov( red_delta ~ sym_state, data=rgb_all_ammonium.data))
+# Stats on this:
+full.model_ammonium_no_controls <- lmer(red_delta~  N_species_dose + temp + food + sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state + food*sym_state +  (1|col_num) + (1|exp_num) , data= no_controls)
+summary(full.model_ammonium_no_controls)
+print(step.model<- step(full.model_ammonium_no_controls))
+# Model we will use to check this out:
+mm_1_no_controls <- lm(red_day11 ~ sym_state, data=no_controls)
+summary(mm_1_no_controls)
+# Posthocs
+emm_no_controls_sym_state=emmeans(mm_1_no_controls, specs=pairwise ~ sym_state)
+summary(emm_no_controls_sym_state)
+
+
+
 
 # Summarize by food and sym state so we can visualize
 sum_food_sym_state_ammonium <- summarySE(no_controls, measurevar = "red_delta", groupvars = c("sym_state","food"))
@@ -387,21 +418,33 @@ sum_N_species_dose_temp_ammonium$N_species_dose <- factor(sum_N_species_dose_tem
 gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
        aes(x = N_species_dose,
            y = red_delta, col=temp)) +
-    geom_point() +
     geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
-    #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("Ammonium rgb Delta Dose and Temperature summary") +
     labs(x = "Ammonium dose", 
-         y = expression(paste("Day 11  Red channel value")), 
+         y = expression(paste("Red delta value")), 
          caption = "data represent mean +/- SEM" ) +
-    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_x_discrete("Ammonium dose", labels=c(A_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
     scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
 gg_N_species_dose_temp_ammonium
+#sanity check this cause it feels weird that 20 control is different than 20 7.5 um and same with 30C
+#subset all controls at 20C
+all_20C_control<-subset(all_20, all_20$N_species_dose=="A_0")
+#subset all 7.5 at 20C
+all_20C_7.5<-subset(all_20, all_20$N_species_dose=="A_7.5")
+t.test(all_20C_control$red_delta, all_20C_7.5$red_delta)
+
+#subset all controls at 30C
+all_30C_control<-subset(all_30, all_30$N_species_dose=="A_0")
+#subset all 7.5 at 30C
+all_30C_7.5<-subset(all_30, all_30$N_species_dose=="A_7.5")
+t.test(all_30C_control$red_delta, all_30C_7.5$red_delta)
+
 
 # Separate by sym state - temp x N species dose
 
 # Sym corals
 sum_N_species_dose_temp_ammonium_sym <- summarySE(all_sym, measurevar = "red_delta", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium_sym$N_species_dose <- factor(sum_N_species_dose_temp_ammonium_sym$N_species_dose, levels=c("A_0", "A_5", "A_7.5","A_10"))
 # Visualize
 gg_N_species_dose_temp_ammonium_sym<-ggplot(data = sum_N_species_dose_temp_ammonium_sym,
        aes(x = N_species_dose,
@@ -413,13 +456,22 @@ gg_N_species_dose_temp_ammonium_sym<-ggplot(data = sum_N_species_dose_temp_ammon
     labs(x = "ammonium dose", 
          y = expression(paste("Day 11  Red channel value")), 
          caption = "data represent mean +/- SEM" ) +
-    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+   scale_x_discrete("Ammonium dose", labels=c(A_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
     scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
 gg_N_species_dose_temp_ammonium_sym
+#Sym linear model
+full.model_delta_sym <- lmer(red_delta ~  N_species_dose + temp + food + N_species_dose*temp + N_species_dose*food + temp*food +  (1|col_num) , data= all_sym)
+summary(full.model_delta_sym)
+print(step.model<- step(full.model_delta_sym))
+mm_1_sym <- lmer(red_delta ~  N_species_dose + temp + (1|col_num) , data= all_sym)
+summary(mm_1_sym)
+emm_1=emmeans(mm_1_sym, specs=pairwise ~ N_species_dose*temp)
+summary(emm_1)
 
 
 # apo corals
 sum_N_species_dose_temp_ammonium_apo <- summarySE(all_apo, measurevar = "red_delta", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium_apo$N_species_dose <- factor(sum_N_species_dose_temp_ammonium_apo$N_species_dose, levels=c("A_0", "A_5", "A_7.5","A_10"))
 # Visualize
 gg_N_species_dose_temp_ammonium_apo<-ggplot(data = sum_N_species_dose_temp_ammonium_apo,
        aes(x = N_species_dose,
@@ -427,13 +479,23 @@ gg_N_species_dose_temp_ammonium_apo<-ggplot(data = sum_N_species_dose_temp_ammon
     geom_point() +
     geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Aposymbiotic Corals - ammonium rgb Delta Dose and Temperature summary") +
+    ggtitle ("Aposymbiotic Corals - Ammonium rgb Delta Dose and Temperature summary") +
     labs(x = "ammonium dose", 
          y = expression(paste("Day 11  Red channel value")), 
          caption = "data represent mean +/- SEM" ) +
-    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+   scale_x_discrete("Ammonium dose", labels=c(A_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
     scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
 gg_N_species_dose_temp_ammonium_apo
+
+#apo linear model
+full.model_delta_apo <- lmer(red_delta ~  N_species_dose + temp + food + N_species_dose*temp + N_species_dose*food + temp*food +  (1|col_num) , data= all_apo)
+summary(full.model_delta_apo)
+print(step.model<- step(full.model_delta_apo))
+mm_1_apo <- lmer(red_delta ~  N_species_dose + temp + (1|col_num) , data= all_apo)
+summary(mm_1_apo)
+emm_1=emmeans(mm_1_apo, specs=pairwise ~ N_species_dose*temp)
+summary(emm_1)
+
 ```
 
 ```{r N species dose graphs}
