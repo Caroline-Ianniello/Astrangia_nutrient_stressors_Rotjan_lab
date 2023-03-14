@@ -612,7 +612,7 @@ axis.title.y = element_text(color="black", size=14, face="bold"))+
 ```
 
 
-```{r Plots for randi - models and graphs without controls}
+```{r Models and graphs without controls}
 
 nitrate_without_control <- read.csv("RESP_Nitrate_no_controls.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 nitrate_without_control <- na.omit(nitrate_without_control)
@@ -620,6 +620,8 @@ nitrate_without_control <- na.omit(nitrate_without_control)
 nitrate_without_control$treat_ID_full<-as.character(nitrate_without_control$treat_ID_full)
 nitrate_without_control$e_coli_plate<-as.character(nitrate_without_control$e_coli_plate)
 nitrate_without_control$temp <- as.character(nitrate_without_control$temp)
+
+nitrate_controls <- subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose==0)
 
 
 full.model <- lmer(resp_rate ~  N_species_dose + temp + food + sym_state + e_coli_plate + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + N_species_dose*e_coli_plate + temp*food + temp*sym_state + temp*e_coli_plate + food*sym_state + food*e_coli_plate + sym_state*e_coli_plate +  (1|col_num) + (1|exp_num) , data= nitrate_without_control)
@@ -631,7 +633,7 @@ mm_without_controls <-lmer(resp_rate ~ N_species_dose + sym_state + e_coli_plate
 summary(mm_without_controls)
 
 # Summarize by temperature
-emm_temp=emmeans(mm_without_controls, specs=pairwise ~ temp)
+emm_temp=emmeans(mm_without_controls, specs=pairwise ~ sym_state)
 summary(emm_temp)
 
 #Pairwise by 
@@ -639,10 +641,27 @@ emm_N_species_dose=emmeans(mm_without_controls, specs=pairwise ~ N_species_dose)
 summary(emm_N_species_dose)
 
 # Visualize by sym state
-sum_sym_state <- summarySE(nitrate_without_control, measurevar = "resp_rate", groupvars = c("sym_state"))
+sum_sym_state <- summarySE(nitrate_without_control, measurevar = "resp_rate", groupvars = c("e_coli_plate"))
 gg_sym_state_nitrate<-ggplot(data = sum_sym_state,
-       aes(x = sym_state,
-           y = resp_rate, col=sym_state)) +
+       aes(x = e_coli_plate,
+           y = resp_rate, col=e_coli_plate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Nitrate without control - E. coli summary") +
+  theme(legend.position="none")+
+    labs(x = "E. coli presence", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+   # scale_x_discrete("Sym", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
+    scale_color_manual(labels=labels, values=c("black", "darkgreen"))
+gg_sym_state_nitrate
+
+
+# Visualize by temperature
+sum_sym_state <- summarySE(nitrate_without_control, measurevar = "resp_rate", groupvars = c("temp"))
+gg_sym_state_nitrate<-ggplot(data = sum_sym_state, 
+          aes(x=temp, y = resp_rate, col=temp)) +
     geom_point() +
     geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
@@ -652,10 +671,59 @@ gg_sym_state_nitrate<-ggplot(data = sum_sym_state,
          y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
          caption = "data represent mean +/- SEM" ) +
    # scale_x_discrete("Sym", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
+    scale_color_manual(labels=labels, values=c("blue", "red"))
+gg_sym_state_nitrate
+
+```
+
+
+```{r Controls only}
+nitrate_controls <- subset(resp_all_nitrate.data, resp_all_nitrate.data$N_dose==0)
+
+
+#linear model 
+nitrate_controls$treat_ID_full<-as.factor(nitrate_controls$treat_ID_full)
+nitrate_controls$e_coli_plate<-as.factor(nitrate_controls$e_coli_plate)
+nitrate_controls$temp <- as.factor(nitrate_controls$temp)
+nitrate_controls$N_species_dose <- as.factor(nitrate_controls$N_species_dose)
+nitrate_controls$food <- as.factor(nitrate_controls$food)
+
+full.model <- lmer(resp_rate ~  N_species_dose + temp + food + sym_state + e_coli_plate + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + N_species_dose*e_coli_plate + temp*food + temp*sym_state + temp*e_coli_plate + food*sym_state + food*e_coli_plate + sym_state*e_coli_plate +  (1|col_num) + (1|exp_num) , data= nitrate_controls)
+print(step.model<- step(full.model))
+
+
+mm_controls <-lmer(resp_rate ~ sym_state + e_coli_plate + temp + (1 | col_num), data=nitrate_controls)
+
+emm_control <-emmeans(mm_controls, specs=pairwise ~ sym_state)
+summary(emm_control)
+
+summary(mm_without_controls)
+
+
+
+#make sure treatID is a character
+nitrate_controls$treat_ID_full<-as.character(nitrate_controls$treat_ID_full)
+nitrate_controls$e_coli_plate<-as.character(nitrate_controls$e_coli_plate)
+nitrate_controls$temp <- as.character(nitrate_controls$temp)
+
+sum_sym_state <- summarySE(nitrate_controls, measurevar = "resp_rate", groupvars = c("sym_state"))
+gg_sym_state_nitrate<-ggplot(data = sum_sym_state, 
+          aes(x=sym_state, y = resp_rate, col=sym_state)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=resp_rate-se, ymax=resp_rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Nitrate CONTROLS ONLY - Sym state summary") +
+  theme(legend.position="none")+
+    labs(x = "Sym State", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+   # scale_x_discrete("Sym", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
     scale_color_manual(labels=labels, values=c("gray", "brown"))
 gg_sym_state_nitrate
 
 ```
+
+
 ```{r By dose by E. coli by temp}
 # Summarize by temperature so we can visualize
 sum_temp20_nitrate <- summarySE(all_20C, measurevar = "resp_rate", groupvars = c("temp"))
