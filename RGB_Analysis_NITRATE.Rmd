@@ -48,10 +48,8 @@ options(max.print=1000000)
 
 
 ```{r Inputting data & making sure everything is organized correctly}
-rgb_all_nitrate.data <- read.csv("Master_RGB_Spreadsheet_NITRATE_Condensed_Red_1_12_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+rgb_all_nitrate.data <- read.csv("Master_RGB_Spreadsheet_NITRATE_Condensed_Red_4_4_23_dead_deleted.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 
-#getting rid of all the extra data at the bottom-- we only want rows 1:959 OR 1:639 if only looking at exp 2 and 3 (remember we got rid of the outlier!)
-rgb_all_nitrate.data  <- rgb_all_nitrate.data[(1:482),]
 rgb_all_nitrate.data <- na.omit(rgb_all_nitrate.data)
 
 
@@ -96,77 +94,180 @@ no_controls <- subset(rgb_all_nitrate.data, rgb_all_nitrate.data$N_dose!=0)
 
 
 
-
-# LINEAR MODELS
-
-```{r getting data ready for lmer}
-rgb_all_nitrate.data$N_species<-as.factor(rgb_all_nitrate.data$N_species)
-rgb_all_nitrate.data$N_dose<-as.factor(rgb_all_nitrate.data$N_dose)
-rgb_all_nitrate.data$N_species_dose<-as.factor(rgb_all_nitrate.data$N_species_dose)
-rgb_all_nitrate.data$temp<-as.factor(rgb_all_nitrate.data$temp)
-rgb_all_nitrate.data$food<-as.factor(rgb_all_nitrate.data$food)
-rgb_all_nitrate.data$sym_state<-as.factor(rgb_all_nitrate.data$sym_state)
-rgb_all_nitrate.data$col_num<-as.factor(rgb_all_nitrate.data$col_num)
-
-summary(rgb_all_nitrate.data$sym_state)
-```
-
-
 ```{r rgb delta Model selection }
-full.model_rgb_nitrate <- lmer(red_delta ~  N_species_dose + temp + food + sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state + food*sym_state +  (1|col_num) + (1|exp_num) , data= rgb_all_nitrate.data)
-summary(full.model_rgb_nitrate)
-print(step.model<- step(full.model_rgb_nitrate))
-#Model found:
-#red_delta ~ (1 | exp_num)
+#were not going to look at genetic ID so let's do an lm
 
-mm_rgb_1 <- lmer(red_delta ~ N_species_dose + sym_state + temp  +(1|col_num) + (1|exp_num) , data= rgb_all_nitrate.data)
-summary(mm_rgb_1)
+#stepAIC is from the MASS package
+fullModel = lm(red_delta ~   N_species_dose + temp + sym_state  + N_species_dose*temp + N_species_dose*sym_state + temp*sym_state, data= rgb_all_nitrate.data) # model with all 9 variables and possible combinations
+
+nullModel = lm(red_delta ~  1, data= rgb_all_nitrate.data) # model with the intercept only
+
+summary(stepAIC(nullModel, # start with a model containing no variables
+                direction = 'forward', # run forward selection
+                scope = list(upper = fullModel, # the maximum to consider is a model with all variables
+                             lower = nullModel), # the minimum to consider is a model with no variables
+                trace = 1)) # do not show the step-by-step process of model selection
+
+summary(fullModel)
+#model it selected for:
+lm_rgb_1 <- lm(formula = red_delta ~1, data = rgb_all_nitrate.data)
+summary(lm_rgb_1)
+
+#lets check out some other models
+lm_rgb_2 <- lm(formula = red_delta ~ sym_state + temp + N_species_dose, data = rgb_all_nitrate.data)
+summary(lm_rgb_2)
+lm_rgb_3 <- lm(formula = red_delta ~ sym_state + temp , data = rgb_all_nitrate.data)
+summary(lm_rgb_3)
+#WINNER OUT OF ALL COMBINATIONS
+lm_rgb_4 <- lm(formula = red_delta ~ sym_state + N_species_dose, data = rgb_all_nitrate.data)
+summary(lm_rgb_4)
+lm_rgb_5 <- lm(formula = red_delta ~  temp + N_species_dose, data = rgb_all_nitrate.data)
+summary(lm_rgb_5)
+
+AIC(lm_rgb_1, lm_rgb_2, lm_rgb_3, lm_rgb_4, lm_rgb_5)
+
+#linear model 3 is the winner here
 
 
+plot_model(lm_rgb_1, type="diag") #data fitness looks decent
+r2(lm_rgb_1)
+
+```
+
+```{r SYM linear model}
+#stepAIC is from the MASS package
+fullModel = lm(red_delta ~   N_species_dose + temp  + N_species_dose*temp, data= all_sym) # model with all 9 variables and possible combinations
+
+nullModel = lm(red_delta ~  1, data= all_sym) # model with the intercept only
+
+summary(stepAIC(nullModel, # start with a model containing no variables
+                direction = 'forward', # run forward selection
+                scope = list(upper = fullModel, # the maximum to consider is a model with all variables
+                             lower = nullModel), # the minimum to consider is a model with no variables
+                trace = 1)) # do not show the step-by-step process of model selection
+
+summary(fullModel)
+# it only selected for:
+lm_sym_1 <- lm(red_delta ~  1, data= all_sym)
+
+#lets see if we add the N_species_dose  what happens
+lm_sym_2 <- lm(red_delta ~  N_species_dose + temp, data= all_sym)
+summary(lm_sym_2)
+#WINNER
 
 
-plot_model(mm_rgb_1, type="diag") #data fitness looks decent
-r2(mm_rgb_1) #random explains 30%
+AIC(lm_sym_1, lm_sym_2)
+
+emm_sym_rgb_N_species_dose_temp=emmeans(lm_sym_2, specs=pairwise ~ N_species_dose*temp)
+summary(emm_sym_rgb_N_species_dose_temp)
+
+#really no effect of dose or sym state
+
+#graph sym only by N species dose and temperature
+
+# Summarize by temp and N species dose so we can visualize
+sum_N_species_dose_temp_nitrate <- summarySE(all_sym, measurevar = "red_delta", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_nitrate$N_species_dose <- factor(sum_N_species_dose_temp_nitrate$N_species_dose, levels=c("N_0", "N_1.5", "N_5","N_18"))
+# Visualize
+gg_N_species_dose_temp_nitrate<-ggplot(data = sum_N_species_dose_temp_nitrate,
+       aes(x = N_species_dose,
+           y = red_delta, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("SYM CORALS nitrate rgb - Change in R channel value") +
+    labs(x = "nitrate dose", 
+         y = expression(paste("Change in R channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("nitrate dose", labels=c(N_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
+gg_N_species_dose_temp_nitrate
+
+
+# generating ptemp and pdose:
+summary(aov_temp<-aov(red_delta ~ temp, data=all_sym))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ temp))
+
+#ptemp=0.32
+
+summary(aov_temp<-aov(red_delta ~ N_species_dose, data=all_sym))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
+
+#pdose=0.39 
+  
+#food for funsies
+summary(aov_food<-aov(red_delta ~ food, data=all_sym))
+Anova(aov_food, type="III")
+
+#pfood=0.59
+
+#food doesnt seem to matter at all
+  
+```
+
+```{r APO linear model}
+#stepAIC is from the MASS package
+fullModel = lm(red_delta ~   N_species_dose + temp  + N_species_dose*temp, data= all_apo) # model with all 9 variables and possible combinations
+
+nullModel = lm(red_delta ~  1, data= all_apo) # model with the intercept only
+
+summary(stepAIC(nullModel, # start with a model containing no variables
+                direction = 'forward', # run forward selection
+                scope = list(upper = fullModel, # the maximum to consider is a model with all variables
+                             lower = nullModel), # the minimum to consider is a model with no variables
+                trace = 1)) # do not show the step-by-step process of model selection
+
+summary(fullModel)
+#selected for -
+lm_apo_1 <- lm(formula = red_delta ~ 1, data = all_apo)
+summary(lm_apo_1)
+
+lm_apo_2 <- lm(formula = red_delta ~ N_species_dose, data = all_apo)
+summary(lm_apo_1)
+
+#posthocs
+emm_apo_N_species_dose=emmeans(lm_apo_2, specs=pairwise ~ N_species_dose)
+summary(emm_apo_N_species_dose)
+# nothing really going on
+
+
+# Summarize by temp and N species dose so we can visualize
+sum_N_species_dose_temp_nitrate <- summarySE(all_apo, measurevar = "red_delta", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_nitrate$N_species_dose <- factor(sum_N_species_dose_temp_nitrate$N_species_dose, levels=c("N_0", "N_1.5", "N_5","N_18"))
+# Visualize
+gg_N_species_dose_temp_nitrate<-ggplot(data = sum_N_species_dose_temp_nitrate,
+       aes(x = N_species_dose,
+           y = red_delta, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("APO CORALS nitrate rgb - Change in Red channel value") +
+    labs(x = "nitrate dose", 
+         y = expression(paste("Change in Red channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("nitrate dose", labels=c(N_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
+gg_N_species_dose_temp_nitrate
+
+# generating ptemp and pdose:
+summary(aov_temp<-aov(red_delta ~ temp, data=all_apo))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ temp))
+
+#ptemp=0.745
+
+summary(aov_temp<-aov(red_delta ~ N_species_dose, data=all_apo))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
+
+#pdose=0.04
+
 
 ```
 
-```{r rgb delta Model posthocs}
-# Nitrate dose posthoc
-emm_rgb_N_species_dose=emmeans(mm_rgb_1, specs=pairwise ~ N_species_dose)
-summary(emm_rgb_N_species_dose)
- # contrast     estimate      SE  df t.ratio p.value
- # N_0 - N_1.5  -0.00433 0.00825 440  -0.525  0.9529
- # N_0 - N_18    0.00818 0.00824 452   0.992  0.7538
- # N_0 - N_5     0.00688 0.00824 450   0.835  0.8378
- # N_1.5 - N_18  0.01252 0.00828 451   1.512  0.4313
- # N_1.5 - N_5   0.01122 0.00827 446   1.356  0.5278
- # N_18 - N_5   -0.00130 0.00824 433  -0.158  0.9986
 
-# Sym state posthoc
-emm_rgb_sym_state=emmeans(mm_rgb_1, specs=pairwise ~ sym_state)
-summary(emm_rgb_sym_state) # p=0.1711
-
-# Sym state by N species dose
-emm_rgb_N_species_dose_sym_state=emmeans(mm_rgb_1, specs=pairwise ~ N_species_dose*sym_state)
-summary(emm_rgb_N_species_dose_sym_state)
-#nothing significant
-
-
-# Dose by temperature
-emm_rgb_N_species_dose_temp=emmeans(mm_rgb_1, specs=pairwise ~ N_species_dose*temp)
-summary(emm_rgb_N_species_dose_temp)
-#nothing significant
-
-# Sym state and temp posthoc
-emm_rgb_sym_state_temp=emmeans(mm_rgb_1, specs=pairwise ~ sym_state*temp)
-summary(emm_rgb_sym_state_temp) # Nothing significant
-
-# Dose and temp posthoc
-emm_rgb_dose_temp=emmeans(mm_rgb_1, specs=pairwise ~ N_species_dose*temp)
-summary(emm_rgb_dose_temp) # Nothing significant
-
-
-```
 
 
 ```{r Day 11 models}
@@ -244,7 +345,7 @@ gg_rgb_plot_apovsym <- ggplot(rgb_treatmeans_apovsym, aes(x = sym_state, y= c(re
   geom_line(aes(group = sym_state), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
   geom_errorbar(aes(x = sym_state, ymax = red_delta+se, ymin = red_delta-se), width = .2, position = position_dodge(width=0.3)) +
   #scale_color_manual(name = "Treatment",
-                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    #labels = c("Control 30C Fed","Control 30C Starved","nitrate High 30C Fed", "nitrate High 30C Starved","test"),
                     # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
  ylab("Change in Red channel value Pre vs. Post-experiment")+
   ggtitle("Change in Red channel value Sym vs. Apo")+
@@ -303,7 +404,7 @@ gg_rgb_plot_apovsym <- ggplot(rgb_treatmeans_apovsym, aes(x = sym_state, y= c(re
   geom_line(aes(group = sym_state), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
   geom_errorbar(aes(x = sym_state, ymax = red_delta+se, ymin = red_delta-se), width = .2, position = position_dodge(width=0.3)) +
   #scale_color_manual(name = "Treatment",
-                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    #labels = c("Control 30C Fed","Control 30C Starved","nitrate High 30C Fed", "nitrate High 30C Starved","test"),
                     # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
  ylab("Change in Photosynthetic Efficiency Red channel value")+
   ggtitle("No Controls rgb delta Red channel value Sym vs. Apo")+
@@ -361,7 +462,7 @@ gg_rgb_plot_apovsym <- ggplot(rgb_treatmeans_apovsym, aes(x = sym_state, y= c(re
   geom_line(aes(group = sym_state), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
   geom_errorbar(aes(x = sym_state, ymax = red_day11+se, ymin = red_day11-se), width = .2, position = position_dodge(width=0.3)) +
   #scale_color_manual(name = "Treatment",
-                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    #labels = c("Control 30C Fed","Control 30C Starved","nitrate High 30C Fed", "nitrate High 30C Starved","test"),
                     # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
  ylab("Day 11 Red channel value ")+
   ggtitle("Day 11 Red channel value Sym vs. Apo")+
@@ -420,7 +521,7 @@ gg_rgb_plot_apovsym <- ggplot(rgb_treatmeans_apovsym, aes(x = sym_state, y= c(re
   geom_line(aes(group = sym_state), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
   geom_errorbar(aes(x = sym_state, ymax = red_day11+se, ymin = red_day11-se), width = .2, position = position_dodge(width=0.3)) +
   #scale_color_manual(name = "Treatment",
-                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    #labels = c("Control 30C Fed","Control 30C Starved","nitrate High 30C Fed", "nitrate High 30C Starved","test"),
                     # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
  ylab("Day 11 Photosynthetic Efficiency Red channel value")+
   ggtitle("No Controls rgb delta Red channel value Sym vs. Apo")+

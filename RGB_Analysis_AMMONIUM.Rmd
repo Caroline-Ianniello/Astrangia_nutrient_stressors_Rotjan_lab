@@ -1,5 +1,5 @@
 ---
-title: "PAM data AMMONIUM: last updated 12/9/22 C. Fleming"
+title: "rgb data AMMONIUM: last updated 12/9/22 C. Fleming"
 output: html_notebook
 ---
 
@@ -42,6 +42,7 @@ library("see")
 library("ggrepel")
 #install.packages("sjPlot") #for visualizing linear models
 library(sjPlot)
+library(car)
 #gg effects
 
 #increase the number of results it will show
@@ -53,9 +54,6 @@ options(max.print=1000000)
 rgb_all_ammonium.data <- read.csv("Master_RGB_Spreadsheet_AMMONIUM_Condensed_Red_1_12_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 
 str(rgb_all_ammonium.data)
-
-#getting rid of all the extra data at the bottom-- we only want rows 1:959 OR 1:639 if only looking at exp 2 and 3 (remember we got rid of the outlier!)
-rgb_all_ammonium.data  <- rgb_all_ammonium.data[(1:482),]
 rgb_all_ammonium.data <- na.omit(rgb_all_ammonium.data)
 
 
@@ -106,81 +104,169 @@ no_controls <- subset(rgb_all_ammonium.data, rgb_all_ammonium.data$N_dose!=0)
 ```
 
 
-
-
-# LINEAR MODELS
-
-```{r getting data ready for lmer}
-rgb_all_ammonium.data$N_species<-as.factor(rgb_all_ammonium.data$N_species)
-rgb_all_ammonium.data$N_dose<-as.factor(rgb_all_ammonium.data$N_dose)
-rgb_all_ammonium.data$N_species_dose<-as.factor(rgb_all_ammonium.data$N_species_dose)
-rgb_all_ammonium.data$temp<-as.factor(rgb_all_ammonium.data$temp)
-rgb_all_ammonium.data$food<-as.factor(rgb_all_ammonium.data$food)
-rgb_all_ammonium.data$sym_state<-as.factor(rgb_all_ammonium.data$sym_state)
-
-summary(rgb_all_ammonium.data$sym_state)
-```
-
-
 ```{r rgb delta Model selection }
-full.model_rgb_ammonium <- lmer(log_red_delta ~  N_species_dose + temp + food + sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state + food*sym_state +  (1|col_num) + (1|exp_num) , data= rgb_all_ammonium.data)
-summary(full.model_rgb_ammonium)
-print(step.model<- step(full.model_rgb_ammonium))
-#Model found:
-#log_red_delta ~ N_species_dose + sym_state + (1 | col_num)
+#were not going to look at genetic ID so let's do an lm
 
-mm_rgb_1 <- lmer(log_red_delta ~ N_species_dose + sym_state +(1|col_num) + (1|exp_num) , data= rgb_all_ammonium.data)
-summary(mm_rgb_1)
+#stepAIC is from the MASS package
+fullModel = lm(log_red_delta ~   N_species_dose + temp + sym_state  + N_species_dose*temp + N_species_dose*sym_state + temp*sym_state, data= rgb_all_ammonium.data) # model with all 9 variables and possible combinations
 
-mm_rgb_2 <- lmer(log_red_delta ~ N_species_dose + sym_state + temp +(1|col_num), data= rgb_all_ammonium.data)
-summary(mm_rgb_2)
-emm_2_temp=emmeans(mm_rgb_2, specs=pairwise ~ temp)
-summary(emm_2_temp)
-# LETS USE THIS MODEL BECAUSE TEMP IS ACTUALLY INTERESTING
+nullModel = lm(log_red_delta ~  1, data= rgb_all_ammonium.data) # model with the intercept only
 
-plot_model(mm_rgb_2, type="diag") #data fitness looks decent
-r2(mm_rgb_2) #random explains 8%
+summary(stepAIC(nullModel, # start with a model containing no variables
+                direction = 'forward', # run forward selection
+                scope = list(upper = fullModel, # the maximum to consider is a model with all variables
+                             lower = nullModel), # the minimum to consider is a model with no variables
+                trace = 1)) # do not show the step-by-step process of model selection
+
+summary(fullModel)
+#model it selected for:
+lm_rgb_1 <- lm(formula = log_red_delta ~ N_species_dose + sym_state, data = rgb_all_ammonium.data)
+summary(lm_rgb_1)
+
+#lets check out some other models
+lm_rgb_2 <- lm(formula = log_red_delta ~ sym_state + temp + N_species_dose, data = rgb_all_ammonium.data)
+summary(lm_rgb_2)
+
+AIC(lm_rgb_1, lm_rgb_2)
+
+#linear model 1 is the winner here
+
+
+plot_model(lm_rgb_1, type="diag") #data fitness looks decent
+r2(lm_rgb_1)
+
+```
+
+```{r SYM linear model}
+#stepAIC is from the MASS package
+fullModel = lm(log_red_delta ~   N_species_dose + temp  + N_species_dose*temp, data= all_sym) # model with all 9 variables and possible combinations
+
+nullModel = lm(log_red_delta ~  1, data= all_sym) # model with the intercept only
+
+summary(stepAIC(nullModel, # start with a model containing no variables
+                direction = 'forward', # run forward selection
+                scope = list(upper = fullModel, # the maximum to consider is a model with all variables
+                             lower = nullModel), # the minimum to consider is a model with no variables
+                trace = 1)) # do not show the step-by-step process of model selection
+
+summary(fullModel)
+# it only selected for:
+lm_sym_1 <- lm(log_red_delta ~  1, data= all_sym)
+
+#lets see if we add the N_species_dose  what happens
+lm_sym_2 <- lm(log_red_delta ~  N_species_dose + temp, data= all_sym)
+summary(lm_sym_2)
+#WINNER
+
+
+AIC(lm_sym_1, lm_sym_2)
+
+emm_sym_rgb_N_species_dose_temp=emmeans(lm_sym_2, specs=pairwise ~ N_species_dose)
+summary(emm_sym_rgb_N_species_dose_temp)
+
+#really no effect of dose
+
+#graph sym only by N species dose and temperature
+
+# Summarize by temp and N species dose so we can visualize
+sum_N_species_dose_temp_ammonium <- summarySE(all_sym, measurevar = "log_red_delta", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium$N_species_dose <- factor(sum_N_species_dose_temp_ammonium$N_species_dose, levels=c("A_0", "A_5", "A_7.5","A_10"))
+# Visualize
+gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
+       aes(x = N_species_dose,
+           y = log_red_delta, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=log_red_delta-se, ymax=log_red_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("SYM CORALS ammonium rgb - Change in R channel value") +
+    labs(x = "ammonium dose", 
+         y = expression(paste("Change in R channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
+gg_N_species_dose_temp_ammonium
+
+
+# generating ptemp and pdose:
+summary(aov_temp<-aov(log_red_delta ~ temp, data=all_sym))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ temp))
+
+#ptemp=0.9480
+
+summary(aov_temp<-aov(log_red_delta ~ N_species_dose, data=all_sym))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
+
+#pdose=0.1348  
+  
+#food for funsies
+summary(aov_food<-aov(log_red_delta ~ food, data=all_sym))
+Anova(aov_food, type="III")
+
+#pfood=0.745
+
+#food doesnt seem to matter at all
+  
+```
+
+```{r APO linear model}
+#stepAIC is from the MASS package
+fullModel = lm(log_red_delta ~   N_species_dose + temp  + N_species_dose*temp, data= all_apo) # model with all 9 variables and possible combinations
+
+nullModel = lm(log_red_delta ~  1, data= all_apo) # model with the intercept only
+
+summary(stepAIC(nullModel, # start with a model containing no variables
+                direction = 'forward', # run forward selection
+                scope = list(upper = fullModel, # the maximum to consider is a model with all variables
+                             lower = nullModel), # the minimum to consider is a model with no variables
+                trace = 1)) # do not show the step-by-step process of model selection
+
+summary(fullModel)
+#selected for -
+lm_apo_1 <- lm(formula = log_red_delta ~ N_species_dose, data = all_apo)
+summary(lm_apo_1)
+
+#posthocs
+emm_apo_N_species_dose=emmeans(lm_apo_1, specs=pairwise ~ N_species_dose)
+summary(emm_apo_N_species_dose)
+# Control vs. 7.5is 0.0236
+
+
+# Summarize by temp and N species dose so we can visualize
+sum_N_species_dose_temp_ammonium <- summarySE(all_apo, measurevar = "log_red_delta", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium$N_species_dose <- factor(sum_N_species_dose_temp_ammonium$N_species_dose, levels=c("A_0", "A_5", "A_7.5","A_10"))
+# Visualize
+gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
+       aes(x = N_species_dose,
+           y = log_red_delta, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=log_red_delta-se, ymax=log_red_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("APO CORALS ammonium rgb - Change in Red channel value") +
+    labs(x = "ammonium dose", 
+         y = expression(paste("Change in Red channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
+gg_N_species_dose_temp_ammonium
+
+# generating ptemp and pdose:
+summary(aov_temp<-aov(log_red_delta ~ temp, data=all_apo))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ temp))
+
+#ptemp=0.745
+
+summary(aov_temp<-aov(log_red_delta ~ N_species_dose, data=all_apo))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
+
+#pdose=0.04
+
 
 ```
 
-```{r rgb delta Model posthocs}
-# ammonium dose posthoc
-emm_rgb_N_species_dose=emmeans(mm_rgb_2, specs=pairwise ~ N_species_dose)
-summary(emm_rgb_N_species_dose)
- # contrast     estimate    SE  df t.ratio p.value
- # A_0 - A_10    -0.2231 0.159 442  -1.407  0.4957
- # A_0 - A_5     -0.2583 0.158 430  -1.637  0.3589
- # A_0 - A_7.5   -0.5537 0.159 446  -3.488  0.0030
- # A_10 - A_5    -0.0352 0.158 445  -0.223  0.9961
- # A_10 - A_7.5  -0.3306 0.158 437  -2.092  0.1574
- # A_5 - A_7.5   -0.2953 0.158 440  -1.871  0.2421
-# Sym state posthoc
-emm_rgb_sym_state=emmeans(mm_rgb_2, specs=pairwise ~ sym_state)
-summary(emm_rgb_sym_state) #p=0.027
-
-# Sym state by N species dose
-emm_rgb_N_species_dose_sym_state=emmeans(mm_rgb_2, specs=pairwise ~ N_species_dose*sym_state)
-summary(emm_rgb_N_species_dose_sym_state)
- # contrast          estimate    SE  df t.ratio p.value
- # A_0 A - A_7.5 A    -0.5537 0.159 446  -3.488  0.0124 *
- # A_0 A - A_7.5 S    -0.8237 0.201 457  -4.098  0.0013
- # A_10 A - A_7.5 S   -0.6006 0.200 462  -3.007  0.0558
- # A_5 A - A_7.5 S    -0.5653 0.199 462  -2.834  0.0892
- # A_0 S - A_7.5 S    -0.5537 0.159 446  -3.488  0.0124 *
-
-
-emm_rgb_N_species_dose_temp=emmeans(mm_rgb_2, specs=pairwise ~ N_species_dose*temp)
-summary(emm_rgb_N_species_dose_temp)
- # contrast                    estimate    SE  df t.ratio p.value
- # A_0 temp20 - A_7.5 temp20   -0.55366 0.159 446  -3.488  0.0124
- # A_0 temp30 - A_7.5 temp30   -0.55366 0.159 446  -3.488  0.0124
-
-
-emm_rgb_sym_state_temp=emmeans(mm_rgb_2, specs=pairwise ~ sym_state*temp)
-summary(emm_rgb_sym_state_temp)
- # nothing significant
-
-```
 
 
 ```{r Day 11 models}
