@@ -43,6 +43,7 @@ library(sjPlot)
 #gg effects
 library(MASS)
 library(car)
+library(outliers)
 
 #increase the number of results it will show
 options(max.print=1000000)
@@ -53,7 +54,6 @@ options(max.print=1000000)
 pam_all_nitrate.data <- read.csv("PAM_nitrate_only_4_4_23_dead_deleted.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 
 #getting rid of all the extra data at the bottom-- we only want rows 1:959 OR 1:639 if only looking at exp 2 and 3 (remember we got rid of the outlier!)
-pam_all_nitrate.data  <- pam_all_nitrate.data[(1:482),]
 pam_all_nitrate.data <- na.omit(pam_all_nitrate.data)
 
 
@@ -73,13 +73,86 @@ pam_all_nitrate.data$food<-as.factor(pam_all_nitrate.data$food)
 pam_all_nitrate.data$sym_state<-as.character(pam_all_nitrate.data$sym_state)
 pam_all_nitrate.data$food_sym_state<-as.factor(pam_all_nitrate.data$food_sym_state)
 pam_all_nitrate.data$control_or_nutrient<-as.factor(pam_all_nitrate.data$control_or_nutrient)
+pam_all_nitrate.data$pam_percent_change<-as.numeric(pam_all_nitrate.data$pam_percent_change)
 
-summary(pam_all_nitrate.data$temp)
+#LETS LOOK AT OUTLIERS
+grubbs.test(pam_all_nitrate.data$pam_percent_change) 
+#take out the outlier 33.35
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=33.53846154)
+grubbs.test(pam_all_nitrate.data$pam_percent_change) 
+#take out the outlier 33.11
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=31.11111111)
+grubbs.test(pam_all_nitrate.data$pam_percent_change) 
+#take out the outlier 25.79
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=25.78947368)
+grubbs.test(pam_all_nitrate.data$pam_percent_change) 
+#take out the outlier 14
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=14)
+grubbs.test(pam_all_nitrate.data$pam_percent_change)
+#take out the outlier 10.95121951 
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=10.95121951)
+grubbs.test(pam_all_nitrate.data$pam_percent_change)
+#take out the outlier 10
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=10)
+grubbs.test(pam_all_nitrate.data$pam_percent_change)
+#take out the outlier 7.170212766
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=7.170212766)
+grubbs.test(pam_all_nitrate.data$pam_percent_change)
+#take out the outlier 4.282608696
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=4.282608696)
+grubbs.test(pam_all_nitrate.data$pam_percent_change, type=10)
+#take out the outlier 3.866071429
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=3.866071429)
+grubbs.test(pam_all_nitrate.data$pam_percent_change, type=10)
+#take out the outlier 3.439252336 
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=3.439252336 )
+grubbs.test(pam_all_nitrate.data$pam_percent_change, type=10)
+#take out the outlier 3.208633094
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=3.208633094 )
+grubbs.test(pam_all_nitrate.data$pam_percent_change, type=10)
+#take out the outlier 2.846715328
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=2.846715328 )
+grubbs.test(pam_all_nitrate.data$pam_percent_change, type=10)
+#take out the outlier 2.81147541
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=2.81147541 )
+grubbs.test(pam_all_nitrate.data$pam_percent_change, type=10)
+#take out the outlier 2.718954248 
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=2.718954248  )
+grubbs.test(pam_all_nitrate.data$pam_percent_change, type=10)
+#take out the outlier 2.575
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=2.575 )
+grubbs.test(pam_all_nitrate.data$pam_percent_change, type=10)
+#take out the outlier 2.464285714 
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=2.464285714 )
+grubbs.test(pam_all_nitrate.data$pam_percent_change, type=10)
+#take out the outlier 2.408653846 
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=2.408653846  )
+grubbs.test(pam_all_nitrate.data$pam_percent_change, type=10)
+#take out the outlier 2.404109589
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=2.404109589  )
+grubbs.test(pam_all_nitrate.data$pam_percent_change, type=10)
+#take out the outlier 2.38 
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=2.38  )
+grubbs.test(pam_all_nitrate.data$pam_percent_change, type=10)
+#take out the outlier 2.376470588
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=2.376470588  )
+grubbs.test(pam_all_nitrate.data$pam_percent_change, type=10)
+#take out the outlier 2.272108844 
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=2.272108844  )
+grubbs.test(pam_all_nitrate.data$pam_percent_change, type=10)
+#take out the outlier 2.133802817
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=2.133802817  )
+grubbs.test(pam_all_nitrate.data$pam_percent_change, type=10)
+#take out the outlier 2.127659574
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, pam_all_nitrate.data$pam_percent_change!=2.127659574 )
+grubbs.test(pam_all_nitrate.data$pam_percent_change, type=10)
+
+#HUZZAH! THOSE ARE ALL OF THE OUTLIERS! JESUUUUUUUS
 
 #lets check for normality in PAM_delta
-hist(pam_all_nitrate.data$PAM_delta)
-qqnorm(pam_all_nitrate.data$PAM_delta, main = NULL)
-# it looks pretty normal
+hist(pam_all_nitrate.data$pam_percent_change)
+qqnorm(pam_all_nitrate.data$pam_percent_change, main = NULL)
+# WOW! after we take out all the outliers it looks like we don't actually need to log
 
 hist(pam_all_nitrate.data$PAM_avg_day1) # a little funky but it's probably okay
 qqnorm(pam_all_nitrate.data$PAM_avg_day1, main = NULL)
@@ -87,14 +160,18 @@ qqnorm(pam_all_nitrate.data$PAM_avg_day1, main = NULL)
 hist(pam_all_nitrate.data$PAM_avg_day11) # a little funky but it's probably okay
 qqnorm(pam_all_nitrate.data$PAM_avg_day11, main = NULL)
 
+
+
+#change the one with negative infinity to 0
+pam_all_nitrate.data[pam_all_nitrate.data$log_pam_percent_change=="-Inf", "log_pam_percent_change"] <- 0 #yay that worked! That was messing up all of our linear models
 ```
 
 
 ```{r Basic list of subsets}
 # all aposymbiotic
-all_apo<-subset(pam_all_nitrate.data, pam_all_nitrate.data$sym_state=="A")
+all_apo<-subset(pam_all_nitrate.data, pam_all_nitrate.data$sym_state=="APO")
 # all symbiotic
-all_sym<-subset(pam_all_nitrate.data, pam_all_nitrate.data$sym_state=="S")
+all_sym<-subset(pam_all_nitrate.data, pam_all_nitrate.data$sym_state=="SYM")
 # all fed
 all_fed<-subset(pam_all_nitrate.data, pam_all_nitrate.data$food=="F")
 # all starved
@@ -131,9 +208,9 @@ summary(pam_all_nitrate.data$sym_state)
 #were not going to look at genetic ID so let's do an lm
 
 #stepAIC is from the MASS package
-fullModel = lm(PAM_delta ~   N_species_dose + temp + sym_state  + N_species_dose*temp + N_species_dose*sym_state + temp*sym_state, data= pam_all_nitrate.data) # model with all 9 variables and possible combinations
+fullModel = lm(pam_percent_change ~   N_species_dose + temp + sym_state  + N_species_dose*temp + N_species_dose*sym_state + temp*sym_state, data= pam_all_nitrate.data) # model with all 9 variables and possible combinations
 
-nullModel = lm(PAM_delta ~  1, data= pam_all_nitrate.data) # model with the intercept only
+nullModel = lm(pam_percent_change ~  1, data= pam_all_nitrate.data) # model with the intercept only
 
 summary(stepAIC(nullModel, # start with a model containing no variables
                 direction = 'forward', # run forward selection
@@ -143,27 +220,44 @@ summary(stepAIC(nullModel, # start with a model containing no variables
 
 summary(fullModel)
 #model it selected for:
-lm_pam_1 <- lm(formula = PAM_delta ~ sym_state + temp, data = pam_all_nitrate.data)
+lm_pam_1 <- lm(formula = pam_percent_change ~ temp + sym_state + sym_state*temp, data = pam_all_nitrate.data)
 summary(lm_pam_1)
 
 #lets check out some other models
-lm_pam_2 <- lm(formula = PAM_delta ~ sym_state + temp + N_species_dose, data = pam_all_nitrate.data)
+lm_pam_2 <- lm(formula = pam_percent_change ~ sym_state + temp +sym_state*temp + N_species_dose*temp, data = pam_all_nitrate.data)
 summary(lm_pam_2)
 
 AIC(lm_pam_1, lm_pam_2)
+#Theyre SO close in AIC, but let's go with #2 cause it is more informative :)
 
-#linear model 1 is clearly the winner here
-
-plot_model(lm_pam_1, type="diag") #data fitness looks decent
-r2(lm_pam_1) 
+summary(emmeans(lm_pam_2, specs=pairwise ~ temp))
+#0.0031
+summary(emmeans(lm_pam_2, specs=pairwise ~ N_species_dose))
+#nothing sig
+summary(emmeans(lm_pam_2, specs=pairwise ~ sym_state))
+#<0.0001
+summary(emmeans(lm_pam_2, specs=pairwise ~ temp*sym_state))
+ # contrast                estimate     SE  df t.ratio p.value
+ # temp20 APO - temp30 APO   0.2366 0.0736 417   3.214  0.0077
+ # temp20 APO - temp20 SYM   0.3834 0.0751 417   5.102  <.0001
+ # temp20 APO - temp30 SYM   0.4530 0.0739 417   6.130  <.0001
+ # temp30 APO - temp20 SYM   0.1468 0.0716 417   2.051  0.1712
+ # temp30 APO - temp30 SYM   0.2164 0.0701 417   3.088  0.0115
+ # temp20 SYM - temp30 SYM   0.0696 0.0718 417   0.969  0.7672
+summary(emmeans(lm_pam_2, specs=pairwise ~ temp*N_species_dose))
+ # temp20 N_5 - temp30 N_5          0.34741 0.1035 417   3.358  0.0192
+ # temp30 N_18 - temp20 N_5        -0.37411 0.1035 417  -3.616  0.0080
+ 
+plot_model(lm_pam_2, type="diag") #data fitness looks decent
+r2(lm_pam_2) 
 
 ```
 
 ```{r SYM linear model}
 #stepAIC is from the MASS package
-fullModel = lm(PAM_delta ~   N_species_dose + temp  + N_species_dose*temp, data= all_sym) # model with all 9 variables and possible combinations
+fullModel = lm(pam_percent_change ~  N_species_dose + temp  + N_species_dose*temp, data= all_sym) # model with all 9 variables and possible combinations
 
-nullModel = lm(PAM_delta ~  1, data= all_sym) # model with the intercept only
+nullModel = lm(pam_percent_change ~  1, data= all_sym) # model with the intercept only
 
 summary(stepAIC(nullModel, # start with a model containing no variables
                 direction = 'forward', # run forward selection
@@ -173,15 +267,18 @@ summary(stepAIC(nullModel, # start with a model containing no variables
 
 summary(fullModel)
 #damn! it only selected for:
-lm_sym_1 <- lm(PAM_delta ~  1, data= all_sym)
-
-#lets see if we add the N_species_dose * temp what happens
-lm_sym_2 <- lm(PAM_delta ~  N_species_dose*temp, data= all_sym)
-summary(lm_sym_2)
+lm_sym_1 <- lm(pam_percent_change ~  1, data= all_sym)
+#temp does not matter but dose does! Interesting
 #WINNER
+lm_sym_2 <- lm(pam_percent_change ~  N_species_dose*temp, data= all_sym)
+summary(lm_sym_2)
 
+lm_sym_3 <- lm(pam_percent_change ~  control_or_nutrient, data= all_sym)
+summary(lm_sym_3)
 
-AIC(lm_sym_1, lm_sym_2)
+AIC(lm_sym_2, lm_sym_1)
+
+# they are SO close in AIC and #2 is way more informative so let's go with that
 
 emm_sym_pam_N_species_dose_temp=emmeans(lm_sym_2, specs=pairwise ~ N_species_dose*temp)
 summary(emm_sym_pam_N_species_dose_temp)
@@ -196,14 +293,14 @@ summary(emm_sym_pam_N_species_dose_temp)
 #graph sym only by N species dose and temperature
 
 # Summarize by temp and N species dose so we can visualize
-sum_N_species_dose_temp_nitrate <- summarySE(all_sym, measurevar = "PAM_delta", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_nitrate <- summarySE(all_sym, measurevar = "pam_percent_change", groupvars = c("temp","N_species_dose"))
 sum_N_species_dose_temp_nitrate$N_species_dose <- factor(sum_N_species_dose_temp_nitrate$N_species_dose, levels=c("CNTRL_0", "N_1.5", "N_5","N_18"))
 # Visualize
 gg_N_species_dose_temp_nitrate<-ggplot(data = sum_N_species_dose_temp_nitrate,
        aes(x = N_species_dose,
-           y = PAM_delta, col=temp)) +
+           y = pam_percent_change, col=temp)) +
     geom_point() +
-    geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("SYM CORALS Nitrate PAM - Change in Fv/Fm") +
     labs(x = "Nitrate dose", 
@@ -215,26 +312,26 @@ gg_N_species_dose_temp_nitrate
 
 
 # generating ptemp and pdose:
-summary(aov_temp<-aov(PAM_delta ~ temp, data=all_sym))
+summary(aov_temp<-aov(pam_percent_change ~ temp, data=all_sym))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ temp))
 
-#ptemp=0.428
+#ptemp=0.33
 
-summary(aov_temp<-aov(PAM_delta ~ N_species_dose, data=all_sym))
+summary(aov_temp<-aov(pam_percent_change ~ N_species_dose, data=all_sym))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
 
-#pdose=0.131
+#pdose=0.2354
 
   
 ```
 
 ```{r APO linear model}
 #stepAIC is from the MASS package
-fullModel = lm(PAM_delta ~   N_species_dose + temp  + N_species_dose*temp, data= all_apo) # model with all 9 variables and possible combinations
+fullModel = lm(pam_percent_change ~   N_species_dose + temp  + N_species_dose*temp, data= all_apo) # model with all 9 variables and possible combinations
 
-nullModel = lm(PAM_delta ~  1, data= all_apo) # model with the intercept only
+nullModel = lm(pam_percent_change ~  1, data= all_apo) # model with the intercept only
 
 summary(stepAIC(nullModel, # start with a model containing no variables
                 direction = 'forward', # run forward selection
@@ -244,13 +341,16 @@ summary(stepAIC(nullModel, # start with a model containing no variables
 
 summary(fullModel)
 #selected for temperature ONLY
-lm_apo_1 <- lm(PAM_delta ~  temp, data= all_apo)
+lm_apo_1 <- lm(pam_percent_change ~  temp, data= all_apo)
 summary(lm_apo_1)
 
 #lets see if we add the N_species_dose * temp what happens
-lm_apo_2 <- lm(PAM_delta ~  N_species_dose*temp, data= all_apo)
+lm_apo_2 <- lm(pam_percent_change ~  N_species_dose*temp, data= all_apo)
 summary(lm_apo_2)
 #nothing really going on
+
+lm_apo_3 <- lm(pam_percent_change ~  control_or_nutrient, data= all_apo)
+summary(lm_apo_3)
 
 
 AIC(lm_apo_1, lm_apo_2)
@@ -258,7 +358,7 @@ AIC(lm_apo_1, lm_apo_2)
 #posthocs
 emm_apo_temp=emmeans(lm_apo_1, specs=pairwise ~ temp)
 summary(emm_apo_temp)
-#0.0572, those at 20C had a higher PAM overall vs. sym
+#0.0041, those at 20C had a more positive % change in PAM overall vs. 30C
 
 emm_apo_pam_N_species_dose_temp=emmeans(lm_apo_2, specs=pairwise ~ N_species_dose*temp)
 summary(emm_apo_pam_N_species_dose_temp)
@@ -268,14 +368,14 @@ summary(emm_apo_pam_N_species_dose_temp)
 
 
 # Summarize by temp and N species dose so we can visualize
-sum_N_species_dose_temp_nitrate <- summarySE(all_apo, measurevar = "PAM_delta", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_nitrate <- summarySE(all_apo, measurevar = "pam_percent_change", groupvars = c("temp","N_species_dose"))
 sum_N_species_dose_temp_nitrate$N_species_dose <- factor(sum_N_species_dose_temp_nitrate$N_species_dose, levels=c("CNTRL_0", "N_1.5", "N_5","N_18"))
 # Visualize
 gg_N_species_dose_temp_nitrate<-ggplot(data = sum_N_species_dose_temp_nitrate,
        aes(x = N_species_dose,
-           y = PAM_delta, col=temp)) +
+           y = pam_percent_change, col=temp)) +
     geom_point() +
-    geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("APO CORALS Nitrate PAM - Change in Fv/Fm") +
     labs(x = "Nitrate dose", 
@@ -286,13 +386,13 @@ gg_N_species_dose_temp_nitrate<-ggplot(data = sum_N_species_dose_temp_nitrate,
 gg_N_species_dose_temp_nitrate
 
 # generating ptemp and pdose:
-summary(aov_temp<-aov(PAM_delta ~ temp, data=all_apo))
+summary(aov_temp<-aov(pam_percent_change ~ temp, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ temp))
 
-#ptemp=0.052
+#ptemp=0.004109
 
-summary(aov_temp<-aov(PAM_delta ~ N_species_dose, data=all_apo))
+summary(aov_temp<-aov(pam_percent_change ~ N_species_dose, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
 
