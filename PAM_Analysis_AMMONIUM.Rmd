@@ -146,6 +146,11 @@ pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_p
 grubbs.test(pam_all_ammonium.data$pam_percent_change) 
 # DONE! YAY
 
+#lets check for normality in pam_delta
+hist(pam_all_ammonium.data$PAM_delta)
+qqnorm(pam_all_ammonium.data$PAM_delta)
+#looks fine, lets proceed
+
 #lets check for normality in pam_percent_change
 hist(pam_all_ammonium.data$pam_percent_change)
 qqnorm(pam_all_ammonium.data$pam_percent_change, main = NULL)
@@ -184,7 +189,187 @@ all_30<-subset(pam_all_ammonium.data, pam_all_ammonium.data$temp=="30")
 no_controls <- subset(pam_all_ammonium.data, pam_all_ammonium.data$N_dose!=0)
 ```
 
-```{r PAM delta Model selection }
+```{r t tests for fun}
+
+```
+
+
+#DELTA models
+```{r DELTA Model selection }
+#were not going to look at genetic ID so let's do an lm
+
+#stepAIC is from the MASS package
+fullModel = lm(PAM_delta ~   N_species_dose + temp + sym_state  + N_species_dose*temp + N_species_dose*sym_state + temp*sym_state, data= pam_all_ammonium.data) # model with all variables and possible combinations
+
+nullModel = lm(PAM_delta ~  1, data= pam_all_ammonium.data) # model with the intercept only
+
+summary(stepAIC(nullModel, # start with a model containing no variables
+                direction = 'forward', # run forward selection
+                scope = list(upper = fullModel, # the maximum to consider is a model with all variables
+                             lower = nullModel), # the minimum to consider is a model with no variables
+                trace = 1)) # do not show the step-by-step process of model selection
+
+summary(fullModel)
+#model it selected for:
+lm_pam_1 <- lm(formula = PAM_delta ~ sym_state, data = pam_all_ammonium.data)
+summary(lm_pam_1)
+
+#lets check out some other models
+lm_pam_2 <- lm(formula = PAM_delta ~ sym_state + temp*sym_state, data = pam_all_ammonium.data)
+summary(lm_pam_2)
+#winner
+lm_pam_3 <- lm(formula = PAM_delta ~ temp*N_species_dose , data = pam_all_ammonium.data)
+summary(lm_pam_3)
+summary(emmeans(lm_pam_3, pairwise ~ N_species_dose*temp))
+
+
+lm_pam_4 <- lm(formula = PAM_delta ~  N_species_dose + temp + N_species_dose*temp, data = pam_all_ammonium.data)
+summary(lm_pam_4)
+
+lm_pam_5 <- lm(formula = PAM_delta ~  temp + N_species_dose, data = pam_all_ammonium.data)
+summary(lm_pam_5)
+
+AIC(lm_pam_1, lm_pam_2, lm_pam_3, lm_pam_4, lm_pam_5)
+
+# number 2 wins!
+
+
+plot_model(lm_pam_1, type="diag") #data fitness looks decent
+r2(lm_pam_3)
+
+```
+
+```{r DELTA SYM linear model}
+#stepAIC is from the MASS package
+fullModel = lm(PAM_delta ~   N_species_dose + temp  + N_species_dose*temp, data= all_sym) # model with all 9 variables and possible combinations
+
+nullModel = lm(PAM_delta ~  1, data= all_sym) # model with the intercept only
+
+summary(stepAIC(nullModel, # start with a model containing no variables
+                direction = 'forward', # run forward selection
+                scope = list(upper = fullModel, # the maximum to consider is a model with all variables
+                             lower = nullModel), # the minimum to consider is a model with no variables
+                trace = 1)) # do not show the step-by-step process of model selection
+
+summary(fullModel)
+# it only selected for:
+lm_sym_1 <- lm(PAM_delta ~  temp, data= all_sym)
+summary(lm_sym_1)
+
+#lets see if we add the N_species_dose  what happens
+lm_sym_2 <- lm(PAM_delta ~  N_species_dose + temp, data= all_sym)
+summary(lm_sym_2)
+#nope
+
+
+AIC(lm_sym_1, lm_sym_2)
+
+emm_sym_pam_N_species_dose_temp=emmeans(lm_sym_2, specs=pairwise ~ N_species_dose*temp)
+summary(emm_sym_pam_N_species_dose_temp)
+
+#graph sym only by N species dose and temperature
+
+# Summarize by temp and N species dose so we can visualize
+sum_N_species_dose_temp_ammonium <- summarySE(all_sym, measurevar = "PAM_delta", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium$N_species_dose <- factor(sum_N_species_dose_temp_ammonium$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+# Visualize
+gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
+       aes(x = N_species_dose,
+           y = PAM_delta, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("SYM CORALS ammonium rgb - Delta R channel value") +
+    labs(x = "ammonium dose", 
+         y = expression(paste("Delta R channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
+    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
+gg_N_species_dose_temp_ammonium
+
+
+# generating ptemp and pdose:
+summary(aov_temp<-aov(PAM_delta ~ temp, data=all_sym))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ temp))
+
+#ptemp=0.01966
+
+summary(aov_temp<-aov(PAM_delta ~ N_species_dose, data=all_sym))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
+
+#pdose=0.491166
+  
+summary(aov_temp<-aov(pam_percent_change~ N_species_dose*temp, data=all_sym))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
+  
+```
+
+```{r DELTA APO linear model}
+#stepAIC is from the MASS package
+fullModel = lm(PAM_delta ~   N_species_dose + temp  + N_species_dose*temp, data= all_apo) # model with all 9 variables and possible combinations
+
+nullModel = lm(PAM_delta ~  1, data= all_apo) # model with the intercept only
+
+summary(stepAIC(nullModel, # start with a model containing no variables
+                direction = 'forward', # run forward selection
+                scope = list(upper = fullModel, # the maximum to consider is a model with all variables
+                             lower = nullModel), # the minimum to consider is a model with no variables
+                trace = 1)) # do not show the step-by-step process of model selection
+
+summary(fullModel)
+#selected for -
+lm_apo_1 <- lm(formula = PAM_delta ~ 1, data = all_apo)
+summary(lm_apo_1)
+
+lm_apo_2 <- lm(formula = PAM_delta ~ N_species_dose, data = all_apo)
+summary(lm_apo_2)
+#really nothing going on
+
+#posthocs
+emm_apo_N_species_dose=emmeans(lm_apo_2, specs=pairwise ~ N_species_dose)
+summary(emm_apo_N_species_dose)
+# nothing really going on
+
+
+# Summarize by temp and N species dose so we can visualize
+sum_N_species_dose_temp_ammonium <- summarySE(all_apo, measurevar = "PAM_delta", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium$N_species_dose <- factor(sum_N_species_dose_temp_ammonium$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+# Visualize
+gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
+       aes(x = N_species_dose,
+           y = PAM_delta, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("APO CORALS ammonium rgb - Delta Red channel value") +
+    labs(x = "ammonium dose", 
+         y = expression(paste("Delta Red channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+ scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
+    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
+gg_N_species_dose_temp_ammonium
+
+# generating ptemp and pdose:
+summary(aov_temp<-aov(PAM_delta ~ temp, data=all_apo))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ temp))
+
+#ptemp=0.351
+
+summary(aov_temp<-aov(PAM_delta ~ N_species_dose, data=all_apo))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
+
+#pdose=0.144
+
+summary(aov_temp<-aov(pam_percent_change ~ N_species_dose*temp, data=all_apo))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
+```
+```{r PERCENT CHANGE Model selection }
 #were not going to look at genetic ID so let's do an lm
 
 #testing experiment number as random
@@ -678,7 +863,7 @@ gg_food_sym_state_ammonium<-ggplot(data = sum_food_sym_state_ammonium,
            y = pam_percent_change, col=food)) + #use fill here or the legends will be really hard to work with
     geom_point() +
     geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
-    ggtitle ("PAM delta Fv/Fm Sym vs. Apo at Fed vs. Starved") +
+    ggtitle ("PERCENT CHANGE Fv/Fm Sym vs. Apo at Fed vs. Starved") +
    #scale_fill_manual(name="Feeding Regime", labels=c('Fed', 'Starved'))+
  # scale_fill_manual(values=c("brown", "darkgray"))+
     labs(x = "Symbiotic state", 
@@ -704,7 +889,7 @@ gg_pam_plot_apovsym <- ggplot(pam_treatmeans_apovsym, aes(x = sym_state, y= c(pa
                     #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
                     # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
  ylab("Change in Photosynthetic Efficiency Fv/Fm")+
-  ggtitle("No Controls PAM delta Fv/Fm Sym vs. Apo - Ammonium")+
+  ggtitle("No Controls PERCENT CHANGE Fv/Fm Sym vs. Apo - Ammonium")+
  labs(caption = "data represent mean +/- SEM, p=")+
   scale_x_discrete("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
     scale_color_manual("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"), values=c("gray", "brown")) #gives you the colors for each point on the graph
@@ -718,7 +903,7 @@ gg_food_sym_state_ammonium<-ggplot(data = sum_food_sym_state_ammonium,
            y = pam_percent_change, col=food)) + #use fill here or the legends will be really hard to work with
     geom_point() +
     geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
-    ggtitle ("No Controls PAM delta Fv/Fm Sym vs. Apo at various Ammonium doses") +
+    ggtitle ("No Controls PERCENT CHANGE Fv/Fm Sym vs. Apo at various Ammonium doses") +
    #scale_fill_manual(name="Feeding Regime", labels=c('Fed', 'Starved'))+
  # scale_fill_manual(values=c("brown", "darkgray"))+
     labs(x = "Symbiotic state", 
@@ -839,10 +1024,10 @@ gg_food_sym_state_ammonium #seems obvious that food doesnt matter
 ```
 
 
-```{r Fed vs. Starved - Pam delta with and without controls}
+```{r Fed vs. Starved - PERCENT CHANGE with and without controls}
 #Don't think theres anything going on here
 
-# Pam Delta Fed vs. starved WITH CONTROLS
+# PERCENT CHANGE Fed vs. starved WITH CONTROLS
 pam_treatmeans_fedvstarved_delta <- summarySE(pam_all_ammonium.data, measurevar=c("pam_percent_change"),groupvars =c("food"), na.rm=TRUE)
 # plot, treatment x axis colored by site data figure
 pam_plot_fedvstarved_delta <-ggplot(pam_treatmeans_fedvstarved_delta, aes(x = food, y= c(pam_percent_change), color = food))+
@@ -852,14 +1037,14 @@ pam_plot_fedvstarved_delta <-ggplot(pam_treatmeans_fedvstarved_delta, aes(x = fo
  # geom_jitter(aes(), size=1.2, alpha=0.9)+
   geom_line(aes(group = food), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
   geom_errorbar(aes(x = food, ymax = pam_percent_change+se, ymin = pam_percent_change-se), width = .2, position = position_dodge(width=0.3)) +
- ylab("PAM delta Fv/Fm")+
+ ylab("PERCENT CHANGE Fv/Fm")+
     scale_color_manual("Feeding Regime", values=c("orange", "black")) +
   scale_x_discrete(name="Feeding regime", labels=c("F"="Fed", "S"="Starved")) +
-  ggtitle("Fed vs. starved PAM delta, Ammonium p=0.05")
+  ggtitle("Fed vs. starved PERCENT CHANGE, Ammonium p=0.05")
 pam_plot_fedvstarved_delta
 
 
-# Pam Delta Fed vs. starved WITHOUT CONTROLS
+# PERCENT CHANGE Fed vs. starved WITHOUT CONTROLS
 pam_treatmeans_fedvstarved_delta <- summarySE(no_controls, measurevar=c("pam_percent_change"),groupvars =c("food"), na.rm=TRUE)
 # plot, treatment x axis colored by site data figure
 pam_plot_fedvstarved_delta <-ggplot(pam_treatmeans_fedvstarved_delta, aes(x = food, y= c(pam_percent_change), color = food))+
@@ -869,10 +1054,10 @@ pam_plot_fedvstarved_delta <-ggplot(pam_treatmeans_fedvstarved_delta, aes(x = fo
  # geom_jitter(aes(), size=1.2, alpha=0.9)+
   geom_line(aes(group = food), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
   geom_errorbar(aes(x = food, ymax = pam_percent_change+se, ymin = pam_percent_change-se), width = .2, position = position_dodge(width=0.3)) +
- ylab("PAM delta Fv/Fm")+
+ ylab("PERCENT CHANGE Fv/Fm")+
   scale_color_manual("Feeding Regime", values=c("orange", "black")) +
   scale_x_discrete(name="Feeding regime", labels=c("F"="Fed", "S"="Starved")) +
-  ggtitle("No Controls - Fed vs. starved PAM delta, Ammonium")
+  ggtitle("No Controls - Fed vs. starved PERCENT CHANGE, Ammonium")
 pam_plot_fedvstarved_delta
 
 # Fed vs. Starved at different N doses
@@ -883,7 +1068,7 @@ gg_sum_food_dose_ammonium<-ggplot(data = sum_food_dose_ammonium,
            y = pam_percent_change, col=food)) + #use fill here or the legends will be really hard to work with
     geom_point() +
     geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
-    ggtitle ("PAM delta Fed vs. starved at various doses of Ammonium") +
+    ggtitle ("PERCENT CHANGE Fed vs. starved at various doses of Ammonium") +
    #scale_fill_manual(name="Feeding Regime", labels=c('Fed', 'Starved'))+
  # scale_fill_manual(values=c("brown", "darkgray"))+
     labs(x = "Symbiotic state", 
@@ -894,7 +1079,7 @@ gg_sum_food_dose_ammonium<-ggplot(data = sum_food_dose_ammonium,
 gg_sum_food_dose_ammonium #seems obvious that food doesnt matter
 ```
 
-```{r PAM delta Temperature graphs}
+```{r PERCENT CHANGE Temperature graphs}
 
 # Temp on its own doesnt seem to matter but sym and apo are driving the models so much we will separate them below
 pam_treatmeans_20vs30 <- summarySE(pam_all_ammonium.data, measurevar=c("pam_percent_change"),groupvars =c("temp"), na.rm=TRUE)
@@ -910,7 +1095,7 @@ gg_temp_ammonium<-ggplot(data = sum_temp_ammonium,
     geom_point() +
     geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("ammonium PAM Delta Temperature summary") +
+    ggtitle ("ammonium PERCENT CHANGE Temperature summary") +
   theme(legend.position="none")+
     labs(x = "Temperature", 
          y = expression(paste("Change in Photosynthetic Efficiency Fv/Fm")), 
@@ -930,7 +1115,7 @@ gg_temp_ammonium<-ggplot(data = sum_temp_ammonium,
     geom_point() +
     geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("No controls ammonium PAM Delta Temperature summary") +
+    ggtitle ("No controls ammonium PERCENT CHANGE Temperature summary") +
   theme(legend.position="none")+
     labs(x = "Temperature", 
          y = expression(paste("Change in Photosynthetic Efficiency Fv/Fm")), 
@@ -948,7 +1133,7 @@ gg_pam_treatmeans_temp_sym<-ggplot(data = pam_treatmeans_temp_sym,
     geom_point() +
     geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("ammonium PAM Delta sym state Temperature summary") +
+    ggtitle ("ammonium PERCENT CHANGE sym state Temperature summary") +
   theme(legend.position="none")+
     labs(x = "Temperature", 
          y = expression(paste("Change in Photosynthetic Efficiency Fv/Fm")), 
@@ -965,7 +1150,7 @@ gg_pam_treatmeans_temp_sym<-ggplot(data = pam_treatmeans_temp_sym,
     geom_point() +
     geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("No controls ammonium PAM Delta sym state Temperature summary") +
+    ggtitle ("No controls ammonium PERCENT CHANGE sym state Temperature summary") +
   theme(legend.position="none")+
     labs(x = "Temperature", 
          y = expression(paste("Change in Photosynthetic Efficiency Fv/Fm")), 
@@ -984,7 +1169,7 @@ gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
     geom_point() +
     geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Ammonium PAM Delta Dose and Temperature summary") +
+    ggtitle ("Ammonium PERCENT CHANGE Dose and Temperature summary") +
     labs(x = "Ammonium dose", 
          y = expression(paste("Change in Photosynthetic Efficiency Fv/Fm")), 
          caption = "data represent mean +/- SEM" ) +
@@ -1006,7 +1191,7 @@ gg_N_species_dose_temp_ammonium_sym<-ggplot(data = sum_N_species_dose_temp_ammon
     geom_point() +
     geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Symbiotic Corals - Ammonium PAM Delta Dose and Temperature summary") +
+    ggtitle ("Symbiotic Corals - Ammonium PERCENT CHANGE Dose and Temperature summary") +
     labs(x = "Ammonium dose", 
          y = expression(paste("Change in Photosynthetic Efficiency Fv/Fm")), 
          caption = "data represent mean +/- SEM" ) +
@@ -1025,7 +1210,7 @@ gg_N_species_dose_temp_ammonium_apo<-ggplot(data = sum_N_species_dose_temp_ammon
     geom_point() +
     geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Aposymbiotic Corals - Ammonium PAM Delta Dose and Temperature summary") +
+    ggtitle ("Aposymbiotic Corals - Ammonium PERCENT CHANGE Dose and Temperature summary") +
     labs(x = "Ammonium dose", 
          y = expression(paste("Change in Photosynthetic Efficiency Fv/Fm")), 
          caption = "data represent mean +/- SEM" ) +
@@ -1052,7 +1237,7 @@ gg_N_species_dose_ammonium<-ggplot(data = sum_N_species_dose_ammonium,
    ylim(-0.078, 0.015) +
     geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("Ammonium - PAM delta N Species Dose summary") +
+    ggtitle ("Ammonium - PERCENT CHANGE N Species Dose summary") +
    theme(legend.position="none")+
     labs(x = "\n", 
          y = expression(paste("Change in Photosynthetic Efficiency Fv/Fm")), 
