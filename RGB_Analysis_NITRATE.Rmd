@@ -55,18 +55,18 @@ rgb_all_nitrate.data <- read.csv("Master_RGB_Spreadsheet_NITRATE_Condensed_Red_4
 
 rgb_all_nitrate.data <- na.omit(rgb_all_nitrate.data)
 
-#checking for outliers
-grubbs.test(rgb_all_nitrate.data$red_percent_change)
-#alternative hypothesis: highest value 0.770351789 is an outlier
-rgb_all_nitrate.data<-subset(rgb_all_nitrate.data, rgb_all_nitrate.data$red_percent_change!=0.770351789)
-grubbs.test(rgb_all_nitrate.data$red_percent_change)
-#alternative hypothesis: highest value 0.660635155 is an outlier
-rgb_all_nitrate.data<-subset(rgb_all_nitrate.data, rgb_all_nitrate.data$red_percent_change!= 0.660635155)
-grubbs.test(rgb_all_nitrate.data$red_percent_change)
-#alternative hypothesis: highest value 0.639679451 is an outlier
-rgb_all_nitrate.data<-subset(rgb_all_nitrate.data, rgb_all_nitrate.data$red_percent_change!= 0.639679451)
-grubbs.test(rgb_all_nitrate.data$red_percent_change)
-# YAY! Done
+# #checking for outliers
+# grubbs.test(rgb_all_nitrate.data$red_percent_change)
+# #alternative hypothesis: highest value 0.770351789 is an outlier
+# rgb_all_nitrate.data<-subset(rgb_all_nitrate.data, rgb_all_nitrate.data$red_percent_change!=0.770351789)
+# grubbs.test(rgb_all_nitrate.data$red_percent_change)
+# #alternative hypothesis: highest value 0.660635155 is an outlier
+# rgb_all_nitrate.data<-subset(rgb_all_nitrate.data, rgb_all_nitrate.data$red_percent_change!= 0.660635155)
+# grubbs.test(rgb_all_nitrate.data$red_percent_change)
+# #alternative hypothesis: highest value 0.639679451 is an outlier
+# rgb_all_nitrate.data<-subset(rgb_all_nitrate.data, rgb_all_nitrate.data$red_percent_change!= 0.639679451)
+# grubbs.test(rgb_all_nitrate.data$red_percent_change)
+# # YAY! Done
 
 
 #Setting everything I need as factors for linear model and stats
@@ -90,10 +90,45 @@ hist(rgb_all_nitrate.data$red_percent_change)
 qqnorm(rgb_all_nitrate.data$red_percent_change, main = NULL)
 # looks beaaautiful
 
+#no need for transformations! Yay
+
 
 
 ```
 
+```{r lets explore whats happening with the outliers}
+
+
+#now visualize
+gg_outliers_check<-
+  ggplot(rgb_all_nitrate.data, aes(x=N_species_dose, y=red_delta, col=sym_state)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) + #this overlays the raw data 
+  ylab("Red delta")+
+  xlab("N dose")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+scale_color_manual("Sym State",labels=c("Apo","Sym"), values=c("darkgray", "brown"))+
+  ggtitle("Red delta by dose - nitrate")
+gg_outliers_check
+
+gg_outliers_check<-
+  ggplot(rgb_all_nitrate.data, aes(x=N_species_dose, y=red_percent_change, col=sym_state)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) + #this overlays the raw data 
+  ylab("Red percent change")+
+  xlab("N dose")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+      scale_color_manual("Sym State",labels=c("Apo","Sym"), values=c("darkgray", "brown"))+
+  ggtitle("Red percent change - nitrate")
+gg_outliers_check
+
+
+
+```
 
 ```{r Basic list of subsets}
 # all aposymbiotic
@@ -135,27 +170,30 @@ lm_rgb_1 <- lm(formula = red_delta ~1, data = rgb_all_nitrate.data)
 summary(lm_rgb_1)
 
 #lets check out some other models
-lm_rgb_2 <- lm(formula = red_delta ~ sym_state + N_species_dose, data = rgb_all_nitrate.data)
+lm_rgb_2 <- lm(formula = red_delta ~ sym_state*N_species_dose + N_species_dose*temp, data = rgb_all_nitrate.data)
 summary(lm_rgb_2)
 #nothing going on
-lm_rgb_3 <- lm(formula = red_delta ~ temp*N_species_dose , data = rgb_all_nitrate.data)
+lm_rgb_3 <- lm(formula = red_delta ~ sym_state + N_species_dose, data = rgb_all_nitrate.data)
 summary(lm_rgb_3)
 summary(emmeans(lm_rgb_3, pairwise ~ N_species_dose*temp))
-#interaction of temp at n 5? Nothing pairwise
-#WINNER OUT OF ALL COMBINATIONS
+
 lm_rgb_4 <- lm(formula = red_delta ~  N_species_dose, data = rgb_all_nitrate.data)
 summary(lm_rgb_4)
-#nothing going on
+
 lm_rgb_5 <- lm(formula = red_delta ~  temp + N_species_dose, data = rgb_all_nitrate.data)
 summary(lm_rgb_5)
 
 AIC(lm_rgb_1, lm_rgb_2, lm_rgb_3, lm_rgb_4, lm_rgb_5)
 
-
+#lets go with 3
 
 
 plot_model(lm_rgb_1, type="diag") #data fitness looks decent
 r2(lm_rgb_3)
+
+summary(aov_temp<-aov(red_delta ~ control_or_nutrient, data= rgb_all_nitrate.data))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
 
 ```
 
@@ -176,12 +214,13 @@ summary(fullModel)
 lm_sym_1 <- lm(red_delta ~  1, data= all_sym)
 
 #lets see if we add the N_species_dose  what happens
-lm_sym_2 <- lm(red_delta ~  N_species_dose + temp, data= all_sym)
+lm_sym_2 <- lm(red_delta ~  N_species_dose*temp, data= all_sym)
 summary(lm_sym_2)
-#nope
 
 
 AIC(lm_sym_1, lm_sym_2)
+
+# I guess well go with 2 but its not great
 
 emm_sym_rgb_N_species_dose_temp=emmeans(lm_sym_2, specs=pairwise ~ N_species_dose*temp)
 summary(emm_sym_rgb_N_species_dose_temp)
@@ -214,7 +253,7 @@ summary(aov_temp<-aov(red_delta ~ temp, data=all_sym))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ temp))
 
-#ptemp=0.33
+#ptemp=0.326
 
 summary(aov_temp<-aov(red_delta ~ N_species_dose, data=all_sym))
 Anova(aov_temp, type="III")
@@ -233,6 +272,11 @@ Anova(aov_food, type="III")
 summary(aov_temp<-aov(red_delta ~ N_species_dose*temp, data=all_sym))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
+  
+
+summary(aov_temp<-aov(red_delta ~ control_or_nutrient, data=all_sym))
+Anova(aov_temp, type="III")
+
   
 ```
 
@@ -255,6 +299,7 @@ summary(lm_apo_1)
 
 lm_apo_2 <- lm(formula = red_delta ~ N_species_dose, data = all_apo)
 summary(lm_apo_2)
+#nothing really happening
 
 #posthocs
 emm_apo_N_species_dose=emmeans(lm_apo_2, specs=pairwise ~ N_species_dose)
@@ -285,16 +330,20 @@ summary(aov_temp<-aov(red_delta ~ temp, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ temp))
 
-#ptemp=0.9495
+#ptemp=0.86
 
 summary(aov_temp<-aov(red_delta ~ N_species_dose, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
 
-#pdose=0.3758
+#pdose=0.424
 summary(aov_temp<-aov(red_percent_change ~ N_species_dose*temp, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
+
+
+summary(aov_temp<-aov(red_percent_change ~ control_or_nutrient, data=all_apo))
+Anova(aov_temp, type="III")
 
 ```
 
@@ -321,14 +370,16 @@ summary(lm_rgb_1)
 #lets check out some other models
 lm_rgb_2 <- lm(formula = red_percent_change ~ sym_state + temp + N_species_dose, data = rgb_all_nitrate.data)
 summary(lm_rgb_2)
-#nothing going on
+
 lm_rgb_3 <- lm(formula = red_percent_change ~ sym_state + temp , data = rgb_all_nitrate.data)
 summary(lm_rgb_3)
-#nothing going on
-#WINNER OUT OF ALL COMBINATIONS
+emm_apo_N_species_dose=emmeans(lm_rgb_3, specs=pairwise ~ sym_state)
+summary(emm_apo_N_species_dose)
+#lets go with this cause its next best AIC after 1
+
 lm_rgb_4 <- lm(formula = red_percent_change ~ sym_state + N_species_dose, data = rgb_all_nitrate.data)
 summary(lm_rgb_4)
-#nothing going on
+
 lm_rgb_5 <- lm(formula = red_percent_change ~  temp + N_species_dose, data = rgb_all_nitrate.data)
 summary(lm_rgb_5)
 
@@ -339,6 +390,10 @@ AIC(lm_rgb_1, lm_rgb_2, lm_rgb_3, lm_rgb_4, lm_rgb_5)
 
 plot_model(lm_rgb_1, type="diag") #data fitness looks decent
 r2(lm_rgb_1)
+
+
+summary(aov_temp<-aov(red_percent_change ~ control_or_nutrient, data= rgb_all_nitrate.data))
+Anova(aov_temp, type="III")
 
 ```
 
@@ -361,12 +416,12 @@ lm_sym_1 <- lm(red_percent_change ~  1, data= all_sym)
 #lets see if we add the N_species_dose  what happens
 lm_sym_2 <- lm(red_percent_change ~  N_species_dose + temp, data= all_sym)
 summary(lm_sym_2)
-#WINNER
+#WINNER, but still nothing really going on
 
 
 AIC(lm_sym_1, lm_sym_2)
 
-emm_sym_rgb_N_species_dose_temp=emmeans(lm_sym_2, specs=pairwise ~ N_species_dose*temp)
+emm_sym_rgb_N_species_dose_temp=emmeans(lm_sym_2, specs=pairwise ~ temp)
 summary(emm_sym_rgb_N_species_dose_temp)
 
 #really no effect of dose or sym state
@@ -412,6 +467,9 @@ Anova(aov_food, type="III")
 #pfood=0.484
 
 #food doesnt seem to matter at all
+
+summary(aov_temp<-aov(red_percent_change ~ control_or_nutrient, data= all_sym))
+Anova(aov_temp, type="III")
   
 ```
 
@@ -451,9 +509,9 @@ gg_N_species_dose_temp_nitrate<-ggplot(data = sum_N_species_dose_temp_nitrate,
     geom_point() +
     geom_errorbar(aes(ymin=red_percent_change-se, ymax=red_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("APO CORALS nitrate rgb - Change in Red channel value") +
+    ggtitle ("APO CORALS nitrate rgb - % Change in Red channel value") +
     labs(x = "nitrate dose", 
-         y = expression(paste("Change in Red channel value")), 
+         y = expression(paste("% Change in Red channel value")), 
          caption = "data represent mean +/- SEM" ) +
     scale_x_discrete("nitrate dose", labels=c(N_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
     scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
@@ -464,13 +522,19 @@ summary(aov_temp<-aov(red_percent_change ~ temp, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ temp))
 
-#ptemp=0.797
+#ptemp=0.623
 
 summary(aov_temp<-aov(red_percent_change ~ N_species_dose, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
 
-#pdose=0.04
+#pdose=0.454
+
+summary(aov_temp<-aov(red_percent_change ~ N_species_dose*temp, data=all_apo))
+Anova(aov_temp, type="III")
+
+summary(aov_temp<-aov(red_percent_change ~ control_or_nutrient, data=all_apo))
+Anova(aov_temp, type="III")
 
 
 ```

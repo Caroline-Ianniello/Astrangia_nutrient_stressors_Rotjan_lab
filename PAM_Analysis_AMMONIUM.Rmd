@@ -10,7 +10,7 @@ output: html_notebook
 # opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox")
 # setwd("C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox")
 # getwd()
-#install.packages("lme4")
+#install.packages("dplyr")
 #compare with and without predictor
 library("lme4")
 #install.packages("lmerTest")
@@ -44,6 +44,12 @@ library(MASS)
 library(car)
 library(outliers)
 #gg effects
+library(ggpubr)
+#install.packages("ggpmisc")
+library("ggpmisc")
+library(devtools)
+source_gist("524eade46135f6348140") #for the stat_smooth_func()
+
 
 #increase the number of results it will show
 options(max.print=1000000)
@@ -73,88 +79,93 @@ pam_all_ammonium.data$sym_state<-as.character(pam_all_ammonium.data$sym_state)
 pam_all_ammonium.data$food_sym_state<-as.factor(pam_all_ammonium.data$food_sym_state)
 pam_all_ammonium.data$N_species_dosee <- factor(pam_all_ammonium.data$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 pam_all_ammonium.data$control_or_nutrient<-as.factor(pam_all_ammonium.data$control_or_nutrient)
-pam_all_ammonium.data$pam_percent_change<-as.numeric(pam_all_ammonium.data$pam_percent_change)
+pam_all_ammonium.data$log_pam_percent_change<-as.numeric(pam_all_ammonium.data$log_pam_percent_change)
 summary(pam_all_ammonium.data$temp)
 
-#Lets get rid of outliers (THISLL TAKE A WHILE GODDAMN)
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value 15.61290323 is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!=15.61290323 )
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value 11.26829268 is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!=11.26829268 )
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value 8.7608695 is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 8.7608695)
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value 8.760869565  is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 8.760869565 )
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value 6.083333333 is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 6.083333333)
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value 4.833333333  is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 4.833333333 )
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value 4.75308642 is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 4.75308642)
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value 3.678571429  is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 3.678571429)
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value  3.672727273 is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 3.672727273)
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value 3.343434343  is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 3.343434343)
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value 3.320512821  is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 3.320512821)
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value  3.302325581 is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 3.302325581)
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value 3.158333333   is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 3.158333333 )
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value  3.126126126 is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 3.126126126)
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value  2.970588235 is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 2.970588235)
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value 2.653846154  is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 2.653846154)
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value  2.601851852 is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 2.601851852)
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value  2.391666667 is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 2.391666667)
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value  2.090909091 is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 2.090909091)
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value  2.053333333  is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 2.053333333 )
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value  2.032258065  is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 2.032258065 )
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-#highest value 2.013071895  is an outlier
-pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$pam_percent_change!= 2.013071895)
-grubbs.test(pam_all_ammonium.data$pam_percent_change) 
-# DONE! YAY
+# #Lets get rid of outliers (THISLL TAKE A WHILE GODDAMN)
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value 15.61290323 is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!=15.61290323 )
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value 11.26829268 is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!=11.26829268 )
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value 8.7608695 is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 8.7608695)
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value 8.760869565  is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 8.760869565 )
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value 6.083333333 is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 6.083333333)
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value 4.833333333  is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 4.833333333 )
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value 4.75308642 is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 4.75308642)
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value 3.678571429  is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 3.678571429)
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value  3.672727273 is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 3.672727273)
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value 3.343434343  is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 3.343434343)
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value 3.320512821  is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 3.320512821)
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value  3.302325581 is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 3.302325581)
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value 3.158333333   is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 3.158333333 )
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value  3.126126126 is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 3.126126126)
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value  2.970588235 is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 2.970588235)
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value 2.653846154  is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 2.653846154)
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value  2.601851852 is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 2.601851852)
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value  2.391666667 is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 2.391666667)
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value  2.090909091 is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 2.090909091)
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value  2.053333333  is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 2.053333333 )
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value  2.032258065  is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 2.032258065 )
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# #highest value 2.013071895  is an outlier
+# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 2.013071895)
+# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
+# # DONE! YAY
 
 #lets check for normality in pam_delta
 hist(pam_all_ammonium.data$PAM_delta)
 qqnorm(pam_all_ammonium.data$PAM_delta)
 #looks fine, lets proceed
 
-#lets check for normality in pam_percent_change
-hist(pam_all_ammonium.data$pam_percent_change)
-qqnorm(pam_all_ammonium.data$pam_percent_change, main = NULL)
-# I think its okay we can proceed using it
+#lets check for normality in log_pam_percent_change
+hist(pam_all_ammonium.data$log_pam_percent_change)
+qqnorm(pam_all_ammonium.data$log_pam_percent_change, main = NULL)
+# UGGO! Need to natural log
+pam_all_ammonium.data$log_log_pam_percent_change <- log(abs(pam_all_ammonium.data$log_pam_percent_change))
+#change the one with negative infinity to 0
+pam_all_ammonium.data[pam_all_ammonium.data$log_log_pam_percent_change=="-Inf", "log_log_pam_percent_change"] <- 0 #yay that worked! That was messing up all of our linear models
+#now lets take a look at the logged data
+hist(pam_all_ammonium.data$log_log_pam_percent_change)
 
 hist(pam_all_ammonium.data$PAM_avg_day1) # eh
 qqnorm(pam_all_ammonium.data$PAM_avg_day1, main = NULL)
@@ -163,9 +174,52 @@ hist(pam_all_ammonium.data$PAM_avg_day11) # eh
 qqnorm(pam_all_ammonium.data$PAM_avg_day11, main = NULL)
 
 
-#change the one with negative infinity to 0
-pam_all_ammonium.data[pam_all_ammonium.data$pam_percent_change=="-Inf", "pam_percent_change"] <- 0 #yay that worked! That was messing up all of our linear models
 
+
+
+```
+
+```{r lets explore whats happening with the outliers}
+
+
+#now visualize
+gg_outliers_check<-
+  ggplot(pam_all_ammonium.data, aes(x=N_species_dose, y=PAM_delta)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) + #this overlays the raw data 
+  ylab("PAM delta")+
+  xlab("N dose")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("PAM delta by dose - Ammonium")
+gg_outliers_check
+
+gg_outliers_check<-
+  ggplot(pam_all_ammonium.data, aes(x=N_species_dose, y=log_pam_percent_change, col=sym_state)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) + #this overlays the raw data 
+  ylab("PAM percent change")+
+  xlab("N dose")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+      scale_color_manual("Sym State",labels=c("Apo","Sym"), values=c("darkgray", "brown"))+
+  ggtitle("PAM percent change - Ammonium")
+gg_outliers_check
+
+gg_delta_outliers_check<-
+  ggplot(pam_all_ammonium.data, aes(x=N_species_dose, y=PAM_delta, col=sym_state)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) + #this overlays the raw data 
+  ylab("PAM percent change")+
+  xlab("N dose")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+      scale_color_manual("Sym State",labels=c("Apo","Sym"), values=c("darkgray", "brown"))+
+  ggtitle("PAM percent change - Ammonium")
+gg_delta_outliers_check
 
 
 ```
@@ -211,12 +265,9 @@ summary(stepAIC(nullModel, # start with a model containing no variables
 
 summary(fullModel)
 #model it selected for:
-lm_pam_1 <- lm(formula = PAM_delta ~ sym_state, data = pam_all_ammonium.data)
+lm_pam_1 <- lm(formula = PAM_delta ~ sym_state + temp + sym_state*temp, data = pam_all_ammonium.data)
 summary(lm_pam_1)
 
-#lets check out some other models
-lm_pam_2 <- lm(formula = PAM_delta ~ sym_state + temp*sym_state, data = pam_all_ammonium.data)
-summary(lm_pam_2)
 #winner
 lm_pam_3 <- lm(formula = PAM_delta ~ temp*N_species_dose , data = pam_all_ammonium.data)
 summary(lm_pam_3)
@@ -229,13 +280,18 @@ summary(lm_pam_4)
 lm_pam_5 <- lm(formula = PAM_delta ~  temp + N_species_dose, data = pam_all_ammonium.data)
 summary(lm_pam_5)
 
-AIC(lm_pam_1, lm_pam_2, lm_pam_3, lm_pam_4, lm_pam_5)
+AIC(lm_pam_1,lm_pam_3, lm_pam_4, lm_pam_5)
 
-# number 2 wins!
+# number 1 wins handedly!
 
 
 plot_model(lm_pam_1, type="diag") #data fitness looks decent
 r2(lm_pam_3)
+
+#control or nutrient
+summary(aov_temp<-aov(PAM_delta~ control_or_nutrient, data=pam_all_ammonium.data))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
 
 ```
 
@@ -255,11 +311,13 @@ summary(fullModel)
 # it only selected for:
 lm_sym_1 <- lm(PAM_delta ~  temp, data= all_sym)
 summary(lm_sym_1)
+emm_sym_pam_temp=emmeans(lm_sym_1, specs=pairwise ~temp)
+summary(emm_sym_pam_temp)
 
 #lets see if we add the N_species_dose  what happens
 lm_sym_2 <- lm(PAM_delta ~  N_species_dose + temp, data= all_sym)
 summary(lm_sym_2)
-#nope
+#nope, lets keep it at just temperature
 
 
 AIC(lm_sym_1, lm_sym_2)
@@ -277,31 +335,41 @@ gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
        aes(x = N_species_dose,
            y = PAM_delta, col=temp)) +
     geom_point() +
+  geom_smooth(method="lm", se=FALSE, aes(group = temp), linewidth = 0.85, linetype = "dotted")+
+      stat_poly_eq(use_label(c("eq", "adj.R2"))) +
     geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
-    #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("SYM CORALS ammonium rgb - Delta R channel value") +
+    ggtitle ("SYM CORALS ammonium rgb - Delta Fv/Fm value") +
     labs(x = "ammonium dose", 
-         y = expression(paste("Delta R channel value")), 
+         y = expression(paste("Delta Fv/Fm value")), 
          caption = "data represent mean +/- SEM" ) +
     scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
-    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
+    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red")) 
 gg_N_species_dose_temp_ammonium
+
+#calculate regression line
+#sdflksdjfsdlfisdf
+
 
 
 # generating ptemp and pdose:
 summary(aov_temp<-aov(PAM_delta ~ temp, data=all_sym))
-Anova(aov_temp, type="III")
+Anova(aov_temp, type="III") 
 summary(emmeans(aov_temp, specs=pairwise ~ temp))
 
-#ptemp=0.01966
+#ptemp=0.0004152
 
 summary(aov_temp<-aov(PAM_delta ~ N_species_dose, data=all_sym))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
 
-#pdose=0.491166
+#pdose=0.384
   
-summary(aov_temp<-aov(pam_percent_change~ N_species_dose*temp, data=all_sym))
+summary(aov_temp<-aov(PAM_delta~ N_species_dose*temp, data=all_sym))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
+
+#control or nutrient
+summary(aov_temp<-aov(PAM_delta~ control_or_nutrient, data=all_sym))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
   
@@ -357,30 +425,36 @@ summary(aov_temp<-aov(PAM_delta ~ temp, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ temp))
 
-#ptemp=0.351
+#ptemp=0.18525
 
 summary(aov_temp<-aov(PAM_delta ~ N_species_dose, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
 
-#pdose=0.144
+#pdose=0.6831
 
-summary(aov_temp<-aov(pam_percent_change ~ N_species_dose*temp, data=all_apo))
+summary(aov_temp<-aov(log_pam_percent_change ~ N_species_dose*temp, data=all_apo))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
+
+#control or nutrient
+summary(aov_temp<-aov(PAM_delta~ control_or_nutrient, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
 ```
+#PERCENT CHANGE MODELS
 ```{r PERCENT CHANGE Model selection }
 #were not going to look at genetic ID so let's do an lm
 
 #testing experiment number as random
-lm_test <- lmer(pam_percent_change ~ temp + (1|exp_num), data=pam_all_ammonium.data)
+lm_test <- lmer(log_pam_percent_change ~ temp + (1|exp_num), data=pam_all_ammonium.data)
 r2(lm_test)
 #doesnt impact it , its okay to leave out for now
 
 #stepAIC is from the MASS package
-fullModel = lm(pam_percent_change ~   N_species_dose + temp + sym_state  + N_species_dose*temp + N_species_dose*sym_state + temp*sym_state, data= pam_all_ammonium.data) # model with all 9 variables and possible combinations
+fullModel = lm(log_pam_percent_change ~   N_species_dose + temp + sym_state  + N_species_dose*temp + N_species_dose*sym_state + temp*sym_state, data= pam_all_ammonium.data) # model with all 9 variables and possible combinations
 
-nullModel = lm(pam_percent_change ~  1, data= pam_all_ammonium.data) # model with the intercept only
+nullModel = lm(log_pam_percent_change ~  1, data= pam_all_ammonium.data) # model with the intercept only
 
 summary(stepAIC(nullModel, # start with a model containing no variables
                 direction = 'forward', # run forward selection
@@ -390,34 +464,25 @@ summary(stepAIC(nullModel, # start with a model containing no variables
 
 summary(fullModel)
 #model it selected for:
-lm_pam_1 <- lm(formula = pam_percent_change ~ sym_state, data = pam_all_ammonium.data)
+lm_pam_1 <- lm(formula = log_pam_percent_change ~ temp, data = pam_all_ammonium.data)
 summary(lm_pam_1)
+#WINNER
 
 #lets check out some other models
-lm_pam_2 <- lm(formula = pam_percent_change ~ temp + sym_state + temp*sym_state, data = pam_all_ammonium.data)
+lm_pam_2 <- lm(formula = log_pam_percent_change ~ temp + sym_state + temp*sym_state, data = pam_all_ammonium.data)
 summary(lm_pam_2)
+
+lm_pam_3 <- lm(formula = log_pam_percent_change ~ temp + N_species_dose, data = pam_all_ammonium.data)
+summary(lm_pam_3)
+#nothing really going on with dose
 
 AIC(lm_pam_1, lm_pam_2)
 
-#2 wins AIC score and is more informative so let's go with that!
+#Temperature seems to be driving this model, lets go with model #1
 
 #posthocs
-summary(emmeans(lm_pam_2, pairwise ~ temp))
-#0.95
-summary(emmeans(lm_pam_2, pairwise ~ sym_state))
-#<0.001
-summary(emmeans(lm_pam_2, pairwise ~ sym_state*temp))
- # contrast            estimate     SE  df t.ratio p.value
- # A temp20 - S temp20    0.439 0.0641 451   6.846  <.0001
- # A temp20 - A temp30    0.116 0.0641 451   1.809  0.2703
- # A temp20 - S temp30    0.318 0.0655 451   4.860  <.0001
- # S temp20 - A temp30   -0.323 0.0641 451  -5.037  <.0001
- # S temp20 - S temp30   -0.121 0.0655 451  -1.846  0.2531
- # A temp30 - S temp30    0.202 0.0655 451   3.088  0.0115
-
-lm_pam_3 <- lm(formula = pam_percent_change ~ N_species_dose, data = pam_all_ammonium.data)
-summary(lm_pam_3)
-#no overall effect of dose
+summary(emmeans(lm_pam_1, pairwise ~ temp))
+#0.01
 
 plot_model(lm_pam_1, type="diag") #data fitness looks decent
 r2(lm_pam_1)
@@ -440,13 +505,13 @@ gg_sym_state_temp_ammonium<-ggplot(data = sum_sym_state_temp_ammonium,
 gg_sym_state_temp_ammonium
 
 # generating ptemp and pdose:
-summary(aov_temp<-aov(pam_percent_change ~ temp, data=pam_all_ammonium.data))
+summary(aov_temp<-aov(log_pam_percent_change ~ temp, data=pam_all_ammonium.data))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ temp))
 
 #ptemp=0.0.01
 
-summary(aov_temp<-aov(pam_percent_change ~ N_species_dose, data=pam_all_ammonium.data))
+summary(aov_temp<-aov(log_pam_percent_change ~ N_species_dose, data=pam_all_ammonium.data))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
 
@@ -470,14 +535,17 @@ gg_sum_temp_ammonium<-ggplot(data = sum_temp_ammonium,
     scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
 gg_sum_temp_ammonium
 
+summary(aov_temp<-aov(log_pam_percent_change ~ control_or_nutrient, data=pam_all_ammonium.data))
+Anova(aov_temp, type="III")
+#pnutrient= 0.7742
 
 ```
 
 ```{r SYM linear model}
 #stepAIC is from the MASS package
-fullModel = lm(pam_percent_change ~   N_species_dose + temp  + N_species_dose*temp, data= all_sym) # model with all 9 variables and possible combinations
+fullModel = lm(log_pam_percent_change ~   N_species_dose + temp  + N_species_dose*temp, data= all_sym) # model with all 9 variables and possible combinations
 
-nullModel = lm(pam_percent_change ~  1, data= all_sym) # model with the intercept only
+nullModel = lm(log_pam_percent_change ~  1, data= all_sym) # model with the intercept only
 
 summary(stepAIC(nullModel, # start with a model containing no variables
                 direction = 'forward', # run forward selection
@@ -487,21 +555,21 @@ summary(stepAIC(nullModel, # start with a model containing no variables
 
 summary(fullModel)
 # it only selected for:
-lm_sym_1 <- lm(pam_percent_change ~  temp, data= all_sym)
+lm_sym_1 <- lm(log_pam_percent_change ~  1, data= all_sym)
 summary(lm_sym_1)
 
-#lets see if we add the N_species_dose * temp what happens
-lm_sym_2 <- lm(pam_percent_change ~  temp*N_species_dose, data= all_sym)
+#lets see if we add the N_species_dose what happens
+lm_sym_2 <- lm(log_pam_percent_change ~  N_species_dose, data= all_sym)
 summary(lm_sym_2)
 summary(emmeans(lm_sym_2, specs=pairwise ~ N_species_dose))
-# really nothing going on, let's leave N species dose out
-lm_sym_3 <- lm(pam_percent_change ~  control_or_nutrient, data= all_sym)
+# temp * N species dose out
+lm_sym_3 <- lm(log_pam_percent_change ~  temp + N_species_dose, data= all_sym)
 summary(lm_sym_3)
-#control or nutrient doesnt matter
+# nothing really going on
 
 AIC(lm_sym_1, lm_sym_2)
 
-emm_sym_pam_N_species_dose_temp=emmeans(lm_sym_2, specs=pairwise ~ temp)
+emm_sym_pam_N_species_dose_temp=emmeans(lm_sym_3, specs=pairwise ~ temp)
 summary(emm_sym_pam_N_species_dose_temp)
 
 
@@ -510,14 +578,14 @@ summary(emm_sym_pam_N_species_dose_temp)
 #graph sym only by N species dose and temperature
 
 # Summarize by temp and N species dose so we can visualize
-sum_N_species_dose_temp_ammonium <- summarySE(all_sym, measurevar = "pam_percent_change", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium <- summarySE(all_sym, measurevar = "log_pam_percent_change", groupvars = c("temp","N_species_dose"))
 sum_N_species_dose_temp_ammonium$N_species_dose <- factor(sum_N_species_dose_temp_ammonium$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 # Visualize
 gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
        aes(x = N_species_dose,
-           y = pam_percent_change, col=temp)) +
+           y = log_pam_percent_change, col=temp)) +
     geom_point() +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("SYM CORALS ammonium PAM - % Change Fv/Fm") +
     labs(x = "ammonium dose", 
@@ -530,20 +598,30 @@ gg_N_species_dose_temp_ammonium
 
 
 # generating ptemp and pdose:
-summary(aov_temp<-aov(pam_percent_change ~ temp, data=all_sym))
+summary(aov_temp<-aov(log_pam_percent_change ~ temp, data=all_sym))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ temp))
 
-#ptemp=0.05286
+#ptemp=0.221
 
-summary(aov_temp<-aov(pam_percent_change ~ N_species_dose, data=all_sym))
+summary(aov_temp<-aov(log_pam_percent_change ~ N_species_dose, data=all_sym))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
 
-#pdose=0.635
+#pdose=0.455
+
+#ptemp * pdose
+summary(aov_temp<-aov(log_pam_percent_change ~ N_species_dose*temp, data=all_sym))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
+
+
+summary(aov_temp<-aov(log_pam_percent_change ~ control_or_nutrient, data=all_sym))
+Anova(aov_temp, type="III")
+#pnutrient= 0.7742
   
 #food for funsies
-summary(aov_food<-aov(pam_percent_change ~ food, data=all_sym))
+summary(aov_food<-aov(log_pam_percent_change ~ food, data=all_sym))
 Anova(aov_food, type="III")
 
 #pfood=0.99
@@ -554,9 +632,9 @@ Anova(aov_food, type="III")
 
 ```{r APO linear model}
 #stepAIC is from the MASS package
-fullModel = lm(pam_percent_change ~ N_species_dose + temp  + N_species_dose*temp, data= all_apo) # model with all 9 variables and possible combinations
+fullModel = lm(log_pam_percent_change ~ N_species_dose + temp  + N_species_dose*temp, data= all_apo) # model with all 9 variables and possible combinations
 
-nullModel = lm(pam_percent_change ~  1, data= all_apo) # model with the intercept only
+nullModel = lm(log_pam_percent_change ~  1, data= all_apo) # model with the intercept only
 
 summary(stepAIC(nullModel, # start with a model containing no variables
                 direction = 'forward', # run forward selection
@@ -567,11 +645,11 @@ summary(stepAIC(nullModel, # start with a model containing no variables
 summary(fullModel)
 
 #selected for...
-lm_apo_1 <- lm(pam_percent_change ~  temp, data= all_apo)
+lm_apo_1 <- lm(log_pam_percent_change ~  temp, data= all_apo)
 summary(lm_apo_1)
 
 #lets see if we add the N_species_dose * temp what happens
-lm_apo_2 <- lm(pam_percent_change ~  N_species_dose+temp + N_species_dose*temp, data= all_apo)
+lm_apo_2 <- lm(log_pam_percent_change ~  N_species_dose+temp + N_species_dose*temp, data= all_apo)
 summary(lm_apo_2)
 #temp is the only thing driving it really
 
@@ -580,19 +658,19 @@ AIC(lm_apo_1, lm_apo_2) #1 is the clear winner here-- AIC is a lot lower
 
 #posthocs
 emm_apo_temp=emmeans(lm_apo_1, specs=pairwise ~ temp)
-summary(emm_apo_temp) #0.0854
+summary(emm_apo_temp) #0.0159
 
 
 
 # Summarize by temp and N species dose so we can visualize
-sum_N_species_dose_temp_ammonium <- summarySE(all_apo, measurevar = "pam_percent_change", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium <- summarySE(all_apo, measurevar = "log_pam_percent_change", groupvars = c("temp","N_species_dose"))
 sum_N_species_dose_temp_ammonium$N_species_dose <- factor(sum_N_species_dose_temp_ammonium$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 # Visualize
 gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
        aes(x = N_species_dose,
-           y = pam_percent_change, col=temp)) +
+           y = log_pam_percent_change, col=temp)) +
     geom_point() +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("APO CORALS ammonium PAM - % Change Fv/Fm") +
     labs(x = "ammonium dose", 
@@ -603,28 +681,37 @@ gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
 gg_N_species_dose_temp_ammonium
 
 # generating ptemp and pdose:
-summary(aov_temp<-aov(pam_percent_change ~ temp, data=all_apo))
+summary(aov_temp<-aov(log_pam_percent_change ~ temp, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ temp))
 
-#ptemp=0.044
+#ptemp=0.015
 
-summary(aov_temp<-aov(pam_percent_change ~ N_species_dose, data=all_apo))
+summary(aov_temp<-aov(log_pam_percent_change ~ N_species_dose, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
 
-#pdose=0.67966 
+#pdose=0.5352
 
+summary(aov_temp<-aov(log_pam_percent_change ~ N_species_dose*temp, data=all_apo))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
+
+#pinteraction= 0.81
+
+summary(aov_temp<-aov(log_pam_percent_change ~ control_or_nutrient, data=all_apo))
+Anova(aov_temp, type="III")
+#pnutrient= 0.81
 
 #summarize by temp
-sum_temp_ammonium <- summarySE(all_apo, measurevar = "pam_percent_change", groupvars = c("temp"))
+sum_temp_ammonium <- summarySE(all_apo, measurevar = "log_pam_percent_change", groupvars = c("temp"))
 
 # Visualize
 gg_temp_ammonium<-ggplot(data = sum_temp_ammonium,
        aes(x =temp,
-           y = pam_percent_change, col=temp)) +
+           y = log_pam_percent_change, col=temp)) +
     geom_point() +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("APO CORALS ammonium PAM - % Change Fv/Fm") +
     labs(x = "ammonium dose", 
@@ -643,9 +730,9 @@ gg_temp_ammonium
 
 #sym full model -- not including genetic data
 
-fullModel = lm(pam_percent_change ~   N_species_dose + temp + food +  N_species_dose*temp + N_species_dose*food  + temp*food, data= all_sym) # model with all 9 variables and possible combinations
+fullModel = lm(log_pam_percent_change ~   N_species_dose + temp + food +  N_species_dose*temp + N_species_dose*food  + temp*food, data= all_sym) # model with all 9 variables and possible combinations
 
-nullModel = lm(pam_percent_change ~  1, data= all_sym) # model with the intercept only
+nullModel = lm(log_pam_percent_change ~  1, data= all_sym) # model with the intercept only
 
 summary(stepAIC(nullModel, # start with a model containing no variables
                 direction = 'forward', # run forward selection
@@ -654,13 +741,13 @@ summary(stepAIC(nullModel, # start with a model containing no variables
                 trace = 1)) # do not show the step-by-step process of model selection
 
 
-mm_sym<- lm(pam_percent_change ~  N_species_dose, data= all_sym)
+mm_sym<- lm(log_pam_percent_change ~  N_species_dose, data= all_sym)
 summary(full.model_sym)
 
 emm_sym=emmeans(mm_sym , specs=pairwise ~ N_species_dose)
 summary(emm_sym)
 
-summary(aov_sym<-aov(pam_percent_change ~ N_species_dose, data=all_sym))
+summary(aov_sym<-aov(log_pam_percent_change ~ N_species_dose, data=all_sym))
 TukeyHSD(aov_sym, "N_species_dose")
 
 
@@ -668,11 +755,11 @@ TukeyHSD(aov_sym, "N_species_dose")
 all_sym$N_species_dose <- factor(all_sym$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 #now plot sym corals by N species dose
 # Summarize by N_species_dose so we can visualize
-sum_sym_N_species_dose_ammonium <- summarySE(all_sym, measurevar = "pam_percent_change", groupvars = c("N_species_dose"))
+sum_sym_N_species_dose_ammonium <- summarySE(all_sym, measurevar = "log_pam_percent_change", groupvars = c("N_species_dose"))
 # Visualize
 gg_sym_N_species_dose_ammonium<-ggplot(data = sum_sym_N_species_dose_ammonium,
        aes(x = N_species_dose,
-           y = pam_percent_change, col=N_species_dose)) +
+           y = log_pam_percent_change, col=N_species_dose)) +
     geom_point(size = 4) +
    theme(
   axis.text.x = element_text(size = 22),
@@ -680,7 +767,7 @@ gg_sym_N_species_dose_ammonium<-ggplot(data = sum_sym_N_species_dose_ammonium,
   axis.text.y = element_text(size = 24),
    axis.title.y = element_text(size = 30)) +
  ylim(-.18, 0.015) +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.3, size = 2) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.3, size = 2) +
     #scale_color_manual(values = c("black", "darkgreen")) +
   #  ggtitle ("ammonium - N Species Dose summary for sym corals") +
    theme(legend.position="none")+
@@ -691,11 +778,11 @@ gg_sym_N_species_dose_ammonium<-ggplot(data = sum_sym_N_species_dose_ammonium,
 gg_sym_N_species_dose_ammonium
 
 # Summarize by N_species_dose so we can visualize
-sum_sym_temp <- summarySE(all_sym, measurevar = "pam_percent_change", groupvars = c("temp", "control_or_nutrient"))
+sum_sym_temp <- summarySE(all_sym, measurevar = "log_pam_percent_change", groupvars = c("temp", "control_or_nutrient"))
 # Visualize
 gg_sum_sym_temp<-ggplot(data = sum_sym_temp,
        aes(x =control_or_nutrient,
-           y = pam_percent_change, col=temp)) +
+           y = log_pam_percent_change, col=temp)) +
     geom_point(size=4) +
    theme(
   axis.text.x = element_text(size = 22),
@@ -703,7 +790,7 @@ gg_sum_sym_temp<-ggplot(data = sum_sym_temp,
   axis.text.y = element_text(size = 24),
    axis.title.y = element_text(size = 28)) +
  ylim(-.2, 0.1) +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.3, size = 2) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.3, size = 2) +
     #scale_color_manual(values = c("black", "darkgreen")) +
   #  ggtitle ("Ammonium - N Species Dose summary for sym corals") +
    theme( legend.title = element_text(size=20), legend.text = element_text(size=20))+
@@ -714,12 +801,12 @@ gg_sum_sym_temp
 
 
 
-full.model_pam_nutrient_or_control<- lmer(pam_percent_change ~  control_or_nutrient + temp + food + sym_state + control_or_nutrient*temp + control_or_nutrient*food + control_or_nutrient*sym_state + temp*food + temp*sym_state + food*sym_state +  (1|col_num) + (1|exp_num) , data= all_sym)
+full.model_pam_nutrient_or_control<- lmer(log_pam_percent_change ~  control_or_nutrient + temp + food + sym_state + control_or_nutrient*temp + control_or_nutrient*food + control_or_nutrient*sym_state + temp*food + temp*sym_state + food*sym_state +  (1|col_num) + (1|exp_num) , data= all_sym)
 summary(full.model_pam_nutrient_or_control)
 print(step.model<- step(full.model_pam_nutrient_or_control))
 
 #CONTROL OR NUTRIENT -- not significant
-mm_pam_control_or_nutrient <- lmer(pam_percent_change  ~ control_or_nutrient + temp + food + sym_state + (1 | col_num) + (1 | exp_num), data=pam_all_ammonium.data)
+mm_pam_control_or_nutrient <- lmer(log_pam_percent_change  ~ control_or_nutrient + temp + food + sym_state + (1 | col_num) + (1 | exp_num), data=pam_all_ammonium.data)
 summary(mm_pam_control_or_nutrient)
 
 emm_test=emmeans(mm_pam_control_or_nutrient , specs=pairwise ~ temp*control_or_nutrient)
@@ -734,11 +821,11 @@ tab_model(mm_pam_control_or_nutrient)
 #We're interested to see how sym state drives reaction to dose and temperature seperately
 
 #Symbiotic corals
-full.model_pam_ammonium_sym <- lmer(pam_percent_change ~  N_species_dose + temp + food +  N_species_dose*temp + N_species_dose*food + temp*food + (1|col_num) + (1|exp_num) , data= all_sym)
+full.model_pam_ammonium_sym <- lmer(log_pam_percent_change ~  N_species_dose + temp + food +  N_species_dose*temp + N_species_dose*food + temp*food + (1|col_num) + (1|exp_num) , data= all_sym)
 summary(full.model_pam_ammonium_sym )
 print(step.model<- step(full.model_pam_ammonium_sym ))
 #lets just add N species dose and temperature cause thats what were interested in
-summary(mm_ammonium_sym <- lmer(pam_percent_change ~  N_species_dose + temp + (1|col_num) + (1|exp_num) , data= all_sym))
+summary(mm_ammonium_sym <- lmer(log_pam_percent_change ~  N_species_dose + temp + (1|col_num) + (1|exp_num) , data= all_sym))
 #posthoc to see differences
 emm_temp_dose_sym=emmeans(mm_ammonium_sym, specs=pairwise ~ temp*N_species_dose)
 summary(emm_temp_dose_sym)
@@ -752,13 +839,13 @@ summary(emm_temp_dose_sym)
  # temp20 CNTRL_0 - temp30 CNTRL_0 -0.09736 0.0280 228  -3.473  0.0141 `
 
 #now plot
-sum_temp_dose_ammonium_sym <- summarySE(all_sym, measurevar = "pam_percent_change", groupvars = c("temp", "N_species_dose"))
+sum_temp_dose_ammonium_sym <- summarySE(all_sym, measurevar = "log_pam_percent_change", groupvars = c("temp", "N_species_dose"))
 sum_temp_dose_ammonium_sym$N_species_dose <- factor(sum_temp_dose_ammonium_sym$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 gg_sum_temp_dose_ammonium_sym<-ggplot(data = sum_temp_dose_ammonium_sym,
        aes(x = N_species_dose,
-           y = pam_percent_change, col=temp)) +
+           y = log_pam_percent_change, col=temp)) +
     geom_point() +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("Ammonium- Temperature and dose summary - Sym corals") +
   theme(legend.position="none")+
@@ -770,24 +857,24 @@ gg_sum_temp_dose_ammonium_sym<-ggplot(data = sum_temp_dose_ammonium_sym,
 gg_sum_temp_dose_ammonium_sym
 
 #Aposymbiotic corals
-full.model_pam_ammonium_apo <- lmer(pam_percent_change ~  N_species_dose + temp + food +  N_species_dose*temp + N_species_dose*food + temp*food + (1|col_num) + (1|exp_num) , data= all_apo)
+full.model_pam_ammonium_apo <- lmer(log_pam_percent_change ~  N_species_dose + temp + food +  N_species_dose*temp + N_species_dose*food + temp*food + (1|col_num) + (1|exp_num) , data= all_apo)
 summary(full.model_pam_ammonium_apo )
 print(step.model<- step(full.model_pam_ammonium_apo ))
 #lets just add N species dose and temperature cause thats what were interested in
-summary(mm_ammonium_apo <- lmer(pam_percent_change ~  N_species_dose + temp + (1|col_num) + (1|exp_num) , data= all_apo))
+summary(mm_ammonium_apo <- lmer(log_pam_percent_change ~  N_species_dose + temp + (1|col_num) + (1|exp_num) , data= all_apo))
 #posthoc to see differences
 emm_temp_dose_apo=emmeans(mm_ammonium_apo, specs=pairwise ~ temp*N_species_dose)
 summary(emm_temp_dose_apo)
  # NO STAT DIFFERENCES!
 
 #now plot
-sum_temp_dose_ammonium_apo <- summarySE(all_apo, measurevar = "pam_percent_change", groupvars = c("temp", "N_species_dose"))
+sum_temp_dose_ammonium_apo <- summarySE(all_apo, measurevar = "log_pam_percent_change", groupvars = c("temp", "N_species_dose"))
 sum_temp_dose_ammonium_apo$N_species_dose <- factor(sum_temp_dose_ammonium_apo$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 gg_sum_temp_dose_ammonium_apo<-ggplot(data = sum_temp_dose_ammonium_apo,
        aes(x = N_species_dose,
-           y = pam_percent_change, col=temp)) +
+           y = log_pam_percent_change, col=temp)) +
     geom_point() +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("Ammonium- Temperature and dose summary - Apo corals") +
   theme(legend.position="none")+
@@ -815,18 +902,18 @@ pam_all_ammonium.data$temp <- as.character(pam_all_ammonium.data$temp)
 ```
 
 
-```{r Symbiotic State - pam_percent_change}
+```{r Symbiotic State - log_pam_percent_change}
 # AMMONIUM ONLY
 
 # plot, treatment x axis colored by site data figure
-pam_treatmeans_apovsym <- summarySE(pam_all_ammonium.data, measurevar=c("pam_percent_change"),groupvars =c("sym_state"), na.rm=TRUE)
-gg_pam_plot_apovsym <- ggplot(pam_treatmeans_apovsym, aes(x = sym_state, y= c(pam_percent_change), color = sym_state))+
+pam_treatmeans_apovsym <- summarySE(pam_all_ammonium.data, measurevar=c("log_pam_percent_change"),groupvars =c("sym_state"), na.rm=TRUE)
+gg_pam_plot_apovsym <- ggplot(pam_treatmeans_apovsym, aes(x = sym_state, y= c(log_pam_percent_change), color = sym_state))+
   theme_bw()+
   geom_point(size = 3, position = position_dodge(width=0.3))+
   geom_smooth(aes(group=sym_state), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
  # geom_jitter(aes(), size=1.2, alpha=0.9)+
   geom_line(aes(group = sym_state), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
-  geom_errorbar(aes(x = sym_state, ymax = pam_percent_change+se, ymin = pam_percent_change-se), width = .2, position = position_dodge(width=0.3)) +
+  geom_errorbar(aes(x = sym_state, ymax = log_pam_percent_change+se, ymin = log_pam_percent_change-se), width = .2, position = position_dodge(width=0.3)) +
   #scale_color_manual(name = "Treatment",
                     #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
                     # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
@@ -838,13 +925,13 @@ gg_pam_plot_apovsym <- ggplot(pam_treatmeans_apovsym, aes(x = sym_state, y= c(pa
 gg_pam_plot_apovsym
 
 # Summarize by temp and N species dose so we can visualize
-sum_N_species_dose_sym_state_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "pam_percent_change", groupvars = c("sym_state","N_species_dose"))
+sum_N_species_dose_sym_state_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "log_pam_percent_change", groupvars = c("sym_state","N_species_dose"))
 # Visualize
 gg_N_species_dose_sym_state_ammonium<-ggplot(data = sum_N_species_dose_sym_state_ammonium,
        aes(x = N_species_dose,
-           y = pam_percent_change, colour=sym_state)) +
+           y = log_pam_percent_change, colour=sym_state)) +
     geom_point() +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("Ammonium - % Change Fv/Fm by sym state and dose") +
     
@@ -856,13 +943,13 @@ gg_N_species_dose_sym_state_ammonium<-ggplot(data = sum_N_species_dose_sym_state
     scale_color_manual("Sym State", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))
 gg_N_species_dose_sym_state_ammonium
 # Summarize by food and sym state so we can visualize
-sum_food_sym_state_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "pam_percent_change", groupvars = c("sym_state","food"))
+sum_food_sym_state_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "log_pam_percent_change", groupvars = c("sym_state","food"))
 # Visualize
 gg_food_sym_state_ammonium<-ggplot(data = sum_food_sym_state_ammonium,
        aes(x = sym_state,
-           y = pam_percent_change, col=food)) + #use fill here or the legends will be really hard to work with
+           y = log_pam_percent_change, col=food)) + #use fill here or the legends will be really hard to work with
     geom_point() +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     ggtitle ("PERCENT CHANGE Fv/Fm Sym vs. Apo at Fed vs. Starved") +
    #scale_fill_manual(name="Feeding Regime", labels=c('Fed', 'Starved'))+
  # scale_fill_manual(values=c("brown", "darkgray"))+
@@ -877,14 +964,14 @@ gg_food_sym_state_ammonium
  
 # WITHOUT CONTROLS #
 # plot, treatment x axis colored by site data figure
-pam_treatmeans_apovsym <- summarySE(no_controls, measurevar=c("pam_percent_change"),groupvars =c("sym_state"), na.rm=TRUE)
-gg_pam_plot_apovsym <- ggplot(pam_treatmeans_apovsym, aes(x = sym_state, y= c(pam_percent_change), color = sym_state))+
+pam_treatmeans_apovsym <- summarySE(no_controls, measurevar=c("log_pam_percent_change"),groupvars =c("sym_state"), na.rm=TRUE)
+gg_pam_plot_apovsym <- ggplot(pam_treatmeans_apovsym, aes(x = sym_state, y= c(log_pam_percent_change), color = sym_state))+
   theme_bw()+
   geom_point(size = 3, position = position_dodge(width=0.3))+
   geom_smooth(aes(group=sym_state), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
  # geom_jitter(aes(), size=1.2, alpha=0.9)+
   geom_line(aes(group = sym_state), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
-  geom_errorbar(aes(x = sym_state, ymax = pam_percent_change+se, ymin = pam_percent_change-se), width = .2, position = position_dodge(width=0.3)) +
+  geom_errorbar(aes(x = sym_state, ymax = log_pam_percent_change+se, ymin = log_pam_percent_change-se), width = .2, position = position_dodge(width=0.3)) +
   #scale_color_manual(name = "Treatment",
                     #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
                     # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
@@ -896,13 +983,13 @@ gg_pam_plot_apovsym <- ggplot(pam_treatmeans_apovsym, aes(x = sym_state, y= c(pa
 gg_pam_plot_apovsym
 
 # Summarize by food and sym state so we can visualize
-sum_food_sym_state_ammonium <- summarySE(no_controls, measurevar = "pam_percent_change", groupvars = c("sym_state","food"))
+sum_food_sym_state_ammonium <- summarySE(no_controls, measurevar = "log_pam_percent_change", groupvars = c("sym_state","food"))
 # Visualize
 gg_food_sym_state_ammonium<-ggplot(data = sum_food_sym_state_ammonium,
        aes(x = sym_state,
-           y = pam_percent_change, col=food)) + #use fill here or the legends will be really hard to work with
+           y = log_pam_percent_change, col=food)) + #use fill here or the legends will be really hard to work with
     geom_point() +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     ggtitle ("No Controls PERCENT CHANGE Fv/Fm Sym vs. Apo at various Ammonium doses") +
    #scale_fill_manual(name="Feeding Regime", labels=c('Fed', 'Starved'))+
  # scale_fill_manual(values=c("brown", "darkgray"))+
@@ -1028,15 +1115,15 @@ gg_food_sym_state_ammonium #seems obvious that food doesnt matter
 #Don't think theres anything going on here
 
 # PERCENT CHANGE Fed vs. starved WITH CONTROLS
-pam_treatmeans_fedvstarved_delta <- summarySE(pam_all_ammonium.data, measurevar=c("pam_percent_change"),groupvars =c("food"), na.rm=TRUE)
+pam_treatmeans_fedvstarved_delta <- summarySE(pam_all_ammonium.data, measurevar=c("log_pam_percent_change"),groupvars =c("food"), na.rm=TRUE)
 # plot, treatment x axis colored by site data figure
-pam_plot_fedvstarved_delta <-ggplot(pam_treatmeans_fedvstarved_delta, aes(x = food, y= c(pam_percent_change), color = food))+
+pam_plot_fedvstarved_delta <-ggplot(pam_treatmeans_fedvstarved_delta, aes(x = food, y= c(log_pam_percent_change), color = food))+
   theme_bw()+
   geom_point(size = 3, position = position_dodge(width=0.3))+
   geom_smooth(aes(group=food), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
  # geom_jitter(aes(), size=1.2, alpha=0.9)+
   geom_line(aes(group = food), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
-  geom_errorbar(aes(x = food, ymax = pam_percent_change+se, ymin = pam_percent_change-se), width = .2, position = position_dodge(width=0.3)) +
+  geom_errorbar(aes(x = food, ymax = log_pam_percent_change+se, ymin = log_pam_percent_change-se), width = .2, position = position_dodge(width=0.3)) +
  ylab("PERCENT CHANGE Fv/Fm")+
     scale_color_manual("Feeding Regime", values=c("orange", "black")) +
   scale_x_discrete(name="Feeding regime", labels=c("F"="Fed", "S"="Starved")) +
@@ -1045,15 +1132,15 @@ pam_plot_fedvstarved_delta
 
 
 # PERCENT CHANGE Fed vs. starved WITHOUT CONTROLS
-pam_treatmeans_fedvstarved_delta <- summarySE(no_controls, measurevar=c("pam_percent_change"),groupvars =c("food"), na.rm=TRUE)
+pam_treatmeans_fedvstarved_delta <- summarySE(no_controls, measurevar=c("log_pam_percent_change"),groupvars =c("food"), na.rm=TRUE)
 # plot, treatment x axis colored by site data figure
-pam_plot_fedvstarved_delta <-ggplot(pam_treatmeans_fedvstarved_delta, aes(x = food, y= c(pam_percent_change), color = food))+
+pam_plot_fedvstarved_delta <-ggplot(pam_treatmeans_fedvstarved_delta, aes(x = food, y= c(log_pam_percent_change), color = food))+
   theme_bw()+
   geom_point(size = 3, position = position_dodge(width=0.3))+
   geom_smooth(aes(group=food), position = position_dodge(width=0.3), size = 0.5, method='lm', se = FALSE)+
  # geom_jitter(aes(), size=1.2, alpha=0.9)+
   geom_line(aes(group = food), size = 0.5, linetype="dashed", position = position_dodge(width=0.3))+
-  geom_errorbar(aes(x = food, ymax = pam_percent_change+se, ymin = pam_percent_change-se), width = .2, position = position_dodge(width=0.3)) +
+  geom_errorbar(aes(x = food, ymax = log_pam_percent_change+se, ymin = log_pam_percent_change-se), width = .2, position = position_dodge(width=0.3)) +
  ylab("PERCENT CHANGE Fv/Fm")+
   scale_color_manual("Feeding Regime", values=c("orange", "black")) +
   scale_x_discrete(name="Feeding regime", labels=c("F"="Fed", "S"="Starved")) +
@@ -1061,13 +1148,13 @@ pam_plot_fedvstarved_delta <-ggplot(pam_treatmeans_fedvstarved_delta, aes(x = fo
 pam_plot_fedvstarved_delta
 
 # Fed vs. Starved at different N doses
-sum_food_dose_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "pam_percent_change", groupvars = c("N_species_dose","food"))
+sum_food_dose_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "log_pam_percent_change", groupvars = c("N_species_dose","food"))
 # Visualize
 gg_sum_food_dose_ammonium<-ggplot(data = sum_food_dose_ammonium,
        aes(x = N_species_dose,
-           y = pam_percent_change, col=food)) + #use fill here or the legends will be really hard to work with
+           y = log_pam_percent_change, col=food)) + #use fill here or the legends will be really hard to work with
     geom_point() +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     ggtitle ("PERCENT CHANGE Fed vs. starved at various doses of Ammonium") +
    #scale_fill_manual(name="Feeding Regime", labels=c('Fed', 'Starved'))+
  # scale_fill_manual(values=c("brown", "darkgray"))+
@@ -1082,18 +1169,18 @@ gg_sum_food_dose_ammonium #seems obvious that food doesnt matter
 ```{r PERCENT CHANGE Temperature graphs}
 
 # Temp on its own doesnt seem to matter but sym and apo are driving the models so much we will separate them below
-pam_treatmeans_20vs30 <- summarySE(pam_all_ammonium.data, measurevar=c("pam_percent_change"),groupvars =c("temp"), na.rm=TRUE)
+pam_treatmeans_20vs30 <- summarySE(pam_all_ammonium.data, measurevar=c("log_pam_percent_change"),groupvars =c("temp"), na.rm=TRUE)
 
 t.test(pam_all_ammonium.data_simplified_controls$temp=="20", pam_all_ammonium.data_simplified_controls$temp=="30")
 
 # Summarize by temperature so we can visualize
-sum_temp_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "pam_percent_change", groupvars = c("temp"))
+sum_temp_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "log_pam_percent_change", groupvars = c("temp"))
 # Visualize
 gg_temp_ammonium<-ggplot(data = sum_temp_ammonium,
        aes(x = temp,
-           y = pam_percent_change, col=temp)) +
+           y = log_pam_percent_change, col=temp)) +
     geom_point() +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("ammonium PERCENT CHANGE Temperature summary") +
   theme(legend.position="none")+
@@ -1105,15 +1192,15 @@ gg_temp_ammonium<-ggplot(data = sum_temp_ammonium,
 gg_temp_ammonium
 
 #Let's try this on data without controls
-pam_treatmeans_20vs30 <- summarySE(no_controls, measurevar=c("pam_percent_change"),groupvars =c("temp"), na.rm=TRUE)
+pam_treatmeans_20vs30 <- summarySE(no_controls, measurevar=c("log_pam_percent_change"),groupvars =c("temp"), na.rm=TRUE)
 # Summarize by temperature so we can visualize
-sum_temp_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "pam_percent_change", groupvars = c("temp"))
+sum_temp_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "log_pam_percent_change", groupvars = c("temp"))
 # Visualize
 gg_temp_ammonium<-ggplot(data = sum_temp_ammonium,
        aes(x = temp,
-           y = pam_percent_change, col=temp)) +
+           y = log_pam_percent_change, col=temp)) +
     geom_point() +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("No controls ammonium PERCENT CHANGE Temperature summary") +
   theme(legend.position="none")+
@@ -1125,13 +1212,13 @@ gg_temp_ammonium<-ggplot(data = sum_temp_ammonium,
 gg_temp_ammonium
 
 #summarize by temp and sym state with and without controls
-pam_treatmeans_temp_sym <- summarySE(pam_all_ammonium.data, measurevar=c("pam_percent_change"),groupvars =c("temp", "sym_state"), na.rm=TRUE)
+pam_treatmeans_temp_sym <- summarySE(pam_all_ammonium.data, measurevar=c("log_pam_percent_change"),groupvars =c("temp", "sym_state"), na.rm=TRUE)
 # Visualize
 gg_pam_treatmeans_temp_sym<-ggplot(data = pam_treatmeans_temp_sym,
        aes(x = sym_state,
-           y = pam_percent_change, col=temp)) +
+           y = log_pam_percent_change, col=temp)) +
     geom_point() +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("ammonium PERCENT CHANGE sym state Temperature summary") +
   theme(legend.position="none")+
@@ -1142,13 +1229,13 @@ gg_pam_treatmeans_temp_sym<-ggplot(data = pam_treatmeans_temp_sym,
     scale_color_manual("Temp",labels=c("20", "30"), values=c("blue", "red"))
 gg_pam_treatmeans_temp_sym
 #Let's try this on data without controls
-pam_treatmeans_temp_sym <- summarySE(no_controls, measurevar=c("pam_percent_change"),groupvars =c("temp", "sym_state"), na.rm=TRUE)
+pam_treatmeans_temp_sym <- summarySE(no_controls, measurevar=c("log_pam_percent_change"),groupvars =c("temp", "sym_state"), na.rm=TRUE)
 # Visualize
 gg_pam_treatmeans_temp_sym<-ggplot(data = pam_treatmeans_temp_sym,
        aes(x = sym_state,
-           y = pam_percent_change, col=temp)) +
+           y = log_pam_percent_change, col=temp)) +
     geom_point() +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("No controls ammonium PERCENT CHANGE sym state Temperature summary") +
   theme(legend.position="none")+
@@ -1160,14 +1247,14 @@ gg_pam_treatmeans_temp_sym<-ggplot(data = pam_treatmeans_temp_sym,
 gg_pam_treatmeans_temp_sym
 
 # Summarize by temp and N species dose so we can visualize
-sum_N_species_dose_temp_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "pam_percent_change", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "log_pam_percent_change", groupvars = c("temp","N_species_dose"))
 sum_N_species_dose_temp_ammonium$N_species_dose <- factor(sum_N_species_dose_temp_ammonium$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 # Visualize
 gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
        aes(x = N_species_dose,
-           y = pam_percent_change, col=temp)) +
+           y = log_pam_percent_change, col=temp)) +
     geom_point() +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("Ammonium PERCENT CHANGE Dose and Temperature summary") +
     labs(x = "Ammonium dose", 
@@ -1180,16 +1267,16 @@ gg_N_species_dose_temp_ammonium
 # Separate by sym state - temp x N species dose
 
 # Sym corals
-sum_N_species_dose_temp_ammonium_sym <- summarySE(all_sym, measurevar = "pam_percent_change", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium_sym <- summarySE(all_sym, measurevar = "log_pam_percent_change", groupvars = c("temp","N_species_dose"))
 #its being a hoe and making me re order
 sum_N_species_dose_temp_ammonium_sym$N_species_dose <- factor(sum_N_species_dose_temp_ammonium_sym$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 
 # Visualize
 gg_N_species_dose_temp_ammonium_sym<-ggplot(data = sum_N_species_dose_temp_ammonium_sym,
        aes(x = N_species_dose,
-           y = pam_percent_change, col=temp)) +
+           y = log_pam_percent_change, col=temp)) +
     geom_point() +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("Symbiotic Corals - Ammonium PERCENT CHANGE Dose and Temperature summary") +
     labs(x = "Ammonium dose", 
@@ -1201,14 +1288,14 @@ gg_N_species_dose_temp_ammonium_sym
 
 
 # apo corals
-sum_N_species_dose_temp_ammonium_apo <- summarySE(all_apo, measurevar = "pam_percent_change", groupvars = c("temp","N_species_dose"))
+sum_N_species_dose_temp_ammonium_apo <- summarySE(all_apo, measurevar = "log_pam_percent_change", groupvars = c("temp","N_species_dose"))
 sum_N_species_dose_temp_ammonium_apo$N_species_dose <- factor(sum_N_species_dose_temp_ammonium_apo$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 # Visualize
 gg_N_species_dose_temp_ammonium_apo<-ggplot(data = sum_N_species_dose_temp_ammonium_apo,
        aes(x = N_species_dose,
-           y = pam_percent_change, col=temp)) +
+           y = log_pam_percent_change, col=temp)) +
     geom_point() +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("Aposymbiotic Corals - Ammonium PERCENT CHANGE Dose and Temperature summary") +
     labs(x = "Ammonium dose", 
@@ -1228,14 +1315,14 @@ pam_all_ammonium.data$treat_ID_full<-as.character(pam_all_ammonium.data$treat_ID
 pam_all_ammonium.data$temp <- as.character(pam_all_ammonium.data$temp)
 
 # Summarize by N_species_dose so we can visualize
-sum_N_species_dose_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "pam_percent_change", groupvars = c("N_species_dose"))
+sum_N_species_dose_ammonium <- summarySE(pam_all_ammonium.data, measurevar = "log_pam_percent_change", groupvars = c("N_species_dose"))
 # Visualize
 gg_N_species_dose_ammonium<-ggplot(data = sum_N_species_dose_ammonium,
        aes(x = N_species_dose,
-           y = pam_percent_change, col=N_species_dose)) +
+           y = log_pam_percent_change, col=N_species_dose)) +
     geom_point() +
    ylim(-0.078, 0.015) +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("Ammonium - PERCENT CHANGE N Species Dose summary") +
    theme(legend.position="none")+
@@ -1257,13 +1344,13 @@ gg_N_species_dose_ammonium
 
 # let's do temperature for control vs. nutrient
 
-sum_temp_control_nutrient <- summarySE(pam_all_ammonium.data, measurevar = "pam_percent_change", groupvars = c("temp", "control_or_nutrient"))
+sum_temp_control_nutrient <- summarySE(pam_all_ammonium.data, measurevar = "log_pam_percent_change", groupvars = c("temp", "control_or_nutrient"))
 gg_temp_ammonium<-ggplot(data = sum_temp_control_nutrient,
        aes(x = control_or_nutrient,
-           y = pam_percent_change, col=temp)) +
+           y = log_pam_percent_change, col=temp)) +
     geom_point() +
     ylim(-0.08, 0.07) +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("ammonium with & without control - Temperature summary") +
     labs(x = " ", 
@@ -1274,13 +1361,13 @@ gg_temp_ammonium
 
 #now let's do sym state for control vs. nutrient
 
-sum_sym_state_control_nutrient <- summarySE(pam_percent_change_all_ammonium.data, measurevar = "pam_percent_change", groupvars = c("sym_state", "control_or_nutrient"))
+sum_sym_state_control_nutrient <- summarySE(log_pam_percent_change_all_ammonium.data, measurevar = "log_pam_percent_change", groupvars = c("sym_state", "control_or_nutrient"))
 gg_sym_state_ammonium<-ggplot(data = sum_sym_state_control_nutrient,
        aes(x = control_or_nutrient,
-           y = pam_percent_change, col=sym_state)) +
+           y = log_pam_percent_change, col=sym_state)) +
     geom_point() +
     ylim(-0.0049, -0.0039) +
-    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    geom_errorbar(aes(ymin=log_pam_percent_change-se, ymax=log_pam_percent_change+se), width=0.1, size = 1) +
     #scale_color_manual(values = c("black", "darkgreen")) +
     ggtitle ("ammonium with & without control - Sym state summary") +
     labs(x = " ", 
@@ -1292,19 +1379,19 @@ gg_sym_state_ammonium
 
 
 # STATS STATS STATS
-mm_pam_percent_change_control_v_nutrient <- lmer(pam_percent_change ~  temp + control_or_nutrient + (1 | col_num), data=pam_all_ammonium.data)
-summary(mm_pam_percent_change_control_v_nutrient)
+mm_log_pam_percent_change_control_v_nutrient <- lmer(log_pam_percent_change ~  temp + control_or_nutrient + (1 | col_num), data=pam_all_ammonium.data)
+summary(mm_log_pam_percent_change_control_v_nutrient)
 
 # Summarize by control_or_nutrient * e_coli
-emm_control_v_nutrient=emmeans(mm_pam_percent_change_control_v_nutrient, specs=pairwise ~ control_or_nutrient*e_coli_plate)
+emm_control_v_nutrient=emmeans(mm_log_pam_percent_change_control_v_nutrient, specs=pairwise ~ control_or_nutrient*e_coli_plate)
 summary(emm_control_v_nutrient)
 
 # Summarize by control_or_nutrient * temp
-emm_control_v_nutrient=emmeans(mm_pam_percent_change_control_v_nutrient, specs=pairwise ~ control_or_nutrient*temp)
+emm_control_v_nutrient=emmeans(mm_log_pam_percent_change_control_v_nutrient, specs=pairwise ~ control_or_nutrient*temp)
 summary(emm_control_v_nutrient)
 
 # Summarize by control_or_nutrient * symbiotic state
-emm_control_v_nutrient=emmeans(mm_pam_percent_change_control_v_nutrient, specs=pairwise ~ control_or_nutrient*sym_state)
+emm_control_v_nutrient=emmeans(mm_log_pam_percent_change_control_v_nutrient, specs=pairwise ~ control_or_nutrient*sym_state)
 summary(emm_control_v_nutrient)
 
 

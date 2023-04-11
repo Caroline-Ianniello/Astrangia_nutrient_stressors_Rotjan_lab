@@ -57,27 +57,27 @@ options(max.print=1000000)
 rgb_all_ammonium.data <- read.csv("Master_RGB_Spreadsheet_AMMONIUM_Condensed_Red_1_12_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 rgb_all_ammonium.data <- na.omit(rgb_all_ammonium.data)
 
-#checking for outliers
-grubbs.test(rgb_all_ammonium.data$red_percent_change)
-#alternative hypothesis: lowest value -1.420885292 is an outlier
-rgb_all_ammonium.data<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$red_percent_change!=-1.420885292)
-grubbs.test(rgb_all_ammonium.data$red_percent_change)
-#alternative hypothesis: lowest value -1.107634632 is an outlier
-rgb_all_ammonium.data<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$red_percent_change!= -1.107634632)
-grubbs.test(rgb_all_ammonium.data$red_percent_change)
-#alternative hypothesis: lowest value 1.097664016  is an outlier
-rgb_all_ammonium.data<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$red_percent_change!= 1.097664016 )
-grubbs.test(rgb_all_ammonium.data$red_percent_change)
-#alternative hypothesis: highest value 0.700813991 is an outlier
-rgb_all_ammonium.data<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$red_percent_change!= 0.700813991 )
-grubbs.test(rgb_all_ammonium.data$red_percent_change)
-#alternative hypothesis: highest value 0.668782085 is an outlier
-rgb_all_ammonium.data<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$red_percent_change!= 0.668782085)
-grubbs.test(rgb_all_ammonium.data$red_percent_change)
-#alternative hypothesis: highest value 0.568352691 is an outlier
-rgb_all_ammonium.data<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$red_percent_change!= 0.568352691)
-grubbs.test(rgb_all_ammonium.data$red_percent_change)
-#ALL DONE!
+# #checking for outliers
+# grubbs.test(rgb_all_ammonium.data$red_percent_change)
+# #alternative hypothesis: lowest value -1.420885292 is an outlier
+# rgb_all_ammonium.data<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$red_percent_change!=-1.420885292)
+# grubbs.test(rgb_all_ammonium.data$red_percent_change)
+# #alternative hypothesis: lowest value -1.107634632 is an outlier
+# rgb_all_ammonium.data<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$red_percent_change!= -1.107634632)
+# grubbs.test(rgb_all_ammonium.data$red_percent_change)
+# #alternative hypothesis: lowest value 1.097664016  is an outlier
+# rgb_all_ammonium.data<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$red_percent_change!= 1.097664016 )
+# grubbs.test(rgb_all_ammonium.data$red_percent_change)
+# #alternative hypothesis: highest value 0.700813991 is an outlier
+# rgb_all_ammonium.data<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$red_percent_change!= 0.700813991 )
+# grubbs.test(rgb_all_ammonium.data$red_percent_change)
+# #alternative hypothesis: highest value 0.668782085 is an outlier
+# rgb_all_ammonium.data<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$red_percent_change!= 0.668782085)
+# grubbs.test(rgb_all_ammonium.data$red_percent_change)
+# #alternative hypothesis: highest value 0.568352691 is an outlier
+# rgb_all_ammonium.data<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$red_percent_change!= 0.568352691)
+# grubbs.test(rgb_all_ammonium.data$red_percent_change)
+# #ALL DONE!
 
 #Setting everything I need as factors for linear model and stats
 rgb_all_ammonium.data$N_species<-as.factor(rgb_all_ammonium.data$N_species)
@@ -95,14 +95,50 @@ summary(rgb_all_ammonium.data$temp)
 #lets check for normality in red_percent_change
 hist(rgb_all_ammonium.data$red_percent_change)
 qqnorm(rgb_all_ammonium.data$red_percent_change, main = NULL)
-#looks great, let's continue
+#looks fine, we can continue
 
 hist(rgb_all_ammonium.data$red_delta)
 qqnorm((rgb_all_ammonium.data$red_delta))
-#looks great
+#looks fine, we can continue
+
+#no need for transformations! Yay
 
 ```
 
+
+```{r lets explore whats happening with the outliers}
+
+
+#now visualize
+gg_outliers_check<-
+  ggplot(rgb_all_ammonium.data, aes(x=N_species_dose, y=red_delta, col=col_num)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) + #this overlays the raw data 
+  ylab("Red delta")+
+  xlab("N dose")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+#scale_color_manual("Sym State",labels=c("Apo","Sym"), values=c("darkgray", "brown"))+
+  ggtitle("Red delta by dose - Ammonium")
+gg_outliers_check
+
+gg_outliers_check<-
+  ggplot(rgb_all_ammonium.data, aes(x=N_species_dose, y=red_percent_change, col=sym_state)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) + #this overlays the raw data 
+  ylab("Red percent change")+
+  xlab("N dose")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+      scale_color_manual("Sym State",labels=c("Apo","Sym"), values=c("darkgray", "brown"))+
+  ggtitle("Red percent change - Ammonium")
+gg_outliers_check
+
+
+
+```
 
 ```{r Basic list of subsets}
 # all aposymbiotic
@@ -139,8 +175,9 @@ summary(stepAIC(nullModel, # start with a model containing no variables
 
 summary(fullModel)
 #model it selected for:
-lm_rgb_1 <- lm(formula = red_delta ~1, data = rgb_all_ammonium.data)
+lm_rgb_1 <- lm(formula = red_delta ~ sym_state, data = rgb_all_ammonium.data)
 summary(lm_rgb_1)
+#WINNER
 
 #lets check out some other models
 lm_rgb_2 <- lm(formula = red_delta ~ sym_state + N_species_dose, data = rgb_all_ammonium.data)
@@ -149,8 +186,7 @@ summary(lm_rgb_2)
 lm_rgb_3 <- lm(formula = red_delta ~ temp*N_species_dose , data = rgb_all_ammonium.data)
 summary(lm_rgb_3)
 summary(emmeans(lm_rgb_3, pairwise ~ N_species_dose*temp))
-#interaction of temp at A10?
-#WINNER OUT OF ALL COMBINATIONS
+
 lm_rgb_4 <- lm(formula = red_delta ~  N_species_dose + temp + N_species_dose*temp, data = rgb_all_ammonium.data)
 summary(lm_rgb_4)
 #nothing going on
@@ -160,7 +196,10 @@ summary(lm_rgb_5)
 AIC(lm_rgb_1, lm_rgb_2, lm_rgb_3, lm_rgb_4, lm_rgb_5)
 
 
-
+#control or nutrient
+summary(aov_temp<-aov(red_delta ~ control_or_nutrient, data=rgb_all_ammonium.data))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
 
 plot_model(lm_rgb_1, type="diag") #data fitness looks decent
 r2(lm_rgb_3)
@@ -184,19 +223,20 @@ summary(fullModel)
 lm_sym_1 <- lm(red_delta ~  1, data= all_sym)
 
 #lets see if we add the N_species_dose  what happens
-lm_sym_2 <- lm(red_delta ~  N_species_dose + temp, data= all_sym)
+lm_sym_2 <- lm(red_delta ~  N_species_dose + temp + N_species_dose*temp, data= all_sym)
 summary(lm_sym_2)
-#nope
+
+lm_sym_3 <- lm(red_delta ~  N_species_dose*temp , data= all_sym)
+summary(lm_sym_3)
 
 
-AIC(lm_sym_1, lm_sym_2)
+AIC(lm_sym_1, lm_sym_2, lm_sym_3)
 
-emm_sym_rgb_N_species_dose_temp=emmeans(lm_sym_2, specs=pairwise ~ N_species_dose)
+#1 wins the AIC score, but 3 is interesting so lets go with that
+
+emm_sym_rgb_N_species_dose_temp=emmeans(lm_sym_3, specs=pairwise ~ N_species_dose*temp)
 summary(emm_sym_rgb_N_species_dose_temp)
 
-#really no effect of dose or sym state
-
-#graph sym only by N species dose and temperature
 
 # Summarize by temp and N species dose so we can visualize
 sum_N_species_dose_temp_ammonium <- summarySE(all_sym, measurevar = "red_delta", groupvars = c("temp","N_species_dose"))
@@ -222,17 +262,21 @@ summary(aov_temp<-aov(red_delta ~ temp, data=all_sym))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ temp))
 
-#ptemp=0.511
+#ptemp=0.548
 
 summary(aov_temp<-aov(red_delta ~ N_species_dose, data=all_sym))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
 
-#pdose=0.2015
+#pdose=0.75
   
 summary(aov_temp<-aov(red_delta ~ N_species_dose*temp, data=all_sym))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
+
+summary(aov_temp<-aov(red_delta ~ control_or_nutrient, data=all_sym))
+Anova(aov_temp, type="III")
+
   
 ```
 
@@ -256,8 +300,15 @@ summary(lm_apo_1)
 lm_apo_2 <- lm(formula = red_delta ~ N_species_dose, data = all_apo)
 summary(lm_apo_2)
 
+lm_apo_3 <- lm(formula = red_delta ~ N_species_dose*temp, data = all_apo)
+summary(lm_apo_3)
+
+AIC(lm_apo_1, lm_apo_2)
+
+#1 is better but not by much so lets go with 2
+
 #posthocs
-emm_apo_N_species_dose=emmeans(lm_apo_2, specs=pairwise ~ N_species_dose)
+emm_apo_N_species_dose=emmeans(lm_apo_3, specs=pairwise ~ N_species_dose*temp)
 summary(emm_apo_N_species_dose)
 # nothing really going on
 
@@ -285,17 +336,20 @@ summary(aov_temp<-aov(red_delta ~ temp, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ temp))
 
-#ptemp=0.356
+#ptemp=0.255
 
 summary(aov_temp<-aov(red_delta ~ N_species_dose, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
 
-#pdose=0.144
+#pdose=0.1775
 
 summary(aov_temp<-aov(red_delta ~ N_species_dose*temp, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
+
+summary(aov_temp<-aov(red_delta ~ control_or_nutrient, data=all_apo))
+Anova(aov_temp, type="III")
 ```
 
 #PERCENT CHANGE models
@@ -315,10 +369,9 @@ summary(stepAIC(nullModel, # start with a model containing no variables
 
 summary(fullModel)
 #model it selected for:
-lm_rgb_0 <- lm(formula = red_percent_change ~ 1, data = rgb_all_ammonium.data)
+lm_rgb_0 <- lm(formula = red_percent_change ~ sym_state, data = rgb_all_ammonium.data)
 summary(lm_rgb_0)
-#trying another model because results were marginally siglm_rgb_1 <- lm(formula = red_percent_change ~ N_species_dose + sym_state, data = rgb_all_ammonium.data)
-summary(lm_rgb_1)
+
 lm_rgb_1 <- lm(formula = red_percent_change ~ N_species_dose + sym_state, data = rgb_all_ammonium.data)
 summary(lm_rgb_1)
 
@@ -329,13 +382,17 @@ summary(lm_rgb_1a)
 lm_rgb_2 <- lm(formula = red_percent_change ~ sym_state + temp + N_species_dose, data = rgb_all_ammonium.data)
 summary(lm_rgb_2)
 
-AIC(lm_rgb_1, lm_rgb_1a, lm_rgb_2)
+AIC(lm_rgb_0, lm_rgb_1, lm_rgb_1a, lm_rgb_2)
 
 #linear model 1 is the winner here
 
 
 plot_model(lm_rgb_1, type="diag") #data fitness looks decent
 r2(lm_rgb_1)
+
+#control or nutrient
+summary(aov_temp<-aov(red_percent_change ~ control_or_nutrient, data=rgb_all_ammonium.data))
+Anova(aov_temp, type="III")
 
 ```
 
@@ -356,14 +413,15 @@ summary(fullModel)
 lm_sym_1 <- lm(red_percent_change ~  1, data= all_sym)
 
 #lets see if we add the N_species_dose  what happens
-lm_sym_2 <- lm(red_percent_change ~  N_species_dose + temp, data= all_sym)
+lm_sym_2 <- lm(red_percent_change ~  N_species_dose + temp + N_species_dose*temp, data= all_sym)
 summary(lm_sym_2)
 #Higher AIC, but lets make it the WINNER because theres something sig going on
+lm_sym_3 <- lm(red_percent_change ~  N_species_dose*temp, data= all_sym)
+summary(lm_sym_3)
 
+AIC(lm_sym_1, lm_sym_2, lm_sym_3)
 
-AIC(lm_sym_1, lm_sym_2)
-
-emm_sym_rgb_N_species_dose_temp=emmeans(lm_sym_2, specs=pairwise ~ N_species_dose)
+emm_sym_rgb_N_species_dose_temp=emmeans(lm_sym_2, specs=pairwise ~ N_species_dose*temp)
 summary(emm_sym_rgb_N_species_dose_temp)
 
 
@@ -394,13 +452,21 @@ summary(aov_temp<-aov(red_percent_change ~ temp, data=all_sym))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ temp))
 
-#ptemp=0.4079
+#ptemp=0.62
 
 summary(aov_temp<-aov(red_percent_change ~ N_species_dose, data=all_sym))
 Anova(aov_temp, type="III")
-summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
 
-#pdose=0.1348  
+#pdose=0.789 
+
+summary(aov_temp<-aov(red_percent_change ~ N_species_dose*temp, data=all_sym))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
+
+
+summary(aov_temp<-aov(red_percent_change ~ control_or_nutrient, data=all_sym))
+Anova(aov_temp, type="III")
+
   
 #food for funsies
 summary(aov_food<-aov(red_percent_change ~ food, data=all_sym))
@@ -431,7 +497,11 @@ summary(lm_apo_0)
 #looking at other combos
 lm_apo_1 <- lm(formula = red_percent_change ~ N_species_dose, data = all_apo)
 summary(lm_apo_1)
-#rip I really dont think anything is going on
+
+AIC(lm_apo_0, lm_apo_1)
+
+#close enough but 1 has more going on so lets use it
+
 
 #posthocs
 emm_apo_N_species_dose=emmeans(lm_apo_1, specs=pairwise ~ N_species_dose)
@@ -453,7 +523,7 @@ gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
     labs(x = "ammonium dose", 
          y = expression(paste("Change in Red channel value")), 
          caption = "data represent mean +/- SEM" ) +
-    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_x_discrete("ammonium dose", labels=c(A_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
     scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
 gg_N_species_dose_temp_ammonium
 
@@ -462,21 +532,21 @@ summary(aov_temp<-aov(red_percent_change ~ temp, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ temp))
 
-#ptemp=0.4368
+#ptemp=0.34
 
 summary(aov_temp<-aov(red_percent_change ~ N_species_dose, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
 
-#pdose=0.04
+#pdose=0.209
 
 summary(aov_temp<-aov(red_percent_change ~ N_species_dose*temp, data=all_apo))
 Anova(aov_temp, type="III")
 summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
 
-#pdose=0.04
-
-
+summary(aov_temp<-aov(red_percent_change ~control_or_nutrient, data=all_apo))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
 ```
 
 
