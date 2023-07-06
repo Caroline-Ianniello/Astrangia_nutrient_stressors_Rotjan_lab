@@ -51,34 +51,42 @@ env_chamber_HOBO$date<-as.factor(env_chamber_HOBO$date)
 # its okay to omit rows with NAs
 env_chamber_HOBO<-na.omit(env_chamber_HOBO)
 
+
 temperate_HOBO <- read.csv("Temperate_System_Rotjan_Lab_9_5_22.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 temperate_HOBO$date<-as.factor(temperate_HOBO$date)
 # its okay to omit rows with NAs
 temperate_HOBO<-na.omit(temperate_HOBO)
+
+
 ```
 
-```{r subset sum_experiment two which was run Aug 4 through Aug 15}
+```{r subset sum_experiment 2A which was run Aug 4 through Aug 15}
 
-#ENVIRONMENTAL CHAMBER
+#ENVIRONMENTAL CHAMBER EXP 2A
 #selecting data by row (a condition for a column)
 env_chamber_HOBO_exp_2<- env_chamber_HOBO[env_chamber_HOBO$date  %in% c("8/4/2022", "8/5/2022", "8/6/2022", "8/7/2022", "8/8/2022", "8/9/2022", "8/10/2022", "8/11/2022", "8/12/2022", "8/13/2022", "8/14/2022", "8/15/2022"),] #the comma is important at the end here, tells R that we are looking at ROWs not entire columns
 
 #now R is stupid so we have to make sure the factor has the right levels in order
 env_chamber_HOBO_exp_2$date <- factor(env_chamber_HOBO_exp_2$date, levels=c("8/4/2022", "8/5/2022", "8/6/2022", "8/7/2022", "8/8/2022", "8/9/2022", "8/10/2022", "8/11/2022", "8/12/2022", "8/13/2022", "8/14/2022", "8/15/2022"))
 
-#TEMEPERATE
+#TEMEPERATE EXP 2A
 #selecting data by row (a condition for a column)
 temperate_HOBO_exp_2<- temperate_HOBO[temperate_HOBO$date  %in% c("8/4/2022", "8/5/2022", "8/6/2022", "8/7/2022", "8/8/2022", "8/9/2022", "8/10/2022", "8/11/2022", "8/12/2022", "8/13/2022", "8/14/2022", "8/15/2022"),] #the comma is important at the end here, tells R that we are looking at ROWs not entire columns
 
 #now R is stupid so we have to make sure the factor has the right levels in order
 temperate_HOBO_exp_2$date <- factor(temperate_HOBO_exp_2$date, levels=c("8/4/2022", "8/5/2022", "8/6/2022", "8/7/2022", "8/8/2022", "8/9/2022", "8/10/2022", "8/11/2022", "8/12/2022", "8/13/2022", "8/14/2022", "8/15/2022"))
 
+min(temperate_HOBO_exp_2$temp)
+max(temperate_HOBO_exp_2$temp)
+
+min(env_chamber_HOBO_exp_2$temp)
+max(env_chamber_HOBO_exp_2$temp)
 
 ```
 
 
 
-```{r ENVIRONMENTAL CHAMBER GRAPH for experiment 2}
+```{r ENVIRONMENTAL CHAMBER GRAPH for experiment 2 run A}
 
 sum_temp_byday_env_chamber <- summarySE(env_chamber_HOBO_exp_2, measurevar = "temp", groupvars = c("date"))
 # Visualize
@@ -102,6 +110,8 @@ gg_env_chamber<-ggplot(data = sum_temp_byday_env_chamber,
          caption = "data represent mean +/- SEM" ) +
     theme_classic()
 gg_env_chamber
+
+min(env_chamber_HOBO)
 ```
 
 ```{r TEMPERATE GRAPH for experiment 2}
@@ -195,6 +205,8 @@ summary(aov_temperate_HOBO<-aov(temp ~ exp_num, data= temperate_HOBO))
 TukeyHSD(aov_temperate_HOBO, "exp_num")
 #there IS a difference between experimental runs
 
+#lets look at the min and max
+summary(all_HOBO$chamber_or_temperate)
 ```
 
 ```{r}
@@ -353,5 +365,92 @@ gg_chamber_by_subrun <- ggplot(NULL,
     labs(colour=" ", x="Experimental Run", y="Temperature °C")  +
    scale_color_manual("Experimental Subrun", values=c("hotpink4", "hotpink","plum4", "purple4", "lightsteelblue3", "steelblue3"))
 gg_chamber_by_subrun 
+```
+
+
+```{r summarize by treatment overall}
+#all data by experimental number
+sum_temp <- summarySE(all_HOBO, measurevar = "temp", groupvars = c("chamber_or_temperate"))
+gg_temp<-ggplot(data = sum_temp,
+       aes(x = chamber_or_temperate,
+           y = temp, col=chamber_or_temperate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=temp-se, ymax=temp+se), width=0.1, size = 1) +
+    ggtitle ("All data") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    scale_color_manual("Treatment", labels=c("Chamber","Temperate"), values=c("darkred", "royalblue")) +
+    labs(x = "Treatment", 
+         y = expression(paste("Temperature (C)")), 
+         caption = "data represent mean +/- SEM" ) 
+gg_temp
+```
+
+```{r Day averaged over all experiments}
+all_HOBO_by_day<- read.csv("HOBO_all_by_day_4_7_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+all_HOBO_by_day <- na.omit(all_HOBO_by_day)
+all_HOBO_by_day$exp_day <- as.factor(all_HOBO_by_day$exp_day)
+
+#subset so we can make the geomlines 
+all_HOBO_by_day_chamber <- subset(all_HOBO_by_day, all_HOBO_by_day$chamber_or_temperate=="chamber")
+sum_temp_by_run_chamber <- summarySE(all_HOBO_by_day_chamber, measurevar = "temp", groupvars = c("exp_day"))
+all_HOBO_by_day_temperate <- subset(all_HOBO_by_day, all_HOBO_by_day$chamber_or_temperate=="temperate")
+sum_temp_by_run_temperate <- summarySE(all_HOBO_by_day_temperate, measurevar = "temp", groupvars = c("exp_day"))
+
+#all data averaged over day of experiment
+sum_temp_by_run <- summarySE(all_HOBO_by_day, measurevar = "temp", groupvars = c("exp_day", "chamber_or_temperate"))
+gg_by_run<-ggplot(NULL, 
+                        aes(x = exp_day,
+           y = temp, group=1))+
+  theme(legend.position = "top",
+          legend.text= element_text(size=13),
+          legend.background = element_blank())+
+    ggtitle ("All temperature, averaged across experiments per data by experiment day") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          axis.text = element_text(size = 12)) +
+        geom_point(data = sum_temp_by_run_chamber, size=4, aes(color="30°C Heat Challenge")) +
+      geom_point(data = sum_temp_by_run_temperate, size=4, aes(color="20°C Ambient"))+
+    scale_color_manual("Treatment", labels=c("20°C Ambient","30°C Heat Challenge"), values=c("royalblue", "darkred")) +
+   ylim(18, 30) +
+  # scale_y_discrete(c("19","20","21","22","23","24","25","26","27","28","29","30","31")) +
+  # geom_point(data = sum_temp_by_run_chamber, size=4, color="darkred") +
+     # geom_point(data = sum_temp_by_run_temperate, size=4, color="royalblue")+
+     geom_line(data=sum_temp_by_run_chamber, color='darkred', linewidth=1) + 
+      geom_line(data=sum_temp_by_run_temperate, color='royalblue', linewidth=1) +
+     geom_errorbar(data=sum_temp_by_run_chamber, aes(ymin=temp-se, ymax=temp+se), width=0.5, size = 1, color="darkred") +
+     geom_errorbar(data=sum_temp_by_run_temperate, aes(ymin=temp-se, ymax=temp+se), width=0.5, size = 1, color="royalblue") +
+    labs(x = "Day of experiment", 
+         y = expression(paste("Temperature (°C)")), 
+         caption = "data represent mean +/- SEM" ) 
+gg_by_run
+
+#Overall difference between chamber and temperate system temperature, averaged by day over all experiments
+summary(aov(all_HOBO_by_day$temp ~ all_HOBO_by_day$chamber_or_temperate ))
+# p = <0.0000000000000002 ***
+
+#Min and Max
+min(all_HOBO_by_day_temperate$temp)
+#19.567
+max(all_HOBO_by_day_temperate$temp)
+#25.125
+#janky ass temperate system
+
+min(all_HOBO_by_day_chamber$temp)
+#23.677
+max(all_HOBO_by_day_chamber $temp)
+#30.963
+
+
+sum_temp_by_chamber_by_run <- summarySE(all_HOBO_by_day, measurevar = "temp", groupvars = c("chamber_or_temperate"))
+
+
 ```
 

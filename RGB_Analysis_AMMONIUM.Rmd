@@ -111,21 +111,23 @@ qqnorm((rgb_all_ammonium.data$red_delta))
 
 #now visualize
 gg_outliers_check<-
-  ggplot(rgb_all_ammonium.data, aes(x=N_species_dose, y=red_delta, col=col_num)) +
-  geom_boxplot(width=0.8) +
+  ggplot(rgb_all_ammonium.data, aes(x=N_species_dose, y=red_delta, col=sym_state)) +
+  geom_boxplot(width=0.8, outlier.shape = NA) +
   geom_jitter(width=0.15, alpha=0.9) + #this overlays the raw data 
   ylab("Red delta")+
   xlab("N dose")+
   theme(legend.position="none", plot.title = element_text(size = 9)) +
   theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
  annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+        scale_color_manual("Sym State",labels=c("Apo","Sym"), values=c("darkgray", "brown"))+
 #scale_color_manual("Sym State",labels=c("Apo","Sym"), values=c("darkgray", "brown"))+
   ggtitle("Red delta by dose - Ammonium")
 gg_outliers_check
 
+
 gg_outliers_check<-
   ggplot(rgb_all_ammonium.data, aes(x=N_species_dose, y=red_percent_change, col=sym_state)) +
-  geom_boxplot(width=0.8) +
+  geom_boxplot(width=0.8, outlier.shape = NA) +
   geom_jitter(width=0.15, alpha=0.9) + #this overlays the raw data 
   ylab("Red percent change")+
   xlab("N dose")+

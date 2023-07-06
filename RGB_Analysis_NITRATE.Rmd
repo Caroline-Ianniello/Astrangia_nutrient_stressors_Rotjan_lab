@@ -102,7 +102,7 @@ qqnorm(rgb_all_nitrate.data$red_percent_change, main = NULL)
 #now visualize
 gg_outliers_check<-
   ggplot(rgb_all_nitrate.data, aes(x=N_species_dose, y=red_delta, col=sym_state)) +
-  geom_boxplot(width=0.8) +
+  geom_boxplot(width=0.8, outlier.shape = NA) +
   geom_jitter(width=0.15, alpha=0.9) + #this overlays the raw data 
   ylab("Red delta")+
   xlab("N dose")+
@@ -115,7 +115,7 @@ gg_outliers_check
 
 gg_outliers_check<-
   ggplot(rgb_all_nitrate.data, aes(x=N_species_dose, y=red_percent_change, col=sym_state)) +
-  geom_boxplot(width=0.8) +
+  geom_boxplot(width=0.8, outlier.shape = NA) +
   geom_jitter(width=0.15, alpha=0.9) + #this overlays the raw data 
   ylab("Red percent change")+
   xlab("N dose")+

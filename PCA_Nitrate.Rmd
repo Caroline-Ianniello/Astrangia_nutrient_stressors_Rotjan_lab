@@ -47,6 +47,11 @@ library(corrplot)
 library(cowplot)
 #install.packages("vegan")
 library(vegan)
+#install.packages("devtools")
+#install.packages("htmltools")
+library(devtools)
+#install_github("fawda123/ggord")
+library(ggord)
 
 
 #increase the number of results it will show
@@ -67,20 +72,144 @@ nitrate_all_data <- subset(nitrate_all_data, select = -c(beetag_exprun) )
 nitrate_all_data <-  na.omit(nitrate_all_data)
 ```
 
-```{r Lets graph some relationships between variables}
 
-gg_1<-ggplot(data = nitrate_all_data, #the data is the dataframe it will pull from
-       aes(x = PAM_delta,
-           y = red_delta, col="black")) + #col= tells it how you want the colors to be categorized
-    geom_point() + #you want points
-    ggtitle ("Nitrate - Relationship between PAM delta and red delta") + #title for the plot
-   theme(legend.position="none")+ #this turns off the legend
-    labs(x = "PAM delta", 
-         y = expression(paste("Red Delta")))  #x and y labels
-gg_1
+```{r Pretty PCAs of all independent variables}
+# Using ggord package to make PCAs
+ord_nitrate <- PCA(nitrate_all_data[, 1:3], graph = FALSE)
+
+#PCA by symbiotic state
+pca_sym_state <- ggord(ord_nitrate, nitrate_all_data$sym_state)
+pca_sym_state
+
+#PCA by dose
+nitrate_all_data$dose<-as.character(nitrate_all_data$dose)
+pca_dose <- ggord(ord_nitrate, nitrate_all_data$dose)
+pca_dose
+
+#PCA by temperature
+nitrate_all_data$temp<-as.character(nitrate_all_data$temp)
+pca_temp <- ggord(ord_nitrate, nitrate_all_data$temp)
+pca_temp
+
+#PCA by treatment ID
+pca_treat_ID <- ggord(ord_nitrate, nitrate_all_data$treat_ID)
+pca_treat_ID
+
 ```
 
-```{r PCA on ALL DATA}
+
+```{r E. coli data PCAs}
+#subset data that was treated with E. coli
+nitrate_all_ecoli <- subset(nitrate_all_data, nitrate_all_data$e_coli_plate==1)
+
+# Using ggord package to make PCAs
+ord_nitrate <- PCA(nitrate_all_ecoli[, 1:3], graph = FALSE)
+
+#PCA by symbiotic state
+pca_sym_state_ecoli <- ggord(ord_nitrate, nitrate_all_ecoli$sym_state)
+pca_sym_state_ecoli 
+
+#PCA by dose
+nitrate_all_ecoli$dose<-as.character(nitrate_all_ecoli$dose)
+pca_dose_ecoli  <- ggord(ord_nitrate, nitrate_all_ecoli$dose)
+pca_dose_ecoli 
+
+#PCA by temperature
+nitrate_all_ecoli$temp<-as.character(nitrate_all_ecoli$temp)
+pca_temp_ecoli  <- ggord(ord_nitrate, nitrate_all_ecoli$temp)
+pca_temp_ecoli 
+
+#PCA by treatment ID
+pca_treat_ID_ecoli  <- ggord(ord_nitrate, nitrate_all_ecoli$treat_ID)
+pca_treat_ID_ecoli 
+
+
+```
+
+```{r}
+#subset data that was treated with E. coli
+nitrate_all_no_ecoli <- subset(nitrate_all_data, nitrate_all_data$e_coli_plate==0)
+
+# Using ggord package to make PCAs
+ord_nitrate <- PCA(nitrate_all_no_ecoli[, 1:3], graph = FALSE)
+
+#PCA by symbiotic state
+pca_sym_state_no_ecoli <- ggord(ord_nitrate, nitrate_all_no_ecoli$sym_state)
+pca_sym_state_no_ecoli 
+
+#PCA by dose
+nitrate_all_no_ecoli$dose<-as.character(nitrate_all_no_ecoli$dose)
+pca_dose_no_ecoli  <- ggord(ord_nitrate, nitrate_all_no_ecoli$dose)
+pca_dose_no_ecoli 
+
+#PCA by temperature
+nitrate_all_no_ecoli$temp<-as.character(nitrate_all_no_ecoli$temp)
+pca_temp_no_ecoli  <- ggord(ord_nitrate, nitrate_all_no_ecoli$temp)
+pca_temp_no_ecoli 
+
+#PCA by treatment ID
+pca_treat_ID_no_ecoli  <- ggord(ord_nitrate, nitrate_all_no_ecoli$treat_ID)
+pca_treat_ID_no_ecoli 
+
+```
+
+
+```{r Pretty PCAs of SYMBIONT HEALTH VARIABLES}
+# Using ggord package to make PCAs
+ord_nitrate_symbiont <- PCA(nitrate_all_data[, 2:3], graph = FALSE)
+
+#PCA by symbiotic state
+pca_sym_state_symbiont <- ggord(ord_nitrate_symbiont, nitrate_all_data$sym_state)
+pca_sym_state_symbiont
+
+#PCA by dose
+nitrate_all_data$dose<-as.character(nitrate_all_data$dose)
+pca_dose_symbiont <- ggord(ord_nitrate_symbiont, nitrate_all_data$dose)
+pca_dose_symbiont
+
+#PCA by temperature
+nitrate_all_data$temp<-as.character(nitrate_all_data$temp)
+pca_temp_symbiont <- ggord(ord_nitrate_symbiont, nitrate_all_data$temp)
+pca_temp_symbiont
+
+#PCA by treatment ID
+pca_treat_ID_symbiont <- ggord(ord_nitrate_symbiont, nitrate_all_data$treat_ID)
+pca_treat_ID_symbiont
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+###########################################################
+
+
+
+
+
+```{r FactoMineR PCA on ALL DATA}
 # We are going to use the factominer package
 #In order to visualize elipses we want everything to be a factor so lets just make everything a factor? lol
 nitrate_all_data$dose <- as.factor(nitrate_all_data$dose)

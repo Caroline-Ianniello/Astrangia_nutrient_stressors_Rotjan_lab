@@ -51,7 +51,7 @@ options(max.print = 10000)
 ```{r Set working directory and upload data}
 #opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox/N_Ecotox_Chapter_2_ANALYSIS/Astrangia_nutrient_stressors_Rotjan_lab")
 #getwd()
-resp_all.data <- read.csv("RESP_ALL_SUMMARY_cleaned_dead_and_broken_outlierG28Y65_deleted_2_17_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+resp_all.data <- read.csv("RESP_ALL_SUMMARY_ALL_cleaned_dead_and_broken_outlierG28Y65_deleted_2_17_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 resp_all.data<-na.omit(resp_all.data)
 
 
@@ -145,6 +145,28 @@ t.test(control_all_30$resp_rate, N_18_30_e_coli$resp_rate)
 #Linear models
 
 ```{r linear models - ALL DATA}
+
+#stepAIC is from the MASS package
+fullModel = lm(resp_rate ~   N_species_dose + temp + sym_state + e_coli_plate + N_species_dose*temp + N_species_dose*sym_state + N_species_dose*e_coli_plate  + temp*sym_state + temp*e_coli_plate + sym_state*e_coli_plate, data= resp_all.data) # model with all 9 variables and possible combinations
+
+nullModel = lm(resp_rate ~  1, data= resp_all.data) # model with the intercept only
+
+summary(stepAIC(nullModel, # start with a model containing no variables
+                direction = 'forward', # run forward selection
+                scope = list(upper = fullModel, # the maximum to consider is a model with all variables
+                             lower = nullModel), # the minimum to consider is a model with no variables
+                trace = 1)) # do not show the step-by-step process of model selection
+resp_all.data$N_species_dose<-as.factor(resp_all.data$N_species_dose)
+resp_all.data$N_species_dose <- factor(resp_all.data$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5", "A_10", "N_1.5", "N_5","N_18"))
+
+lm_test<- lm(formula = resp_rate ~ N_species_dose + temp + e_coli_plate + 
+    sym_state, data = resp_all.data)
+summary(lm_test)
+elm_test=emmeans(lm_test, specs=pairwise ~ e_coli_plate*temp)
+summary(elm_test)
+
+
+
 mm_resp_null <- lmer(resp_rate ~ 1 + (1|vial_ID) + (1|col_num) + (1|exp_num) +(1|exp_subrun) +(1|jar_unique_ID) + (1|resp_run) , data= resp_all.data)
 summary(mm_resp_null)
 #that null looks good

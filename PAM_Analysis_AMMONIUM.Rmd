@@ -1,6 +1,8 @@
 ---
 title: "PAM data AMMONIUM: last updated 12/9/22 C. Fleming"
 output: html_notebook
+editor_options: 
+  chunk_output_type: inline
 ---
 
 # AMMONIUM ONLY
@@ -57,7 +59,7 @@ options(max.print=1000000)
 
 
 ```{r Inputting data & making sure everything is organized correctly}
-pam_all_ammonium.data <- read.csv("PAM_ammonium_only_4_4_23_dead_deleted.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+pam_all_ammonium.data <- read.csv("PAM_ammonium_only_4_19_23_dead_deleted_random_controls.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 
 pam_all_ammonium.data <- na.omit(pam_all_ammonium.data)
 
@@ -77,80 +79,12 @@ pam_all_ammonium.data$temp<-as.factor(pam_all_ammonium.data$temp)
 pam_all_ammonium.data$food<-as.factor(pam_all_ammonium.data$food)
 pam_all_ammonium.data$sym_state<-as.character(pam_all_ammonium.data$sym_state)
 pam_all_ammonium.data$food_sym_state<-as.factor(pam_all_ammonium.data$food_sym_state)
-pam_all_ammonium.data$N_species_dosee <- factor(pam_all_ammonium.data$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+pam_all_ammonium.data$N_species_dose <- factor(pam_all_ammonium.data$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 pam_all_ammonium.data$control_or_nutrient<-as.factor(pam_all_ammonium.data$control_or_nutrient)
 pam_all_ammonium.data$log_pam_percent_change<-as.numeric(pam_all_ammonium.data$log_pam_percent_change)
 summary(pam_all_ammonium.data$temp)
-
-# #Lets get rid of outliers (THISLL TAKE A WHILE GODDAMN)
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value 15.61290323 is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!=15.61290323 )
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value 11.26829268 is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!=11.26829268 )
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value 8.7608695 is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 8.7608695)
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value 8.760869565  is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 8.760869565 )
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value 6.083333333 is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 6.083333333)
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value 4.833333333  is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 4.833333333 )
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value 4.75308642 is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 4.75308642)
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value 3.678571429  is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 3.678571429)
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value  3.672727273 is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 3.672727273)
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value 3.343434343  is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 3.343434343)
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value 3.320512821  is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 3.320512821)
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value  3.302325581 is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 3.302325581)
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value 3.158333333   is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 3.158333333 )
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value  3.126126126 is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 3.126126126)
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value  2.970588235 is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 2.970588235)
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value 2.653846154  is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 2.653846154)
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value  2.601851852 is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 2.601851852)
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value  2.391666667 is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 2.391666667)
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value  2.090909091 is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 2.090909091)
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value  2.053333333  is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 2.053333333 )
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value  2.032258065  is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 2.032258065 )
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# #highest value 2.013071895  is an outlier
-# pam_all_ammonium.data<-subset(pam_all_ammonium.data, pam_all_ammonium.data$log_pam_percent_change!= 2.013071895)
-# grubbs.test(pam_all_ammonium.data$log_pam_percent_change) 
-# # DONE! YAY
+pam_all_ammonium.data$pam_percent_change<-as.numeric(pam_all_ammonium.data$pam_percent_change)
+summary(pam_all_ammonium.data$temp)
 
 #lets check for normality in pam_delta
 hist(pam_all_ammonium.data$PAM_delta)
@@ -195,9 +129,9 @@ gg_outliers_check<-
   ggtitle("PAM delta by dose - Ammonium")
 gg_outliers_check
 
-gg_outliers_check<-
-  ggplot(pam_all_ammonium.data, aes(x=N_species_dose, y=log_pam_percent_change, col=sym_state)) +
-  geom_boxplot(width=0.8) +
+gg_delta_outliers_check<-
+  ggplot(pam_all_ammonium.data, aes(x=N_species_dose, y=pam_percent_change, col=sym_state)) +
+  geom_boxplot(width=0.8, outlier.shape = NA) +
   geom_jitter(width=0.15, alpha=0.9) + #this overlays the raw data 
   ylab("PAM percent change")+
   xlab("N dose")+
@@ -206,11 +140,11 @@ gg_outliers_check<-
  annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
       scale_color_manual("Sym State",labels=c("Apo","Sym"), values=c("darkgray", "brown"))+
   ggtitle("PAM percent change - Ammonium")
-gg_outliers_check
+gg_delta_outliers_check
 
 gg_delta_outliers_check<-
   ggplot(pam_all_ammonium.data, aes(x=N_species_dose, y=PAM_delta, col=sym_state)) +
-  geom_boxplot(width=0.8) +
+  geom_boxplot(width=0.8, outlier.shape = NA) +
   geom_jitter(width=0.15, alpha=0.9) + #this overlays the raw data 
   ylab("PAM percent change")+
   xlab("N dose")+
@@ -218,7 +152,7 @@ gg_delta_outliers_check<-
   theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
  annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
       scale_color_manual("Sym State",labels=c("Apo","Sym"), values=c("darkgray", "brown"))+
-  ggtitle("PAM percent change - Ammonium")
+  ggtitle("PAM delta - Ammonium")
 gg_delta_outliers_check
 
 
@@ -242,206 +176,63 @@ all_30<-subset(pam_all_ammonium.data, pam_all_ammonium.data$temp=="30")
 #without controls
 no_controls <- subset(pam_all_ammonium.data, pam_all_ammonium.data$N_dose!=0)
 ```
+#DELTA visuals (no transformation)
 
-```{r t tests for fun}
+```{r delta visuals}
+#delta graph by dose by sym state
+pam_treatmeans_apovsym <- summarySE(pam_all_ammonium.data, measurevar = "PAM_delta", groupvars = c("sym_state","N_species_dose"))
+pam_treatmeans_apovsym$N_species_dose <- factor(pam_treatmeans_apovsym$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10")) 
+gg_pam_plot_apovsym <- ggplot(pam_treatmeans_apovsym, aes(x = N_species_dose, y= c(PAM_delta), color = sym_state))+
+   geom_jitter(data= pam_all_ammonium.data, aes(x=N_species_dose, y=PAM_delta, color=sym_state), alpha=0.3) +
+  geom_point() +
+  geom_errorbar(aes(x = N_species_dose, ymax = PAM_delta+se, ymin = PAM_delta-se), size=1, width = .4) +
+ ylab("Change in Fv/Fm")+
+  ggtitle("ammonium Δ Fv/Fm")+
+  scale_x_discrete("Dose", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
+    scale_color_manual("Sym state", labels=c(A="Aposymbiotic", S="Symbiotic"), values=c("gray38", "brown")) #gives you the colors for each point on the graph
+gg_pam_plot_apovsym
+
+pam_all_treats <- summarySE(pam_all_ammonium.data, measurevar = "PAM_delta", groupvars = c("treat_ID_without_food"))
+gg_pam_all_treats <- ggplot(pam_all_treats, 
+      aes(x = treat_ID_without_food, y= c(PAM_delta), 
+      color = treat_ID_without_food))+
+      geom_jitter(data= pam_all_ammonium.data, aes(x=treat_ID_without_food,
+      y=PAM_delta, color=sym_state), alpha=0.3) +
+      geom_point() +
+      geom_errorbar(aes(x = treat_ID_without_food, ymax = PAM_delta+se,
+      ymin = PAM_delta-se), size=1, width = .4) +
+      ylab("Change in Fv/Fm")+
+      ggtitle("ammonium Δ Fv/Fm")+
+      scale_x_discrete("Dose", labels=c(A="Aposymbiotic", S="Symbiotic")) + 
+  theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1)) #this makes the x axis labels up and down instead of side to side to prevent overlapping
+gg_pam_all_treats
+
+
+
 
 ```
-
 
 #DELTA models
-```{r DELTA Model selection }
-#were not going to look at genetic ID so let's do an lm
+```{r lmer delta model selection 7.5.23}
 
-#stepAIC is from the MASS package
-fullModel = lm(PAM_delta ~   N_species_dose + temp + sym_state  + N_species_dose*temp + N_species_dose*sym_state + temp*sym_state, data= pam_all_ammonium.data) # model with all variables and possible combinations
+full.model <- lmer(PAM_delta ~  N_species_dose + temp + food + sym_state + + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state  + food*sym_state +  (1|col_num) + (1|exp_num) , data= pam_all_ammonium.data)
+print(step.model<- step(full.model))
 
-nullModel = lm(PAM_delta ~  1, data= pam_all_ammonium.data) # model with the intercept only
+#model it selected for;
 
-summary(stepAIC(nullModel, # start with a model containing no variables
-                direction = 'forward', # run forward selection
-                scope = list(upper = fullModel, # the maximum to consider is a model with all variables
-                             lower = nullModel), # the minimum to consider is a model with no variables
-                trace = 1)) # do not show the step-by-step process of model selection
+ammonium_delta_model <- lmer(PAM_delta ~ temp + sym_state + N_species_dose + (1 | col_num) + (1 | exp_num) + temp:sym_state, data= pam_all_ammonium.data)
 
-summary(fullModel)
-#model it selected for:
-lm_pam_1 <- lm(formula = PAM_delta ~ sym_state + temp + sym_state*temp, data = pam_all_ammonium.data)
-summary(lm_pam_1)
+summary(ammonium_delta_model)
+plot_model(ammonium_delta_model, type="diag")
+#Model actually looks decent! Let's go with this one
 
-#winner
-lm_pam_3 <- lm(formula = PAM_delta ~ temp*N_species_dose , data = pam_all_ammonium.data)
-summary(lm_pam_3)
-summary(emmeans(lm_pam_3, pairwise ~ N_species_dose*temp))
+summary(emmeans(ammonium_delta_model, specs=pairwise ~ N_species_dose*temp*sym_state))
 
 
-lm_pam_4 <- lm(formula = PAM_delta ~  N_species_dose + temp + N_species_dose*temp, data = pam_all_ammonium.data)
-summary(lm_pam_4)
-
-lm_pam_5 <- lm(formula = PAM_delta ~  temp + N_species_dose, data = pam_all_ammonium.data)
-summary(lm_pam_5)
-
-AIC(lm_pam_1,lm_pam_3, lm_pam_4, lm_pam_5)
-
-# number 1 wins handedly!
-
-
-plot_model(lm_pam_1, type="diag") #data fitness looks decent
-r2(lm_pam_3)
-
-#control or nutrient
-summary(aov_temp<-aov(PAM_delta~ control_or_nutrient, data=pam_all_ammonium.data))
-Anova(aov_temp, type="III")
-summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
 
 ```
 
-```{r DELTA SYM linear model}
-#stepAIC is from the MASS package
-fullModel = lm(PAM_delta ~   N_species_dose + temp  + N_species_dose*temp, data= all_sym) # model with all 9 variables and possible combinations
 
-nullModel = lm(PAM_delta ~  1, data= all_sym) # model with the intercept only
-
-summary(stepAIC(nullModel, # start with a model containing no variables
-                direction = 'forward', # run forward selection
-                scope = list(upper = fullModel, # the maximum to consider is a model with all variables
-                             lower = nullModel), # the minimum to consider is a model with no variables
-                trace = 1)) # do not show the step-by-step process of model selection
-
-summary(fullModel)
-# it only selected for:
-lm_sym_1 <- lm(PAM_delta ~  temp, data= all_sym)
-summary(lm_sym_1)
-emm_sym_pam_temp=emmeans(lm_sym_1, specs=pairwise ~temp)
-summary(emm_sym_pam_temp)
-
-#lets see if we add the N_species_dose  what happens
-lm_sym_2 <- lm(PAM_delta ~  N_species_dose + temp, data= all_sym)
-summary(lm_sym_2)
-#nope, lets keep it at just temperature
-
-
-AIC(lm_sym_1, lm_sym_2)
-
-emm_sym_pam_N_species_dose_temp=emmeans(lm_sym_2, specs=pairwise ~ N_species_dose*temp)
-summary(emm_sym_pam_N_species_dose_temp)
-
-#graph sym only by N species dose and temperature
-
-# Summarize by temp and N species dose so we can visualize
-sum_N_species_dose_temp_ammonium <- summarySE(all_sym, measurevar = "PAM_delta", groupvars = c("temp","N_species_dose"))
-sum_N_species_dose_temp_ammonium$N_species_dose <- factor(sum_N_species_dose_temp_ammonium$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
-# Visualize
-gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
-       aes(x = N_species_dose,
-           y = PAM_delta, col=temp)) +
-    geom_point() +
-  geom_smooth(method="lm", se=FALSE, aes(group = temp), linewidth = 0.85, linetype = "dotted")+
-      stat_poly_eq(use_label(c("eq", "adj.R2"))) +
-    geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
-    ggtitle ("SYM CORALS ammonium rgb - Delta Fv/Fm value") +
-    labs(x = "ammonium dose", 
-         y = expression(paste("Delta Fv/Fm value")), 
-         caption = "data represent mean +/- SEM" ) +
-    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
-    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red")) 
-gg_N_species_dose_temp_ammonium
-
-#calculate regression line
-#sdflksdjfsdlfisdf
-
-
-
-# generating ptemp and pdose:
-summary(aov_temp<-aov(PAM_delta ~ temp, data=all_sym))
-Anova(aov_temp, type="III") 
-summary(emmeans(aov_temp, specs=pairwise ~ temp))
-
-#ptemp=0.0004152
-
-summary(aov_temp<-aov(PAM_delta ~ N_species_dose, data=all_sym))
-Anova(aov_temp, type="III")
-summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
-
-#pdose=0.384
-  
-summary(aov_temp<-aov(PAM_delta~ N_species_dose*temp, data=all_sym))
-Anova(aov_temp, type="III")
-summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
-
-#control or nutrient
-summary(aov_temp<-aov(PAM_delta~ control_or_nutrient, data=all_sym))
-Anova(aov_temp, type="III")
-summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
-  
-```
-
-```{r DELTA APO linear model}
-#stepAIC is from the MASS package
-fullModel = lm(PAM_delta ~   N_species_dose + temp  + N_species_dose*temp, data= all_apo) # model with all 9 variables and possible combinations
-
-nullModel = lm(PAM_delta ~  1, data= all_apo) # model with the intercept only
-
-summary(stepAIC(nullModel, # start with a model containing no variables
-                direction = 'forward', # run forward selection
-                scope = list(upper = fullModel, # the maximum to consider is a model with all variables
-                             lower = nullModel), # the minimum to consider is a model with no variables
-                trace = 1)) # do not show the step-by-step process of model selection
-
-summary(fullModel)
-#selected for -
-lm_apo_1 <- lm(formula = PAM_delta ~ 1, data = all_apo)
-summary(lm_apo_1)
-
-lm_apo_2 <- lm(formula = PAM_delta ~ N_species_dose, data = all_apo)
-summary(lm_apo_2)
-#really nothing going on
-
-#posthocs
-emm_apo_N_species_dose=emmeans(lm_apo_2, specs=pairwise ~ N_species_dose)
-summary(emm_apo_N_species_dose)
-# nothing really going on
-
-
-# Summarize by temp and N species dose so we can visualize
-sum_N_species_dose_temp_ammonium <- summarySE(all_apo, measurevar = "PAM_delta", groupvars = c("temp","N_species_dose"))
-sum_N_species_dose_temp_ammonium$N_species_dose <- factor(sum_N_species_dose_temp_ammonium$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
-# Visualize
-gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
-       aes(x = N_species_dose,
-           y = PAM_delta, col=temp)) +
-    geom_point() +
-    geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.1, size = 1) +
-    #scale_color_manual(values = c("black", "darkgreen")) +
-    ggtitle ("APO CORALS ammonium rgb - Delta Red channel value") +
-    labs(x = "ammonium dose", 
-         y = expression(paste("Delta Red channel value")), 
-         caption = "data represent mean +/- SEM" ) +
- scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
-    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
-gg_N_species_dose_temp_ammonium
-
-# generating ptemp and pdose:
-summary(aov_temp<-aov(PAM_delta ~ temp, data=all_apo))
-Anova(aov_temp, type="III")
-summary(emmeans(aov_temp, specs=pairwise ~ temp))
-
-#ptemp=0.18525
-
-summary(aov_temp<-aov(PAM_delta ~ N_species_dose, data=all_apo))
-Anova(aov_temp, type="III")
-summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose))
-
-#pdose=0.6831
-
-summary(aov_temp<-aov(log_pam_percent_change ~ N_species_dose*temp, data=all_apo))
-Anova(aov_temp, type="III")
-summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
-
-#control or nutrient
-summary(aov_temp<-aov(PAM_delta~ control_or_nutrient, data=all_apo))
-Anova(aov_temp, type="III")
-summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
-```
 #PERCENT CHANGE MODELS
 ```{r PERCENT CHANGE Model selection }
 #were not going to look at genetic ID so let's do an lm
