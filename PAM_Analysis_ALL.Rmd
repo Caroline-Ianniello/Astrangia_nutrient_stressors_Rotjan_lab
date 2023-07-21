@@ -1,0 +1,81 @@
+---
+title: "PAM Analysis ALL"
+author: "Caroline Fleming"
+date: "2023-07-21"
+output: html_document
+---
+
+# Uploading packages and data
+```{r packages}
+library("lme4")
+#install.packages("lmerTest")
+library("lmerTest")
+#install.packages("emmeans")
+library("emmeans")
+#install.packages("pbkrtest")
+library("pbkrtest")
+#reshape melts our datasets in the way we want
+library("reshape2")
+library("dplyr")
+library("plyr")
+library("tidyverse")
+library("Rmisc")
+library("ggplot2")
+library("performance")
+library("see")
+library("ggrepel")
+
+#increase the number of results it will show
+options(max.print=1000000) #this just prevents R from truncating the number of decimal places it will show you
+
+```
+
+```{r}
+#Upload data
+PAM_all <- read.csv("PAM_all_dead_deleted_all_controls_7_21_23_2.0.csv", header = TRUE) 
+```
+
+#Suggested data manipulations
+```{r}
+# we want dose_type, 0= control, 1 = ammonium, and 2= nitrate (make this a factor)
+PAM_all <- PAM_all %>% mutate(dose_type = case_when(
+    N_species == "CNTRL" ~ "0" , #need two equal signs
+    N_species == "A" ~ "1" ,
+    N_species == "N" ~ "2" ))
+
+PAM_all$dose_type <- as.factor(PAM_all$dose_type)
+
+# we want dose_level, 0= control, 1= NH4 low OR NO3 low, 2= NH4 medium OR NO3 medium, 3= NH4 high OR NO3 high
+
+PAM_all <- PAM_all %>% mutate(dose_level = case_when(
+    N_species == "CNTRL" ~ "0" , #need two equal signs
+    N_species_dose == "A_5" |  N_species_dose == "N_1.5"  ~ "1" ,
+    N_species_dose == "A_7.5" |  N_species_dose == "N_5"  ~ "2",
+    N_species_dose == "A_10" |  N_species_dose == "N_18"  ~ "3" ))
+
+
+#make date_coll a date with the % thingys
+library(lubridate)
+PAM_all$date_coll_test <- as.numeric(strptime(PAM_all$date_coll,format='%m_%d_%Y', tz="EST"))
+as.Date(PAM_date$date_coll_test)
+
+# figure out what day 1 of each experiment was, make new column date_exp_start
+PAM_all <- PAM_all %>% mutate(date_exp_start = case_when(
+    exp_run_full == "1A" ~ "07/15/2022" , #need to have the full year for R to cooperate
+    exp_run_full == "1B" ~ "07/17/2022" ,
+   exp_run_full == "2A" ~ "08/04/2022" ,
+   exp_run_full == "2B" ~ "08/09/2022" ,
+   exp_run_full == "3A" ~ "08/21/2022" ,
+   exp_run_full == "3B" ~ "08/25/2022" ,
+    ))
+#make sure that column is in the right date format with the %d%m%y
+PAM_all$date_exp_start_test <- as.Date(PAM_all$date_exp_start, format="%m/%d/%Y")
+
+# figure out the difference between date_coll and date_exp_start
+```
+
+#Lasso modeling
+```{r}
+# PAM_delta ~ (1|col_num) + (1|jar_unique_ID) + (1|exp_run) + dose_type + dose_level + dose_type*dose_level + temp + food + sym_state
+```
+
