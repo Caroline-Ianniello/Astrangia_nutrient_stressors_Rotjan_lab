@@ -24,6 +24,8 @@ library("ggplot2")
 library("performance")
 library("see")
 library("ggrepel")
+install.packages("glmmLasso")
+library(glmmLasso)
 
 #increase the number of results it will show
 options(max.print=1000000) #this just prevents R from truncating the number of decimal places it will show you
@@ -32,7 +34,7 @@ options(max.print=1000000) #this just prevents R from truncating the number of d
 
 ```{r}
 #Upload data
-PAM_all <- read.csv("PAM_all_dead_deleted_all_controls_7_21_23_2.0.csv", header = TRUE) 
+PAM_all <- read.csv("PAM_all_dead_deleted_all_controls_7_21_23.csv", header = TRUE) 
 ```
 
 #Suggested data manipulations
@@ -55,9 +57,7 @@ PAM_all <- PAM_all %>% mutate(dose_level = case_when(
 
 
 #make date_coll a date with the % thingys
-library(lubridate)
-PAM_all$date_coll_test <- as.numeric(strptime(PAM_all$date_coll,format='%m_%d_%Y', tz="EST"))
-as.Date(PAM_date$date_coll_test)
+#PAM_all$date_coll <- as.POSIXct(PAM_all$date_coll, format="%m/%d/%Y")
 
 # figure out what day 1 of each experiment was, make new column date_exp_start
 PAM_all <- PAM_all %>% mutate(date_exp_start = case_when(
@@ -69,13 +69,32 @@ PAM_all <- PAM_all %>% mutate(date_exp_start = case_when(
    exp_run_full == "3B" ~ "08/25/2022" ,
     ))
 #make sure that column is in the right date format with the %d%m%y
-PAM_all$date_exp_start_test <- as.Date(PAM_all$date_exp_start, format="%m/%d/%Y")
+#PAM_all$date_exp_start <- as.POSIXct(PAM_all$date_exp_start, format="%m/%d/%Y")
 
 # figure out the difference between date_coll and date_exp_start
+# weirdly they all had to be in characters first?
+PAM_all$date_coll_exp_diff <- as.numeric(difftime(as.POSIXct(PAM_all$date_exp_start, format="%m/%d/%Y"), as.POSIXct(PAM_all$date_coll, format="%m/%d/%Y")))
 ```
 
-#Lasso modeling
+#Lasso modeling with glmmLasso
 ```{r}
-# PAM_delta ~ (1|col_num) + (1|jar_unique_ID) + (1|exp_run) + dose_type + dose_level + dose_type*dose_level + temp + food + sym_state
+#Run our LASSO model, testing all possible interactions.
+
+glmmLasso(points ~ transfer.spendings + ave.unfair.score
++ ball.possession + tackles
++ ave.attend + sold.out, rnd = list(team=~1),
+lambda=50, data = soccer)
+
+
+PAM_all$exp_run_full <-as.factor(PAM_all$exp_run_full)
+PAM_lasso <-  glmmLasso(PAM_delta ~ date_coll_exp_diff + as.numeric(dose_type) + as.numeric(dose_level) + as.numeric(dose_type):as.numeric(dose_level) + as.numeric(temp) + as.factor(food) + as.factor(sym_state),rnd=list(col_num=~1, jar_unique_ID=~1, exp_run_full=~1), lambda=50, family = gaussian(link="identity"), data=PAM_all)
+
+summary(PAM_lasso)
+plot(PAM_lasso)
+
+hist(PAM_all$PAM_delta)
+library(forestmodel)
+forest_model(PAM_lasso)
+
 ```
 
