@@ -76,6 +76,66 @@ PAM_all <- PAM_all %>% mutate(date_exp_start = case_when(
 PAM_all$date_coll_exp_diff <- as.numeric(difftime(as.POSIXct(PAM_all$date_exp_start, format="%m/%d/%Y"), as.POSIXct(PAM_all$date_coll, format="%m/%d/%Y")))
 ```
 
+
+```{r}
+#dose type should be a factor, dose level should be numeric
+#if it is numeric, 2 is greater than 1 and 1 is greater than 0
+#we want an ordinal component to dose_level
+
+PAM_all$col_num <- as.factor(PAM_all$col_num)
+PAM_all$jar_unique_ID <- as.factor(PAM_all$jar_unique_ID)
+
+lmer_PAM_delta_1 <-  lmer(PAM_delta ~ as.factor(dose_type) + as.numeric(dose_level) + as.factor(dose_type)*as.numeric(dose_level) + as.factor(temp) + as.factor(food) + as.factor(sym_state) + (1|col_num) + (1|jar_unique_ID) + (1|exp_run_full), data=PAM_all)
+summary(lmer_PAM_delta_1)
+
+#Is there any interaction between sym state and dose
+lmer_PAM_delta_2 <-  lmer(PAM_delta ~ as.factor(dose_type) + as.numeric(dose_level) + as.factor(dose_type)*as.numeric(dose_level) + as.numeric(dose_level)*as.factor(sym_state)+  as.factor(dose_type)*as.factor(sym_state)+ as.factor(temp) + as.factor(food) + as.factor(sym_state) + (1|col_num) + (1|jar_unique_ID) + (1|exp_run_full), data=PAM_all)
+summary(lmer_PAM_delta)
+
+install.packages("jtools")
+install.packages("broom.mixed")
+library(broom.mixed)
+library(jtools)
+
+#effect plot with confience intervals
+plot_coefs(lmer_PAM_delta)
+
+
+#new model, asking if dose overall matters
+PAM_all$any_dose <- ((PAM_all$dose_type) !="0" )
+summary(PAM_all$any_dose)
+lmer_PAM_delta_1 <-  lmer(PAM_delta ~ as.factor(dose_type) + as.numeric(dose_level) + as.factor(any_dose)*as.numeric(dose_level) +  as.factor(temp) + as.factor(sym_state) + as.factor(food) + as.factor(temp)*as.factor(sym_state) + as.factor(sym_state) + (1|col_num) + (1|jar_unique_ID) + (1|exp_run_full), data=PAM_all)
+
+summary(lmer_PAM_delta_1)
+
+#of those that had a negative delta, what mattered?
+# DO NOT INCLUDE, we just used this to figure out what interaction to test
+#THIS SHOULD BE THE SAME MODEL AS MODEL 1, JUST FILTERING NEGATIVE OBSERVATIONS
+
+PAM_all$any_dose <- ((PAM_all$dose_type) !="0" )
+summary(PAM_all$any_dose)
+lmer_PAM_delta_4 <-  lmer(PAM_delta ~ as.factor(dose_type) + as.numeric(dose_level) + as.factor(dose_type)*as.numeric(dose_level) + as.factor(temp) + as.factor(sym_state) + as.factor(food) + (1|col_num) + (1|jar_unique_ID) + (1|exp_run_full), data=subset(PAM_all, PAM_all$PAM_delta<0))
+summary(lmer_PAM_delta_4)
+
+PAM_neg_delta <-subset(PAM_all, PAM_all$PAM_delta<0)
+table(PAM_neg_delta$temp,PAM_neg_delta$sym_state )
+
+#temp and sym state may interact
+# we knew that the sym states were going really differently
+# we wanted to see if interacts with dose type or dose level
+# we also think that high temp would effect symbiotic colonies more, increase sym population
+
+#MY BIG BEAAAAUTIFUL MODEL
+lmer_PAM_delta_5 <-  lmer(PAM_delta ~ as.factor(dose_type) + as.numeric(dose_level) + as.factor(any_dose)*as.numeric(dose_level) + as.numeric(dose_level)*as.factor(sym_state)+  as.factor(dose_type)*as.factor(sym_state)+ as.factor(temp)*as.factor(sym_state) + as.factor(temp) + as.factor(sym_state) + as.factor(food)  + as.factor(sym_state) + (1|col_num) + (1|jar_unique_ID) + (1|exp_run_full), data=PAM_all)
+
+summary(lmer_PAM_delta_5)
+#because we did minimal model selection, it is fair to report these p values
+#confidence interval plot
+
+
+```
+
+
 #Lasso modeling with glmmLasso
 ```{r}
 #Run our LASSO model, testing all possible interactions.
@@ -96,5 +156,17 @@ hist(PAM_all$PAM_delta)
 library(forestmodel)
 forest_model(PAM_lasso)
 
+```
+
+
+```{r}
+gg_date_coll <- ggplot(PAM_all,
+       aes(x = date_coll_exp_diff, y = PAM_delta)) +
+    geom_point() +
+    xlab("Diff between collected and first day of exp") +
+    ylab("PAM_delta") +
+    theme_bw() 
+
+gg_date_coll 
 ```
 
