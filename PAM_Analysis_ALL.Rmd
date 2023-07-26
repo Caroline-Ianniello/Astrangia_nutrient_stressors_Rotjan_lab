@@ -26,19 +26,22 @@ library("see")
 library("ggrepel")
 install.packages("glmmLasso")
 library(glmmLasso)
+library(broom.mixed)
+library(jtools)
+
 
 #increase the number of results it will show
 options(max.print=1000000) #this just prevents R from truncating the number of decimal places it will show you
 
 ```
 
-```{r}
+```{r upload data}
 #Upload data
 PAM_all <- read.csv("PAM_all_dead_deleted_all_controls_7_21_23.csv", header = TRUE) 
 ```
 
 #Suggested data manipulations
-```{r}
+```{r data manipulations}
 # we want dose_type, 0= control, 1 = ammonium, and 2= nitrate (make this a factor)
 PAM_all <- PAM_all %>% mutate(dose_type = case_when(
     N_species == "CNTRL" ~ "0" , #need two equal signs
@@ -74,10 +77,17 @@ PAM_all <- PAM_all %>% mutate(date_exp_start = case_when(
 # figure out the difference between date_coll and date_exp_start
 # weirdly they all had to be in characters first?
 PAM_all$date_coll_exp_diff <- as.numeric(difftime(as.POSIXct(PAM_all$date_exp_start, format="%m/%d/%Y"), as.POSIXct(PAM_all$date_coll, format="%m/%d/%Y")))
+gg_date_coll <- ggplot(PAM_all,
+       aes(x = date_coll_exp_diff, y = PAM_delta)) +
+    geom_point() +
+    xlab("Diff between collected and first day of exp") +
+    ylab("PAM_delta") +
+    theme_bw() 
+#after we graph this, it does not look like it matters to much so we can leave it out of our models
 ```
 
 
-```{r}
+```{r constructing our linear models using a priori biological knowledge}
 #dose type should be a factor, dose level should be numeric
 #if it is numeric, 2 is greater than 1 and 1 is greater than 0
 #we want an ordinal component to dose_level
@@ -85,6 +95,7 @@ PAM_all$date_coll_exp_diff <- as.numeric(difftime(as.POSIXct(PAM_all$date_exp_st
 PAM_all$col_num <- as.factor(PAM_all$col_num)
 PAM_all$jar_unique_ID <- as.factor(PAM_all$jar_unique_ID)
 
+#our first model -- everything in the model
 lmer_PAM_delta_1 <-  lmer(PAM_delta ~ as.factor(dose_type) + as.numeric(dose_level) + as.factor(dose_type)*as.numeric(dose_level) + as.factor(temp) + as.factor(food) + as.factor(sym_state) + (1|col_num) + (1|jar_unique_ID) + (1|exp_run_full), data=PAM_all)
 summary(lmer_PAM_delta_1)
 
@@ -92,26 +103,22 @@ summary(lmer_PAM_delta_1)
 lmer_PAM_delta_2 <-  lmer(PAM_delta ~ as.factor(dose_type) + as.numeric(dose_level) + as.factor(dose_type)*as.numeric(dose_level) + as.numeric(dose_level)*as.factor(sym_state)+  as.factor(dose_type)*as.factor(sym_state)+ as.factor(temp) + as.factor(food) + as.factor(sym_state) + (1|col_num) + (1|jar_unique_ID) + (1|exp_run_full), data=PAM_all)
 summary(lmer_PAM_delta)
 
-install.packages("jtools")
-install.packages("broom.mixed")
-library(broom.mixed)
-library(jtools)
+
 
 #effect plot with confience intervals
-plot_coefs(lmer_PAM_delta)
+plot_coefs(lmer_PAM_delta_2)
 
 
 #new model, asking if dose overall matters
 PAM_all$any_dose <- ((PAM_all$dose_type) !="0" )
 summary(PAM_all$any_dose)
-lmer_PAM_delta_1 <-  lmer(PAM_delta ~ as.factor(dose_type) + as.numeric(dose_level) + as.factor(any_dose)*as.numeric(dose_level) +  as.factor(temp) + as.factor(sym_state) + as.factor(food) + as.factor(temp)*as.factor(sym_state) + as.factor(sym_state) + (1|col_num) + (1|jar_unique_ID) + (1|exp_run_full), data=PAM_all)
+lmer_PAM_delta_3 <-  lmer(PAM_delta ~ as.factor(dose_type) + as.numeric(dose_level) + as.factor(any_dose)*as.numeric(dose_level) +  as.factor(temp) + as.factor(sym_state) + as.factor(food) + as.factor(temp)*as.factor(sym_state) + as.factor(sym_state) + (1|col_num) + (1|jar_unique_ID) + (1|exp_run_full), data=PAM_all)
 
-summary(lmer_PAM_delta_1)
+summary(lmer_PAM_delta_3)
 
 #of those that had a negative delta, what mattered?
 # DO NOT INCLUDE, we just used this to figure out what interaction to test
 #THIS SHOULD BE THE SAME MODEL AS MODEL 1, JUST FILTERING NEGATIVE OBSERVATIONS
-
 PAM_all$any_dose <- ((PAM_all$dose_type) !="0" )
 summary(PAM_all$any_dose)
 lmer_PAM_delta_4 <-  lmer(PAM_delta ~ as.factor(dose_type) + as.numeric(dose_level) + as.factor(dose_type)*as.numeric(dose_level) + as.factor(temp) + as.factor(sym_state) + as.factor(food) + (1|col_num) + (1|jar_unique_ID) + (1|exp_run_full), data=subset(PAM_all, PAM_all$PAM_delta<0))
@@ -125,10 +132,24 @@ table(PAM_neg_delta$temp,PAM_neg_delta$sym_state )
 # we wanted to see if interacts with dose type or dose level
 # we also think that high temp would effect symbiotic colonies more, increase sym population
 
-#MY BIG BEAAAAUTIFUL MODEL
-lmer_PAM_delta_5 <-  lmer(PAM_delta ~ as.factor(dose_type) + as.numeric(dose_level) + as.factor(any_dose)*as.numeric(dose_level) + as.numeric(dose_level)*as.factor(sym_state)+  as.factor(dose_type)*as.factor(sym_state)+ as.factor(temp)*as.factor(sym_state) + as.factor(temp) + as.factor(sym_state) + as.factor(food)  + as.factor(sym_state) + (1|col_num) + (1|jar_unique_ID) + (1|exp_run_full), data=PAM_all)
+lmer_PAM_delta_5 <-  lmer(PAM_delta ~ as.factor(dose_type) + as.numeric(dose_level) + as.factor(dose_type)*as.numeric(dose_level) + as.numeric(dose_level)*as.factor(sym_state)+  as.factor(dose_type)*as.factor(sym_state)+ as.factor(temp)*as.factor(sym_state) + as.factor(temp)*as.factor(dose_type) + as.factor(temp) + as.factor(sym_state) + as.factor(food) + (1|col_num) + (1|jar_unique_ID) + (1|exp_run_full), data=PAM_all)
+
+#pretty coefficient graph
+plot_coefs(lmer_PAM_delta_5, coefs=c("Ammonium"="as.factor(dose_type)1","Nitrate"="as.factor(dose_type)2","Dose level"="as.numeric(dose_level)","Sym State: Symbiotic"="as.factor(sym_state)SYM","Temp: 30C"="as.factor(temp)30" , "Food: Starved"="as.factor(food)S" ,"Ammonium × Dose Level"="as.factor(dose_type)1:as.numeric(dose_level)","Dose Level × Sym"="as.numeric(dose_level):as.factor(sym_state)SYM","Ammonium × Sym"="as.factor(dose_type)1:as.factor(sym_state)SYM","Nitrate × Sym"="as.factor(dose_type)2:as.factor(sym_state)SYM" ,"Symbiotic × 30C"= "as.factor(sym_state)SYM:as.factor(temp)30","Ammonium × 30C"="as.factor(dose_type)1:as.factor(temp)30" ,"Nitrate × 30C"="as.factor(dose_type)2:as.factor(temp)30"), line.size=c(1, 2), point.size=7, colors="slateblue" , scale=TRUE, robust=TRUE)
+names(plot_coefs)
+
+#colors=c("darkgreen","blue4","darkgray","brown","violetred3","darkgray","darkgreen","brown","darkgreen", "blue4","violetred3",  "darkgreen","blue4" )
+
+plot_coefs(lmer_PAM_delta_5, model.names = "test")
 
 summary(lmer_PAM_delta_5)
+
+#MY BIG BEAAAAUTIFUL MODEL
+lmer_PAM_delta_6 <-  lmer(PAM_delta ~ as.factor(dose_type) + as.numeric(dose_level) + as.factor(dose_type)*as.numeric(dose_level) + as.numeric(dose_level)*as.factor(sym_state)+  as.factor(dose_type)*as.factor(sym_state)+ as.factor(temp)*as.factor(sym_state) + as.factor(temp)*as.factor(sym_state)*as.factor(dose_type)  + as.factor(temp)*as.factor(dose_type) + as.factor(temp) + as.factor(sym_state) + as.factor(food) + (1|col_num) + (1|jar_unique_ID) + (1|exp_run_full), data=PAM_all)
+
+plot_coefs(lmer_PAM_delta_6,coefs=c("Ammonium"="as.factor(dose_type)1","Nitrate"="as.factor(dose_type)2","Dose level"="as.numeric(dose_level)","Sym State: Symbiotic"="as.factor(sym_state)SYM","Temp: 30C"="as.factor(temp)30" , "Food: Starved"="as.factor(food)S" ,"Ammonium × Dose Level"="as.factor(dose_type)1:as.numeric(dose_level)","Dose Level × Sym"="as.numeric(dose_level):as.factor(sym_state)SYM","Ammonium × Sym"="as.factor(dose_type)1:as.factor(sym_state)SYM","Nitrate × Sym"="as.factor(dose_type)2:as.factor(sym_state)SYM" ,"Symbiotic × 30C"= "as.factor(sym_state)SYM:as.factor(temp)30","Ammonium × 30C"="as.factor(dose_type)1:as.factor(temp)30" ,"Nitrate × 30C"="as.factor(dose_type)2:as.factor(temp)30", "Ammonium × Sym × 30C"="as.factor(dose_type)1:as.factor(sym_state)SYM:as.factor(temp)30","Nitrate × Sym × 30C"="as.factor(dose_type)2:as.factor(sym_state)SYM:as.factor(temp)30"), line.size=c(1, 2), point.size=7, colors="aquamarine4" , scale=TRUE, robust=TRUE)
+
+summary(lmer_PAM_delta_6)
 #because we did minimal model selection, it is fair to report these p values
 #confidence interval plot
 
@@ -136,37 +157,114 @@ summary(lmer_PAM_delta_5)
 ```
 
 
-#Lasso modeling with glmmLasso
-```{r}
-#Run our LASSO model, testing all possible interactions.
+# VISUALIZATIONS
+```{r by sym state by treatment}
 
-glmmLasso(points ~ transfer.spendings + ave.unfair.score
-+ ball.possession + tackles
-+ ave.attend + sold.out, rnd = list(team=~1),
-lambda=50, data = soccer)
+pam_treatmeans_apovsym <- summarySE(PAM_all, measurevar=c("PAM_delta"),groupvars =c("sym_state", "N_species_dose"), na.rm=TRUE)
+#define the factor levels
+pam_treatmeans_apovsym$N_species_dose <- factor(pam_treatmeans_apovsym$N_species_dose, levels=c("A_5","A_7.5","A_10", "CNTRL_0","N_1.5","N_5","N_18"))
 
-
-PAM_all$exp_run_full <-as.factor(PAM_all$exp_run_full)
-PAM_lasso <-  glmmLasso(PAM_delta ~ date_coll_exp_diff + as.numeric(dose_type) + as.numeric(dose_level) + as.numeric(dose_type):as.numeric(dose_level) + as.numeric(temp) + as.factor(food) + as.factor(sym_state),rnd=list(col_num=~1, jar_unique_ID=~1, exp_run_full=~1), lambda=50, family = gaussian(link="identity"), data=PAM_all)
-
-summary(PAM_lasso)
-plot(PAM_lasso)
-
-hist(PAM_all$PAM_delta)
-library(forestmodel)
-forest_model(PAM_lasso)
+gg_pam_plot_apovsym <- ggplot() +
+  geom_point(data= pam_treatmeans_apovsym, aes(x = N_species_dose, y= c(PAM_delta), color = sym_state), size=5)+
+  geom_errorbar(data= pam_treatmeans_apovsym, aes(x = N_species_dose, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  geom_jitter(data= PAM_all, aes(x= N_species_dose, y= PAM_delta, color=sym_state), alpha=0.3) +
+  #scale_color_manual(name = "Treatment",
+                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Delta Change Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("Delta PAM Change Fv/Fm Sym vs. Apo")+
+ labs(caption = "data represent mean +/- SEM, p=<0.0001***")+
+ # scale_x_discrete("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
+    scale_color_manual("Symbiotic State", labels=c(A="Aposymbiotic", S="Symbiotic"), values=c("darkgray", "brown")) #gives you the colors for each point on the graph
+gg_pam_plot_apovsym
 
 ```
 
+```{r by sym state by treatment}
 
-```{r}
-gg_date_coll <- ggplot(PAM_all,
-       aes(x = date_coll_exp_diff, y = PAM_delta)) +
-    geom_point() +
-    xlab("Diff between collected and first day of exp") +
-    ylab("PAM_delta") +
-    theme_bw() 
+pam_dosetypemeans_apovsym <- summarySE(PAM_all, measurevar=c("PAM_delta"),groupvars =c("sym_state", "N_species"), na.rm=TRUE)
+#define the factor levels
+pam_dosetypemeans_apovsym$N_species <- factor(pam_dosetypemeans_apovsym$N_species, levels=c("A","CNTRL","N"))
 
-gg_date_coll 
+gg_pam_dosetypemeans_apovsym <- ggplot() +
+  geom_point(data= pam_dosetypemeans_apovsym, aes(x = N_species, y= c(PAM_delta), color = sym_state), size=5)+
+  geom_errorbar(data= pam_dosetypemeans_apovsym, aes(x = N_species, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  geom_jitter(data= PAM_all, aes(x= N_species, y= PAM_delta, color=sym_state), alpha=0.3) +
+  #scale_color_manual(name = "Treatment",
+                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Delta Change Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("Delta PAM Change Fv/Fm Sym vs. Apo by N species")+
+ labs(caption = "data represent mean +/- SEM, p=<0.0001***")+
+ # scale_x_discrete("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
+    scale_color_manual("Symbiotic State", labels=c(A="Aposymbiotic", S="Symbiotic"), values=c("darkgray", "brown")) #gives you the colors for each point on the graph
+gg_pam_dosetypemeans_apovsym
+
 ```
 
+```{r by temperature by treatment}
+
+pam_treatmeans_temp <- summarySE(PAM_all, measurevar=c("PAM_delta"),groupvars =c("temp", "N_species_dose"), na.rm=TRUE)
+#define the factor levels
+pam_treatmeans_temp$N_species_dose <- factor(pam_treatmeans_temp$N_species_dose, levels=c("A_5","A_7.5","A_10", "CNTRL_0","N_1.5","N_5","N_18"))
+gg_pam_plot_temp <- ggplot() +
+  geom_point(data= pam_treatmeans_temp, aes(x = N_species_dose, y= c(PAM_delta), color = as.factor(temp), size=5))+
+  geom_errorbar(data= pam_treatmeans_temp, aes(x = N_species_dose, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  geom_jitter(data= PAM_all, aes(x= N_species_dose, y= PAM_delta, color=as.factor(temp)), alpha=0.3) +
+  #scale_color_manual(name = "Treatment",
+                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Delta Change Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("Delta PAM Change Fv/Fm by Temperature")+
+ labs(caption = "data represent mean +/- SEM, p=<0.0001***")+
+ # scale_x_discrete("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
+    scale_color_manual("Temperature", labels=c("20"="Ambient 20C", "30"="Elevated 30C"), values=c("dodgerblue", "violetred3")) #gives you the colors for each point on the graph
+gg_pam_plot_temp
+
+```
+
+```{r by temperature by treatment for SYM COLONIES}
+PAM_sym <- PAM_all %>%
+  filter(as.factor(sym_state)=="SYM")
+
+pam_treatmeans_temp_SYM <- summarySE(PAM_sym, measurevar=c("PAM_delta"),groupvars =c("temp", "N_species_dose"), na.rm=TRUE)
+#define the factor levels
+pam_treatmeans_temp_SYM$N_species_dose <- factor(pam_treatmeans_temp$N_species_dose, levels=c("A_5","A_7.5","A_10", "CNTRL_0","N_1.5","N_5","N_18"))
+gg_pam_plot_temp_SYM <- ggplot() +
+  geom_point(data= pam_treatmeans_temp_SYM, aes(x = N_species_dose, y= c(PAM_delta), color = as.factor(temp), size=5))+
+  geom_errorbar(data= pam_treatmeans_temp_SYM, aes(x = N_species_dose, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  geom_jitter(data= PAM_all, aes(x= N_species_dose, y= PAM_delta, color=as.factor(temp)), alpha=0.3) +
+  #scale_color_manual(name = "Treatment",
+                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Delta Change Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("Delta PAM Change Fv/Fm by Temperature, SYM colonies")+
+ labs(caption = "data represent mean +/- SEM, p=<0.0001***")+
+ # scale_x_discrete("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
+    scale_color_manual("Temperature", labels=c("20"="Ambient 20C", "30"="Elevated 30C"), values=c("dodgerblue", "violetred3")) #gives you the colors for each point on the graph
+gg_pam_plot_temp_SYM
+
+PAM_sym <- PAM_all %>%
+  filter(as.factor(sym_state)=="SYM")
+
+#APO
+PAM_apo <- PAM_all %>%
+  filter(as.factor(sym_state)=="APO")
+pam_treatmeans_temp_apo <- summarySE(PAM_apo, measurevar=c("PAM_delta"),groupvars =c("temp", "N_species_dose"), na.rm=TRUE)
+#define the factor levels
+pam_treatmeans_temp_apo$N_species_dose <- factor(pam_treatmeans_temp$N_species_dose, levels=c("A_5","A_7.5","A_10", "CNTRL_0","N_1.5","N_5","N_18"))
+gg_pam_plot_temp_apo <- ggplot() +
+  geom_point(data= pam_treatmeans_temp_apo, aes(x = N_species_dose, y= c(PAM_delta), color = as.factor(temp), size=5))+
+  geom_errorbar(data= pam_treatmeans_temp_apo, aes(x = N_species_dose, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  geom_jitter(data= PAM_all, aes(x= N_species_dose, y= PAM_delta, color=as.factor(temp)), alpha=0.3) +
+  #scale_color_manual(name = "Treatment",
+                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Delta Change Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("Delta PAM Change Fv/Fm by Temperature, Apo colonies")+
+ labs(caption = "data represent mean +/- SEM, p=<0.0001***")+
+ # scale_x_discrete("apoboitic State", labels=c(A="Apoapobiotic", S="apobiotic"))+ #relabels the x axis to the values in quotations
+    scale_color_manual("Temperature", labels=c("20"="Ambient 20C", "30"="Elevated 30C"), values=c("dodgerblue", "violetred3")) #gives you the colors for each point on the graph
+gg_pam_plot_temp_apo
+
+```
