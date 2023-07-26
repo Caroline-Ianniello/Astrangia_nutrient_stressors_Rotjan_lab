@@ -173,7 +173,7 @@ gg_pam_plot_apovsym <- ggplot() +
                     # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
  ylab("Delta Change Fv/Fm Pre vs. Post-experiment")+
   ggtitle("Delta PAM Change Fv/Fm Sym vs. Apo")+
- labs(caption = "data represent mean +/- SEM, p=<0.0001***")+
+ labs(caption = "data represent mean +/- SEM ")+
  # scale_x_discrete("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
     scale_color_manual("Symbiotic State", labels=c(A="Aposymbiotic", S="Symbiotic"), values=c("darkgray", "brown")) #gives you the colors for each point on the graph
 gg_pam_plot_apovsym
@@ -195,7 +195,7 @@ gg_pam_dosetypemeans_apovsym <- ggplot() +
                     # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
  ylab("Delta Change Fv/Fm Pre vs. Post-experiment")+
   ggtitle("Delta PAM Change Fv/Fm Sym vs. Apo by N species")+
- labs(caption = "data represent mean +/- SEM, p=<0.0001***")+
+ labs(caption = "data represent mean +/- SEM ")+
  # scale_x_discrete("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
     scale_color_manual("Symbiotic State", labels=c(A="Aposymbiotic", S="Symbiotic"), values=c("darkgray", "brown")) #gives you the colors for each point on the graph
 gg_pam_dosetypemeans_apovsym
@@ -216,12 +216,52 @@ gg_pam_plot_temp <- ggplot() +
                     # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
  ylab("Delta Change Fv/Fm Pre vs. Post-experiment")+
   ggtitle("Delta PAM Change Fv/Fm by Temperature")+
- labs(caption = "data represent mean +/- SEM, p=<0.0001***")+
+ labs(caption = "data represent mean +/- SEM ")+
  # scale_x_discrete("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
     scale_color_manual("Temperature", labels=c("20"="Ambient 20C", "30"="Elevated 30C"), values=c("dodgerblue", "violetred3")) #gives you the colors for each point on the graph
 gg_pam_plot_temp
 
 ```
+
+```{r by temperature by dose type}
+
+pam_dosetypemeans_temp <- summarySE(PAM_all, measurevar=c("PAM_delta"),groupvars =c("temp", "N_species"), na.rm=TRUE)
+#define the factor levels
+pam_dosetypemeans$N_species <- factor(pam_dosetypemeans_temp$N_species, levels=c("A","CNTRL","N"))
+gg_pam_plot_temp <- ggplot() +
+  geom_point(data= pam_dosetypemeans_temp, aes(x = N_species, y= c(PAM_delta), color = as.factor(temp), size=5))+
+  geom_errorbar(data= pam_dosetypemeans_temp, aes(x = N_species, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  geom_jitter(data= PAM_all, aes(x= N_species, y= PAM_delta, color=as.factor(temp)), alpha=0.3) +
+  #scale_color_manual(name = "Treatment",
+                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Delta Change Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("Delta PAM Change Fv/Fm by Dose Type and Temperature")+
+ labs(caption = "data represent mean +/- SEM")+
+ # scale_x_discrete("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
+    scale_color_manual("Temperature", labels=c("20"="Ambient 20C", "30"="Elevated 30C"), values=c("dodgerblue", "violetred3")) #gives you the colors for each point on the graph
+gg_pam_plot_temp
+
+```
+
+```{r effect of N species}
+#just looking at the N species
+pam_dosetypemeans_temp_SYM <- summarySE(PAM_all, measurevar=c("PAM_delta"),groupvars =c("temp", "N_species", "sym_state"), na.rm=TRUE)
+#define the factor levels
+pam_dosetypemeans_temp_SYM $N_species <- factor(pam_treatmeans_temp$N_species, levels=c("A","CNTRL","N"))
+gg_pam_plot_temp_SYM <- ggplot() +
+   geom_jitter(data= PAM_all, aes(x= N_species, y= PAM_delta, color=as.factor(sym_state)), alpha=0.3) +
+  geom_point(data= pam_dosetypemeans_temp_SYM , aes(x = N_species, y= c(PAM_delta), color = as.factor(sym_state), shape=as.factor(temp), size=2))+
+  geom_errorbar(data= pam_dosetypemeans_temp_SYM , aes(x = N_species, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+
+ ylab("Delta Change Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("Delta PAM Change Fv/Fm by N species, Temperature and Sym State")+
+ labs(caption = "data represent mean +/- SEM ")+
+ # scale_x_discrete("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
+    scale_color_manual("Sym State", labels=c("SYM"="Symbiotic", "APO"="Aposymbiotic"), values=c("darkgray", "brown")) #gives you the colors for each point on the graph
+gg_pam_plot_temp_SYM
+```
+
 
 ```{r by temperature by treatment for SYM COLONIES}
 PAM_sym <- PAM_all %>%
@@ -239,11 +279,33 @@ gg_pam_plot_temp_SYM <- ggplot() +
                     # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
  ylab("Delta Change Fv/Fm Pre vs. Post-experiment")+
   ggtitle("Delta PAM Change Fv/Fm by Temperature, SYM colonies")+
- labs(caption = "data represent mean +/- SEM, p=<0.0001***")+
+ labs(caption = "data represent mean +/- SEM ")+
  # scale_x_discrete("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
     scale_color_manual("Temperature", labels=c("20"="Ambient 20C", "30"="Elevated 30C"), values=c("dodgerblue", "violetred3")) #gives you the colors for each point on the graph
 gg_pam_plot_temp_SYM
 
+#just looking at the N species
+pam_dosetypemeans_temp_SYM <- summarySE(PAM_sym, measurevar=c("PAM_delta"),groupvars =c("temp", "N_species"), na.rm=TRUE)
+#define the factor levels
+pam_dosetypemeans_temp_SYM $N_species <- factor(pam_treatmeans_temp$N_species, levels=c("A","CNTRL","N"))
+gg_pam_plot_temp_SYM <- ggplot() +
+  geom_point(data= pam_dosetypemeans_temp_SYM , aes(x = N_species, y= c(PAM_delta), color = as.factor(temp), size=5))+
+  geom_errorbar(data= pam_dosetypemeans_temp_SYM , aes(x = N_species, ymax = PAM_delta+se, ymin = PAM_delta-se), width = .2, position = position_dodge(width=0.3)) +
+  geom_jitter(data= PAM_all, aes(x= N_species, y= PAM_delta, color=as.factor(temp)), alpha=0.3) +
+  #scale_color_manual(name = "Treatment",
+                    #labels = c("Control 30C Fed","Control 30C Starved","Ammonium High 30C Fed", "Ammonium High 30C Starved","test"),
+                    # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
+ ylab("Delta Change Fv/Fm Pre vs. Post-experiment")+
+  ggtitle("Delta PAM Change Fv/Fm by Temperature, SYM colonies")+
+ labs(caption = "data represent mean +/- SEM ")+
+ # scale_x_discrete("Symboitic State", labels=c(A="Aposymbiotic", S="Symbiotic"))+ #relabels the x axis to the values in quotations
+    scale_color_manual("Temperature", labels=c("20"="Ambient 20C", "30"="Elevated 30C"), values=c("dodgerblue", "violetred3")) #gives you the colors for each point on the graph
+gg_pam_plot_temp_SYM
+
+```
+
+
+```{r by temperature by treatment for APO COLONIES}
 PAM_sym <- PAM_all %>%
   filter(as.factor(sym_state)=="SYM")
 
@@ -262,7 +324,7 @@ gg_pam_plot_temp_apo <- ggplot() +
                     # values = c("orchid1","darkorchid1","royalblue","skyblue","black","gray","brown"))+
  ylab("Delta Change Fv/Fm Pre vs. Post-experiment")+
   ggtitle("Delta PAM Change Fv/Fm by Temperature, Apo colonies")+
- labs(caption = "data represent mean +/- SEM, p=<0.0001***")+
+ labs(caption = "data represent mean +/- SEM ")+
  # scale_x_discrete("apoboitic State", labels=c(A="Apoapobiotic", S="apobiotic"))+ #relabels the x axis to the values in quotations
     scale_color_manual("Temperature", labels=c("20"="Ambient 20C", "30"="Elevated 30C"), values=c("dodgerblue", "violetred3")) #gives you the colors for each point on the graph
 gg_pam_plot_temp_apo
