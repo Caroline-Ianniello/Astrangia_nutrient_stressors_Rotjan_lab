@@ -113,7 +113,7 @@ nit_1_stanlmer <- stan_lmer(formula = PAM_delta ~ dose_type + dose_level + temp 
 #print our output
 print(nit_1_stanlmer, digits = 2)
 
-#Mean and standard deviation of the posteriur distribution
+#Mean and standard deviation of the posterior distribution
 summary(nit_1_stanlmer, 
         pars = c("(Intercept)", "sigma", "Sigma[school:(Intercept),(Intercept)]"),
         probs = c(0.025, 0.975),

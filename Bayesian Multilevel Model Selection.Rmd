@@ -1,0 +1,132 @@
+---
+title: "Bayesian Multilevel Model Selection"
+author: "Caroline Fleming"
+date: "2023-08-09"
+output: html_document
+---
+
+```{r Background on multilevel models}
+
+#A common feature of data structures is that units of analysis are nested in higher organizational cluters. This means that there is dependence among responses observes for units within the same cluster (e.g. corals in the same temperature tend to be more alike in their PAM than corals chosen at random)
+
+#multilevel models model within-cluster dependence. They do this by allowing for residual components at each level in the hierarchy.
+
+#recall: a residual is a measure of how far away a point is (vertically) from the predicted model regression line
+        # an intercept is the value of the output when all predictors are 0 (AKA THERE ARE NO PREDICTORS, what the data wants to do on its own)
+
+  #Example: a two-level model that allows for grouping of corals by temperature would include residuals at the coral and temperature level -- residual variance is partitioned into a between-temperature component (variance of coral-level residuals for each temperature) and within-temperature component (variance of coral-level residuals)
+
+
+#rstanarm automates data preprocessing steps so we can use it similarly to lme4
+ #it takes data frames as input
+ #automatically discards observations with NA values for any variable used in the model
+  #does not require identifiers to be sequential -- generally you sill want your cluster and unit identifiers to all be as.factor()
+
+#A BRIEF OVERVIEW OF WHAT LME4 DOES
+  #We can use an lmer when we think that the coral-level errors are normally distributed with a mean of 0 and variance of sigma squared.
+  #when we add a random effect, we are allowing the intercept to vary by that random effect, while keeping our fixed effect "slope" constant across those schools
+#generally it uses maximum likelihood (ML) approach which uses the estimated paramters and data from the grouping variable
+#Best linear unbiased predictions: mean posterior distribution of the average school effect
+
+#Now for bayesian
+#Terms
+  #prior: probability of an event before new data is collected, aka, how likely is this to happen again? best assessment of the probability of an outcome 
+  #EB: Empirical Bayes, the mean prediction of the distribution of the mean of our grouping variable based on the other estimated parameters (including random) for the cluster --> empirical because it is estimated from the data
+  #likelihood describes the chance that each possible parameter value produced the data we observed
+
+#So lme4 uses an ML approach to predict the mean by school from estimated parameters and data from that grouping variable, but the EB approach also considers the prior distribution of the mean of the grouping variable
+
+
+```
+
+```{r Bayesian multilevel model packages}
+#install.packages("mlmRev")
+library(mlmRev)
+library(lme4)
+#install.packages("rstanarm")
+library(rstanarm)
+library(ggplot2)
+
+```
+
+
+# Uploading packages and data
+```{r packages}
+library("lme4")
+#install.packages("lmerTest")
+library("lmerTest")
+#install.packages("emmeans")
+library("emmeans")
+#install.packages("pbkrtest")
+library("pbkrtest")
+#reshape melts our datasets in the way we want
+library("reshape2")
+library("dplyr")
+library("plyr")
+library("tidyverse")
+library("Rmisc")
+library("ggplot2")
+library("performance")
+library("see")
+library("ggrepel")
+install.packages("glmmLasso")
+library(glmmLasso)
+library(broom.mixed)
+library(jtools)
+
+
+#increase the number of results it will show
+options(max.print=1000000) #this just prevents R from truncating the number of decimal places it will show you
+
+```
+
+```{r upload data}
+#Upload data
+PAM_all <- read.csv("PAM_all_dead_deleted_all_controls_7_21_23.csv", header = TRUE) 
+```
+
+#Suggested data manipulations
+```{r data manipulations}
+# we want dose_type, 0= control, 1 = ammonium, and 2= nitrate (make this a factor)
+PAM_all <- PAM_all %>% mutate(dose_type = case_when(
+    N_species == "CNTRL" ~ "0" , #need two equal signs
+    N_species == "A" ~ "1" ,
+    N_species == "N" ~ "2" ))
+
+PAM_all$dose_type <- as.factor(PAM_all$dose_type)
+
+# we want dose_level, 0= control, 1= NH4 low OR NO3 low, 2= NH4 medium OR NO3 medium, 3= NH4 high OR NO3 high
+
+PAM_all <- PAM_all %>% mutate(dose_level = case_when(
+    N_species == "CNTRL" ~ "0" , #need two equal signs
+    N_species_dose == "A_5" |  N_species_dose == "N_1.5"  ~ "1" ,
+    N_species_dose == "A_7.5" |  N_species_dose == "N_5"  ~ "2",
+    N_species_dose == "A_10" |  N_species_dose == "N_18"  ~ "3" ))
+
+
+#make date_coll a date with the % thingys
+#PAM_all$date_coll <- as.POSIXct(PAM_all$date_coll, format="%m/%d/%Y")
+
+# figure out what day 1 of each experiment was, make new column date_exp_start
+PAM_all <- PAM_all %>% mutate(date_exp_start = case_when(
+    exp_run_full == "1A" ~ "07/15/2022" , #need to have the full year for R to cooperate
+    exp_run_full == "1B" ~ "07/17/2022" ,
+   exp_run_full == "2A" ~ "08/04/2022" ,
+   exp_run_full == "2B" ~ "08/09/2022" ,
+   exp_run_full == "3A" ~ "08/21/2022" ,
+   exp_run_full == "3B" ~ "08/25/2022" ,
+    ))
+#make sure that column is in the right date format with the %d%m%y
+#PAM_all$date_exp_start <- as.POSIXct(PAM_all$date_exp_start, format="%m/%d/%Y")
+
+# figure out the difference between date_coll and date_exp_start
+# weirdly they all had to be in characters first?
+PAM_all$date_coll_exp_diff <- as.numeric(difftime(as.POSIXct(PAM_all$date_exp_start, format="%m/%d/%Y"), as.POSIXct(PAM_all$date_coll, format="%m/%d/%Y")))
+gg_date_coll <- ggplot(PAM_all,
+       aes(x = date_coll_exp_diff, y = PAM_delta)) +
+    geom_point() +
+    xlab("Diff between collected and first day of exp") +
+    ylab("PAM_delta") +
+    theme_bw() 
+#after we graph this, it does not look like it matters to much so we can leave it out of our models
+```

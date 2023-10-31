@@ -134,6 +134,11 @@ plot_model(ammonium_resp_model, type="diag")
 
 ```{r ANOVAs}
 
+# Nitrate
+summary(aov_dose<-aov(resp_rate ~ N_species_dose, data=resp_all_ammonium.data))
+#Anova(aov_dose, type="III")
+summary(emmeans(aov_dose, specs=pairwise ~ N_species_dose))
+
 # Ammonium by dose by E. coli
 summary(aov_dose<-aov(resp_rate ~ N_species_dose + e_coli_plate, data=resp_all_ammonium.data))
 Anova(aov_dose, type="III")

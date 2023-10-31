@@ -138,10 +138,12 @@ plot_model(nitrate_resp_model, type="diag")
 
 
 ```{r ANOVAs}
+
+
 # Nitrate
-summary(aov_EC<-aov(resp_rate ~ N_species_dose, data=resp_all_nitrate.data))
-Anova(aov_EC, type="III")
-summary(emmeans(aov_EC, specs=pairwise ~ N_species_dose))
+summary(aov_dose<-aov(resp_rate ~ N_species_dose, data=e_coli))
+Anova(aov_dose, type="III")
+summary(emmeans(aov_dose, specs=pairwise ~ N_species_dose))
 
 
 # E. coli by temperature - nutrient vs control
