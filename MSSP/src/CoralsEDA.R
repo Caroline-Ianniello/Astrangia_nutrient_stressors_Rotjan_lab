@@ -146,6 +146,7 @@ pam_s[, dose_level := fcase(pollution == 'Nitrate' & dose == '0' , 'control-0',
 # Create new treatment ID:
 pam_s[, new_treat_ID_full := str_c(pollution, dose_level, temp, feed, symbiont, sep = "_")]
 
+write_csv(pam_s, 'MSSP/data/pam_s.csv')
 # EDA ---------------------------------------------------------------------
 
 
