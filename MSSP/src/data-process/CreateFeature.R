@@ -1,7 +1,7 @@
 
 # library -----------------------------------------------------------------
 
-pacman::p_load(data.table, rstanarm)
+pacman::p_load(data.table)
 
 
 # data manipulation -------------------------------------------------------

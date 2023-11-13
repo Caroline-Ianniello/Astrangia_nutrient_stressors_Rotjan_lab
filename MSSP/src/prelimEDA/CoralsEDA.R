@@ -58,7 +58,8 @@ PAM <- as.data.table(PAM)
 
 # I select the columns that are all related to PAM in current stage.
 
-pam_s <- PAM[,.(treat_ID_full, PAM_avg_day1, PAM_avg_day11, PAM_delta, pam_percent_change, log_PAM_delta)]
+pam_s <- PAM[,.(col_num_16 = col_num...16, col_num_3 = col_num...3,
+                treat_ID_full, PAM_avg_day1, PAM_avg_day11, PAM_delta, pam_percent_change, log_PAM_delta)]
 
 # We separate the treat_ID_full back to each combination component.
 
