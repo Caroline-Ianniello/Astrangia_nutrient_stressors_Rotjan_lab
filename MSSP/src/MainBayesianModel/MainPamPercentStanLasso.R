@@ -33,22 +33,24 @@ ammonium <- pam_model[pam_model$pollution == 'Ammonium',]
 nitrate_percent_change_fit <- randomizedSearchCV(data = nitrate, 
                                   formula = as.formula(paste0('pam_percent_change~',
                                                                paste(c(c('feed', 'dose_level', 'temp', 'symbiont'),colnames(nitrate)[18:ncol(nitrate)]), collapse = '+'), 
-                                                               '+(1|col_num_3)')),k_fold = 5, 
-                                  MCMC_parms = list(chains = 2, iter = 1000, refresh = 0),
+                                                               '+(1|col_num_3)')),
+                                  k_fold = 5, 
+                                  MCMC_parms = list(chains = 4, iter = 2000, refresh = 0),
                                   location = 0, 
                                   lambda_dist = runif,
-                                  n = 1, min = 0, max = 5)
+                                  n = 5, min = 0, max = 5)
 
 save('nitrate_percent_change_fit', file = 'MSSP/data/model/nitrate_percent_change_fit.RDS')
 
 ammonium_percent_change_fit <- randomizedSearchCV(data = nitrate, 
                                    formula = as.formula(paste0('pam_percent_change~',
                                                                paste(c(c('feed', 'dose_level', 'temp', 'symbiont'),colnames(nitrate)[18:ncol(nitrate)]), collapse = '+'), 
-                                                               '+(1|col_num_3)')),k_fold = 5, 
-                                   MCMC_parms = list(chains = 2, iter = 1000, refresh = 0),
+                                                               '+(1|col_num_3)')),
+                                   k_fold = 5, 
+                                   MCMC_parms = list(chains = 4, iter = 2000, refresh = 0),
                                    location = 0, 
                                    lambda_dist = runif,
-                                   n = 1, min = 0, max = 5)
+                                   n = 5, min = 0, max = 5)
 
 save('ammonium_percent_change_fit', file = 'MSSP/data/model/ammonium_percent_change_fit.RDS')
 
