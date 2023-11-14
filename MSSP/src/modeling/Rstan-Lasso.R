@@ -37,9 +37,11 @@ randomizedSearchCV <- function(data, formula, k_fold, MCMC_parms = NULL, locatio
   
   CV_summary <- list()
   
+  # sample the parameter
+  params_value_vec <- do.call(lambda_dist, list(...))
+  
   # Randomized Search K-Fold Cross Validation
   for(k in 1:k_fold){ # run folds datasets
-    params_value_vec <- do.call(lambda_dist, list(...))
     
     valid_df <- folds[[k]]
     train_df <- do.call(rbind, df_list[-k])
@@ -47,6 +49,7 @@ randomizedSearchCV <- function(data, formula, k_fold, MCMC_parms = NULL, locatio
     k_summary <- list()
     index <- 1
     response <- strsplit(as.character(formula), "~")[[1]]
+    
     for (lambda in params_value_vec){ # evaluate each lambda
       if (!is.null(MCMC_parms)){
         chains <- MCMC_parms[['chains']]
