@@ -29,7 +29,7 @@ calculate_performance_metrics <- function(model_fit_data, data) {
 }
 
 
-performance_metrics <- calculate_performance_metrics(nitrate_percent_change_fit, nitrate)
+#performance_metrics <- calculate_performance_metrics(nitrate_percent_change_fit, nitrate)
 
 
 
@@ -44,5 +44,5 @@ find_best_lambda <- function(performance_metrics) {
   return(list(lambda = best_lambda, fold = best_fold))
 }
 
-find_best_lambda(performance_metrics)
+#find_best_lambda(performance_metrics)
 
