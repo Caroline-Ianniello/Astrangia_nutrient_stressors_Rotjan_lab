@@ -31,7 +31,7 @@ randomizedSearchCV <- function(data, formula, k_fold, MCMC_parms = NULL, locatio
   # Return: <list> CV_summary 
   # CV_summary:
   ##  k-fold:
-  ###   lambda: fit, lambda, 
+  ###   index: k, fit, lambda, train_fitted, train_resid, valid_fitted, valid_resid
   
   folds <- k_fold_CV(data = data, k = k_fold, random_k_fold = F)
   
@@ -56,7 +56,7 @@ randomizedSearchCV <- function(data, formula, k_fold, MCMC_parms = NULL, locatio
         train_fitted <- fitted(fit)
         train_resid <- resid(fit)
         valid_fitted <- predict(fit, newdata = valid_df)
-        valid_residual <- valid_df[response] - valid_fitted
+        valid_resid <- valid_df[response] - valid_fitted
       }
       else{
         fit <- rstan_mixEff_lasso(data = train_df, formula = formula, lambda = lambda)
