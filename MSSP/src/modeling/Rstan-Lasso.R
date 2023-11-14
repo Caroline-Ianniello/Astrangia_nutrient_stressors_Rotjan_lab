@@ -31,31 +31,48 @@ randomizedSearchCV <- function(data, formula, k_fold, MCMC_parms = NULL, locatio
   # Return: <list> CV_summary 
   # CV_summary:
   ##  k-fold:
-  ###   lambda: fit, lambda, 
+  ###   index: k, fit, lambda, train_fitted, train_resid, valid_fitted, valid_resid
   
   folds <- k_fold_CV(data = data, k = k_fold, random_k_fold = F)
   
   CV_summary <- list()
   
+  # sample the parameter
+  params_value_vec <- do.call(lambda_dist, list(...))
+  
   # Randomized Search K-Fold Cross Validation
   for(k in 1:k_fold){ # run folds datasets
-    params_value_vec <- do.call(lambda_dist, list(...))
-    df <- folds[[k]]
+    
+    valid_df <- folds[[k]]
+    train_df <- do.call(rbind, df_list[-k])
     
     k_summary <- list()
     index <- 1
+    response <- strsplit(as.character(formula), "~")[[1]]
+    
     for (lambda in params_value_vec){ # evaluate each lambda
       if (!is.null(MCMC_parms)){
         chains <- MCMC_parms[['chains']]
         iter <- MCMC_parms[['iter']]
         refresh <- MCMC_parms[['refresh']]  
-        fit <- rstan_mixEff_lasso(data = data, formula = formula, lambda = lambda, chains = chains, iter = iter, refresh = refresh)
+        fit <- rstan_mixEff_lasso(data = train_df, formula = formula, lambda = lambda, chains = chains, iter = iter, refresh = refresh)
+        train_fitted <- fitted(fit)
+        train_resid <- resid(fit)
+        valid_fitted <- predict(fit, newdata = valid_df)
+        valid_resid <- valid_df[response] - valid_fitted
       }
       else{
-        fit <- rstan_mixEff_lasso(data = data, formula = formula, lambda = lambda)
+        fit <- rstan_mixEff_lasso(data = train_df, formula = formula, lambda = lambda)
+        train_fitted <- fitted(fit)
+        train_resid <- resid(fit)
+        valid_fitted <- predict(fit, newdata = valid_df)
+        valid_residual <- valid_df[response] - valid_fitted        
       }
       
-      model_summary <- list(fit = fit, lambda = lambda, k_fold = k)
+      model_summary <- list(k_fold = k, fit = fit, lambda = lambda, 
+                            train_fitted = train_fitted, train_resid = train_resid,
+                            valid_fitted = valid_fitted, valid_residual = valid_residual)
+      
       k_summary[[index]] <- model_summary
       index <- index + 1
     }
