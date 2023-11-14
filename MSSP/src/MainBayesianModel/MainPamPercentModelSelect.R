@@ -1,0 +1,13 @@
+
+source('MSSP/src/model-evaluation/MainModelSelect.R')
+
+performance_metrics_nitrate_percent <- calculate_performance_metrics(nitrate_percent_change_fit, nitrate)
+
+best_lambda_nitrate_percent=find_best_lambda(performance_metrics_nitrate_percent)
+best_lambda_nitrate_percent
+
+
+performance_metrics_ammonium_percent <- calculate_performance_metrics(ammonium_percent_change_fit, ammonium)
+
+best_lambda_ammonium_percent=find_best_lambda(performance_metrics_ammonium_percent)
+best_lambda_ammonium_percent
