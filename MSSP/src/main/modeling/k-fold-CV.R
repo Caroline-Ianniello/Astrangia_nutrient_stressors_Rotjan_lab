@@ -6,11 +6,12 @@ if(!require('caret', character.only = T)){
 
 library(caret)
 
-k_fold_CV <- function(data, k, random_k_fold = F, rand_select_nobs = NULL){
+k_fold_CV <- function(data, stratified_target = NULL, k, random_k_fold = F, rand_select_nobs = NULL){
   
   # K-Fold Cross Validation
   # ======
   # data : data to split
+  # stratified_target: <string> column_name
   # k : number of folds
   # random_k_fold: <bool> specify whether sample by random for each folds (duplicated data might exist)
   # rand_select_nobs: <float, int> number or proportion to sample in each fold.
@@ -38,8 +39,12 @@ k_fold_CV <- function(data, k, random_k_fold = F, rand_select_nobs = NULL){
     }
   }
   else{ # K-fold CV that include all the observations.
-    
-    k_fold_id <- caret::createFolds(c(1:nobs), k = k, list = TRUE)
+    if(!is.null(stratified_target)){ # target to stratified exists
+      k_fold_id <- caret::createFolds(data[stratified_target], k = k, list = TRUE)  
+    }
+    else{
+      k_fold_id <- caret::createFolds(c(1:nobs), k = k, list = TRUE)
+    }
   }
   
   k_fold_datasets <- list()
