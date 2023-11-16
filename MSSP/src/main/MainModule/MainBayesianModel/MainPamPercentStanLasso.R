@@ -22,6 +22,15 @@ source('MSSP/src/modeling/Rstan-Lasso.R')
   # # e.g. : lambda_dist = rnorm, ... = (n = 1 , mean = 0, sd = 1)
   # =====
 
+# Grid Search K-Fold Validation
+  # =====
+  # MCMC_parms: list for controlling MCMC sampling method(chains, iter, refresh)
+  # params_vec: a vector(1 dim) to pass the desire value of lambdas
+  # =====
+  # Return: <list> CV_summary 
+  # CV_summary:
+  ##  k-fold:
+  ###   index: k, fit, lambda, train_fitted, train_resid, valid_fitted, valid_resid
 
 # modeling ----------------------------------------------------------------
 
@@ -40,7 +49,8 @@ nitrate_percent_change_fit <- randomizedSearchCV(data = nitrate,
                                   lambda_dist = runif,
                                   n = 5, min = 0, max = 5)
 
-save('nitrate_percent_change_fit', file = 'MSSP/data/model/nitrate_percent_change_fit.RDS')
+# change the direction to a folder outside the local git folder, fit file is too large to commit and push to the remote
+# save('nitrate_percent_change_fit', file = 'MSSP/data/model/nitrate_percent_change_fit.RDS')
 
 ammonium_percent_change_fit <- randomizedSearchCV(data = nitrate, 
                                    formula = as.formula(paste0('pam_percent_change~',
@@ -52,5 +62,7 @@ ammonium_percent_change_fit <- randomizedSearchCV(data = nitrate,
                                    lambda_dist = runif,
                                    n = 5, min = 0, max = 5)
 
-save('ammonium_percent_change_fit', file = 'MSSP/data/model/ammonium_percent_change_fit.RDS')
+
+# change the direction to a folder outside the local git folder, fit file is too large to commit and push to the remote
+# save('ammonium_percent_change_fit', file = 'MSSP/data/model/ammonium_percent_change_fit.RDS')
 
