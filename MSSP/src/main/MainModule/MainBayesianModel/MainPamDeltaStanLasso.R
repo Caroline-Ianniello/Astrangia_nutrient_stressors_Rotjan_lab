@@ -1,6 +1,6 @@
 library(rstanarm)
 
-source('MSSP/src/modeling/Rstan-Lasso.R')
+source('MSSP/src/modeling/Rstan-MixEff-Lasso.R')
 
 # rstan_mixEff_lasso
   # Mixed Effect Lasso Bayesian Regression
