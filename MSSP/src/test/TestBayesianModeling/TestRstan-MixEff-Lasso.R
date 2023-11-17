@@ -1,3 +1,6 @@
+
+##################### TEST #####################
+
 library(rstanarm)
 library(tidyverse)
 
@@ -40,30 +43,43 @@ pam_model <- read_csv('MSSP/data/PAM_all_combinations_columns.csv')
 nitrate <- pam_model[pam_model$pollution == 'Nitrate',]
 ammonium <- pam_model[pam_model$pollution == 'Ammonium',]
 
-nitrate_percent_change_fit <- randomizedSearchCV(data = nitrate, 
-                                  formula = as.formula(paste0('pam_percent_change~',
+nitrate_pam_delta_fit <- randomizedSearchCV(
+                                  data = nitrate, 
+                                  formula = as.formula(paste0('PAM_delta~',
                                                                paste(c(c('feed', 'dose_level', 'temp', 'symbiont'),colnames(nitrate)[18:ncol(nitrate)]), collapse = '+'), 
-                                                               '+(1|col_num_3)')),
-                                  k_fold = 5, 
-                                  MCMC_parms = list(chains = 4, iter = 2000, refresh = 0),
+                                                               '+(1|col_num_3)', collapse = '')),
+                                  k_fold = 3, 
+                                  stratified_target = 'col_num_3',
+                                  MCMC_parms = list(chains = 2, iter = 2000, refresh = 0),
                                   location = 0, 
                                   lambda_dist = runif,
-                                  n = 5, min = 0, max = 5)
+                                  n = 1, min = 0, max = 1)
 
-# change the direction to a folder outside the local git folder, fit file is too large to commit and push to the remote
-# save('nitrate_percent_change_fit', file = 'MSSP/data/model/nitrate_percent_change_fit.RDS')
 
-ammonium_percent_change_fit <- randomizedSearchCV(data = nitrate, 
-                                   formula = as.formula(paste0('pam_percent_change~',
+tmp <-as.formula(paste0('PAM_delta~',
                                                                paste(c(c('feed', 'dose_level', 'temp', 'symbiont'),colnames(nitrate)[18:ncol(nitrate)]), collapse = '+'), 
-                                                               '+(1|col_num_3)')),
-                                   k_fold = 5, 
-                                   MCMC_parms = list(chains = 4, iter = 2000, refresh = 0),
-                                   location = 0, 
-                                   lambda_dist = runif,
-                                   n = 5, min = 0, max = 5)
+                                                               '+(1|col_num_3)', collapse = ''))
+
+strsplit(as.character(tmp), "~")[[2]]
 
 
-# change the direction to a folder outside the local git folder, fit file is too large to commit and push to the remote
-# save('ammonium_percent_change_fit', file = 'MSSP/data/model/ammonium_percent_change_fit.RDS')
+
+iris_rstan <- randomizedSearchCV(data = iris, 
+                                  formula = as.formula(paste0('Sepal.Length~',
+                                                               paste(c("Sepal.Width", "Petal.Length", "Petal.Width"), collapse = '+'), 
+                                                               '+(1|Species)')),
+                                  k_fold = 3, 
+                                  stratified_target = 'Species',
+                                  MCMC_parms = list(chains = 2, iter = 2000, refresh = 0),
+                                  location = 0, 
+                                  lambda_dist = runif,
+                                  n = 1, min = 0, max = 1)
+
+
+
+
+
+
+
+
 
