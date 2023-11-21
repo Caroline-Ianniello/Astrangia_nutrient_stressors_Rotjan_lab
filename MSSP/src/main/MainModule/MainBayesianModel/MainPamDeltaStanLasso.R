@@ -1,6 +1,6 @@
 library(rstanarm)
 
-source('MSSP/src/modeling/Rstan-Lasso.R')
+source('MSSP/src/modeling/Rstan-MixEff-Lasso.R')
 
 # rstan_mixEff_lasso
   # Mixed Effect Lasso Bayesian Regression
@@ -22,6 +22,15 @@ source('MSSP/src/modeling/Rstan-Lasso.R')
   # # e.g. : lambda_dist = rnorm, ... = (n = 1 , mean = 0, sd = 1)
   # =====
 
+# Grid Search K-Fold Validation
+  # =====
+  # MCMC_parms: list for controlling MCMC sampling method(chains, iter, refresh)
+  # params_vec: a vector(1 dim) to pass the desire value of lambdas
+  # =====
+  # Return: <list> CV_summary 
+  # CV_summary:
+  ##  k-fold:
+  ###   index: k, fit, lambda, train_fitted, train_resid, valid_fitted, valid_resid
 
 # modeling ----------------------------------------------------------------
 
@@ -41,7 +50,8 @@ nitrate_pam_delta_fit <- randomizedSearchCV(
                                   lambda_dist = runif,
                                   n = 5, min = 0, max = 5)
 
-save('nitrate_pam_delta_fit', file = 'MSSP/data/model/nitrate_pam_delta_fit.RDS')
+# change the direction to a folder outside the local git folder, fit file is too large to commit and push to the remote
+# save('nitrate_pam_delta_fit', file = 'MSSP/data/model/nitrate_pam_delta_fit.RDS')
 
 ammonium_pam_delta_fit <- randomizedSearchCV(
                                   data = nitrate, 
@@ -54,4 +64,5 @@ ammonium_pam_delta_fit <- randomizedSearchCV(
                                   lambda_dist = runif,
                                   n = 5, min = 0, max = 5)
 
-save('ammonium_pam_delta_fit', file = 'MSSP/data/model/ammonium_pam_delta_fit.RDS')
+# change the direction to a folder outside the local git folder, fit file is too large to commit and push to the remote
+# save('ammonium_pam_delta_fit', file = 'MSSP/data/model/ammonium_pam_delta_fit.RDS')
