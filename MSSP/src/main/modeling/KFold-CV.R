@@ -109,3 +109,56 @@ k_fold_CV_stratify <- function(data, k, column_for_freq, random_k_fold = FALSE, 
 ## unit test:
 
 #tmp1 <- k_fold_CV(data = iris,iris$Species, k = 5, random_k_fold = F)
+
+
+
+
+customize_k_fold_CV <- function(data, stratified_target, k, random_k_fold = FALSE, rand_select_nobs = NULL) {
+  
+  # Check if stratified_target column exists
+  if (!is.null(stratified_target) && !stratified_target %in% names(data)) {
+    stop("stratified_target must be a column name in data")
+  }
+  
+  # Create a list to hold the final fold datasets
+  k_fold_datasets <- list()
+  
+  # Split data according to the stratified target with caret's createFolds function
+  folds <- caret::createFolds(data[[stratified_target]], k = k, list = TRUE)
+  
+  # Identify strata with fewer observations than k
+  strata_counts <- table(data[[stratified_target]])
+  small_strata <- names(strata_counts[strata_counts < k])
+  
+  # Data from small strata will be included in every fold
+  small_strata_data <- data[data[[stratified_target]] %in% small_strata, ]
+  
+  # Create k folds ensuring small strata data is included in each fold
+  for (i in seq_len(k)) {
+    # Data for the current fold
+    fold_indices <- folds[[i]]
+    fold_data <- data[fold_indices, ]
+    
+    # Combine the small strata data with the current fold data
+    fold_data <- rbind(fold_data, small_strata_data)
+    
+    # Assign the combined data to the fold_datasets list
+    k_fold_datasets[[i]] <- fold_data
+  }
+  
+  return(k_fold_datasets)
+}
+
+## unit test:
+
+#tmp2 <- customize_k_fold_CV(data = iris, stratified_target = "Species", k = 5, random_k_fold = FALSE)
+#tmp2[[1]]
+
+
+
+
+
+
+
+
+
