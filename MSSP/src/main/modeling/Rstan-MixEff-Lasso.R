@@ -1,4 +1,4 @@
-source('MSSP/src/modeling/k-fold-CV.R')
+source('MSSP/src/main/modeling/KFold-CV.R')
 
 
 rstan_mixEff_lasso <- function(data, formula, location = 0, lambda, chains = 4, iter = 2000, refresh = 0){
@@ -19,7 +19,7 @@ rstan_mixEff_lasso <- function(data, formula, location = 0, lambda, chains = 4, 
   return(fit)
 }
 
-randomizedSearchCV <- function(data, formula, k_fold, MCMC_parms = NULL, location = 0, lambda_dist, ...){
+randomizedSearchCV <- function(data, formula, k_fold, stratified_target = NULL, MCMC_parms = NULL, location = 0, lambda_dist, ...){
   # Randomized Search K-Fold Validation
   # =====
   # MCMC_parms: list for controlling MCMC sampling method(chains, iter, refresh)
@@ -33,7 +33,7 @@ randomizedSearchCV <- function(data, formula, k_fold, MCMC_parms = NULL, locatio
   ##  k-fold:
   ###   index: k, fit, lambda, train_fitted, train_resid, valid_fitted, valid_resid
   
-  folds <- k_fold_CV(data = data, k = k_fold, random_k_fold = F)
+  folds <- k_fold_CV(data = data, stratified_target = stratified_target, k = k_fold, random_k_fold = F)
   
   CV_summary <- list()
   
@@ -44,12 +44,12 @@ randomizedSearchCV <- function(data, formula, k_fold, MCMC_parms = NULL, locatio
   for(k in 1:k_fold){ # run folds datasets
     
     valid_df <- folds[[k]]
-    train_df <- do.call(rbind, df_list[-k])
+    train_df <- do.call(rbind, folds[-k])
     
     k_summary <- list()
     index <- 1
-    response <- strsplit(as.character(formula), "~")[[1]]
-    
+    response <- strsplit(as.character(formula), "~")[[2]]
+
     for (lambda in params_value_vec){ # evaluate each lambda
       if (!is.null(MCMC_parms)){
         chains <- MCMC_parms[['chains']]
@@ -58,20 +58,20 @@ randomizedSearchCV <- function(data, formula, k_fold, MCMC_parms = NULL, locatio
         fit <- rstan_mixEff_lasso(data = train_df, formula = formula, lambda = lambda, chains = chains, iter = iter, refresh = refresh)
         train_fitted <- fitted(fit)
         train_resid <- resid(fit)
-        valid_fitted <- predict(fit, newdata = valid_df)
-        valid_resid <- valid_df[response] - valid_fitted
+        valid_fitted <- posterior_predict(fit, newdata = valid_df)
+        valid_resid <- valid_df[[response]] - valid_fitted
       }
       else{
         fit <- rstan_mixEff_lasso(data = train_df, formula = formula, lambda = lambda)
         train_fitted <- fitted(fit)
         train_resid <- resid(fit)
-        valid_fitted <- predict(fit, newdata = valid_df)
-        valid_residual <- valid_df[response] - valid_fitted        
+        valid_fitted <- posterior_predict(fit, newdata = valid_df)
+        valid_resid <- valid_df[[response]] - valid_fitted        
       }
       
       model_summary <- list(k_fold = k, fit = fit, lambda = lambda, 
                             train_fitted = train_fitted, train_resid = train_resid,
-                            valid_fitted = valid_fitted, valid_residual = valid_residual)
+                            valid_fitted = valid_fitted, valid_residual = valid_resid)
       
       k_summary[[index]] <- model_summary
       index <- index + 1
@@ -91,7 +91,7 @@ randomizedSearchCV <- function(data, formula, k_fold, MCMC_parms = NULL, locatio
 #   return(do.call(expand.grid, inputList))
 # }
 
-gridSearchCV <- function(data, formula, k_fold, MCMC_parms = NULL, params_vec){
+gridSearchCV <- function(data, formula, k_fold, stratified_target = NULL, MCMC_parms = NULL, params_vec){
   # Grid Search K-Fold Validation
   # =====
   # MCMC_parms: list for controlling MCMC sampling method(chains, iter, refresh)
@@ -102,7 +102,7 @@ gridSearchCV <- function(data, formula, k_fold, MCMC_parms = NULL, params_vec){
   ##  k-fold:
   ###   index: k, fit, lambda, train_fitted, train_resid, valid_fitted, valid_resid
   
-  folds <- k_fold_CV(data = data, k = k_fold, random_k_fold = F)
+  folds <- k_fold_CV(data = data, stratified_target = stratified_target, k = k_fold, random_k_fold = F)
   
   CV_summary <- list()
   
@@ -113,11 +113,11 @@ gridSearchCV <- function(data, formula, k_fold, MCMC_parms = NULL, params_vec){
   for(k in 1:k_fold){ # run folds datasets
     
     valid_df <- folds[[k]]
-    train_df <- do.call(rbind, df_list[-k])
+    train_df <- do.call(rbind, folds[-k])
     
     k_summary <- list()
     index <- 1
-    response <- strsplit(as.character(formula), "~")[[1]]
+    response <- strsplit(as.character(formula), "~")[[2]]
     
     for (lambda in params_vec){ # evaluate each lambda
       if (!is.null(MCMC_parms)){
@@ -127,20 +127,20 @@ gridSearchCV <- function(data, formula, k_fold, MCMC_parms = NULL, params_vec){
         fit <- rstan_mixEff_lasso(data = train_df, formula = formula, lambda = lambda, chains = chains, iter = iter, refresh = refresh)
         train_fitted <- fitted(fit)
         train_resid <- resid(fit)
-        valid_fitted <- predict(fit, newdata = valid_df)
-        valid_resid <- valid_df[response] - valid_fitted
+        valid_fitted <- posterior_predict(fit, newdata = valid_df)
+        valid_resid <- valid_df[[response]] - valid_fitted
       }
       else{
         fit <- rstan_mixEff_lasso(data = train_df, formula = formula, lambda = lambda)
         train_fitted <- fitted(fit)
         train_resid <- resid(fit)
-        valid_fitted <- predict(fit, newdata = valid_df)
-        valid_residual <- valid_df[response] - valid_fitted        
+        valid_fitted <- posterior_predict(fit, newdata = valid_df)
+        valid_resid <- valid_df[[response]] - valid_fitted        
       }
       
       model_summary <- list(k_fold = k, fit = fit, lambda = lambda, 
                             train_fitted = train_fitted, train_resid = train_resid,
-                            valid_fitted = valid_fitted, valid_residual = valid_residual)
+                            valid_fitted = valid_fitted, valid_residual = valid_resid)
       
       k_summary[[index]] <- model_summary
       index <- index + 1

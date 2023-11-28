@@ -7,7 +7,7 @@ library(rstanarm)
 calculate_performance_metrics <- function(model_fit_data, data) {
   performance_metrics <- data.frame(lambda = numeric(), sse = numeric(), fold = integer())
   
-  for (i in 1:5) {
+  for (i in 1:length(model_fit_data)) { # not specifying the numbers of k
     fold_data <- model_fit_data[[paste0("fold", i)]]
     
     for (j in 1:length(fold_data)) {

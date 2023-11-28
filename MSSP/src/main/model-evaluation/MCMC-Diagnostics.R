@@ -8,14 +8,27 @@ library(bayesplot)
 # Trace Plot --------------------------------------------------------------
 
 
-plot_trace <- function(model, params, check_separated = T) {
+plot_trace <- function(model, params = NULL, check_separated = T) {
   if (check_separated){
-    trace <- mcmc_trace(as.array(model), pars = params) +
-      facet_wraps(vars(params)) +
-      scale_color_discrete()
+    if(is.null(params)){
+      trace <- mcmc_trace(as.array(model)) +
+        scale_color_discrete()
+    }
+    else{
+      trace <- mcmc_trace(as.array(model), pars = params) +
+        facet_wraps(vars(params)) +
+        scale_color_discrete()
+    }
   }
   else{
-    trace <- mcmc_trace(as.array(model), pars = params)
+    if(is.null(params)){
+      trace <- mcmc_trace(as.array(model)) +
+        scale_color_discrete()
+    }
+    else{
+      trace <- mcmc_trace(as.array(model), pars = params) +
+        scale_color_discrete()
+    }
   }
   print(trace)
 }

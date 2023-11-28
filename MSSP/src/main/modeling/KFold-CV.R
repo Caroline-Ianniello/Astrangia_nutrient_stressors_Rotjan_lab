@@ -40,7 +40,7 @@ k_fold_CV <- function(data, stratified_target = NULL, k, random_k_fold = F, rand
   }
   else{ # K-fold CV that include all the observations.
     if(!is.null(stratified_target)){ # target to stratified exists
-      k_fold_id <- caret::createFolds(data[stratified_target], k = k, list = TRUE)  
+      k_fold_id <- caret::createFolds(data[[stratified_target]], k = k, list = TRUE)  
     }
     else{
       k_fold_id <- caret::createFolds(c(1:nobs), k = k, list = TRUE)

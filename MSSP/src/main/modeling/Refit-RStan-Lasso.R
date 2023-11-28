@@ -1,4 +1,5 @@
-source('MSSP/src/modeling/Rstan-Lasso.R')
+
+source('MSSP/src/main/modeling/Rstan-MixEff-Lasso.R')
 
 # rstan_mixEff_lasso
   # Mixed Effect Lasso Bayesian Regression
@@ -14,8 +15,8 @@ source('MSSP/src/modeling/Rstan-Lasso.R')
 refitRstanLasso <- function(data, formula, best_lambda, location = 0, chains = 4, iter = 2000, refresh = 0){
   
   # create null model formula:
-  formula_parts <- strsplit(as.character(formula), "~")[[1]]
-  null_formula <- as.formula(paste0(response_var, "~ 1"))
+  formula_parts <- strsplit(as.character(formula), "~")[[2]]
+  null_formula <- as.formula(paste0(formula_parts, "~ 1"))
   
   # fit null model
   nullM <-  stan_glm(null_formula, data = data)
