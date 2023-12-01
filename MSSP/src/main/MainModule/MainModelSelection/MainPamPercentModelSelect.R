@@ -1,13 +1,55 @@
 
 source('MSSP/src/main/model-evaluation/ModelSelect.r')
 
-performance_metrics_nitrate_percent <- calculate_performance_metrics(nitrate_percent_change_fit, nitrate)
+# find_best_tune
+  # Find the best lambda for refitting model with entire dataset
+  #=====
+  # MSE_array: <array dim(l,k,2)> 
+  # which_MSE: <string> 'both'/'train'/'valid', default = 'both'
+  # return:
+  ## which_MSE == 'both' : <vector> best lambda vector
+  ## which_MSE == 'train'/'valid' : <float> best lambda value
 
-best_lambda_nitrate_percent=find_best_lambda(performance_metrics_nitrate_percent)
-best_lambda_nitrate_percent
+
+# load MSE_array object ---------------------------------------------------
+
+nitrate_pam_percchange_MSE_arr <- load('MSSP/data/MSE-Arrays/nitrate_pam_percchange_MSE_arr.RDS')
+ammonium_pam_percchange_MSE_arr <- load('MSSP/data/MSE-Arrays/ammonium_pam_percchange_MSE_arr.RDS')
+
+# average MSE for each lambda ---------------------------------------------
+
+nitrate_pamperc_best_lambda <- find_best_tune(nitrate_pam_percchange_MSE_arr)
+ammonium_pamperc_best_lambda <- find_best_tune(ammonium_pam_percchange_MSE_arr)
 
 
-performance_metrics_ammonium_percent <- calculate_performance_metrics(ammonium_percent_change_fit, ammonium)
+# write the result to external file ---------------------------------------
 
-best_lambda_ammonium_percent=find_best_lambda(performance_metrics_ammonium_percent)
-best_lambda_ammonium_percent
+record_lambda(file = 'MSSP/data/Cross-Validation-Results/MSE-Arrays/Nitrate-PAM-Percent-Change-CV-Summary.md', model_response = 'PAM_percent_change', pollution_type = 'nitrate', MSE_array = nitrate_pam_percchange_MSE_arr)
+record_lambda(file = 'MSSP/data/Cross-Validation-Results/MSE-Arrays/Ammonium-PAM-Percent-Change-CV-Summary.md', model_response = 'PAM_percent_change', pollution_type = 'ammonium', MSE_array = ammonium_pam_percchange_MSE_arr)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# old version -------------------------------------------------------------
+# 
+# 
+# performance_metrics_nitrate_percent <- calculate_performance_metrics(nitrate_percent_change_fit, nitrate)
+# 
+# best_lambda_nitrate_percent=find_best_lambda(performance_metrics_nitrate_percent)
+# best_lambda_nitrate_percent
+# 
+# 
+# performance_metrics_ammonium_percent <- calculate_performance_metrics(ammonium_percent_change_fit, ammonium)
+# 
+# best_lambda_ammonium_percent=find_best_lambda(performance_metrics_ammonium_percent)
+# best_lambda_ammonium_percent
