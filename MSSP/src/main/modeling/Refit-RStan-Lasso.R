@@ -19,7 +19,7 @@ refitRstanLasso <- function(data, formula, best_lambda, location = 0, chains = 4
   null_formula <- as.formula(paste0(formula_parts, "~ 1"))
   
   # fit null model
-  nullM <-  stan_glm(null_formula, data = data)
+  nullM <-  stan_glm(null_formula, data = data, chains = chains, iter = iter, refresh = refresh)
   
   fit <- rstan_mixEff_lasso(data, formula, location = 0, lambda = best_lambda, chains = chains, iter = iter, refresh = refresh)
   return(list(Null_model = nullM, BestRefit = fit))

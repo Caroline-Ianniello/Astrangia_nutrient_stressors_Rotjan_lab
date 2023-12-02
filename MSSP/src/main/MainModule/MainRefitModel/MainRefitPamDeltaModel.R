@@ -25,26 +25,27 @@ ammonium <- pam_model[pam_model$pollution == 'Ammonium',]
 
 # load MSE_array object 
 
-nitrate_pam_delta_MSE_arr <- load('MSSP/data/MSE-Arrays/nitrate_pam_delta_MSE_arr.RDS')
-ammonium_pam_delta_MSE_arr <- load('MSSP/data/MSE-Arrays/ammonium_pam_delta_MSE_arr.RDS')
+load('MSSP/data/MSE-Arrays/nitrate_pam_delta_MSE_arr.RDS')
+load('MSSP/data/MSE-Arrays/ammonium_pam_delta_MSE_arr.RDS')
 
 # average MSE for each lambda
 
 nitrate_pamdelta_best_lambda <- find_best_tune(nitrate_pam_delta_MSE_arr)
 ammonium_pamdelta_best_lambda <- find_best_tune(ammonium_pam_delta_MSE_arr)
 
-print(nitrate_pamdelta_best_lambda) #
-print(ammonium_pamdelta_best_lambda) #
+print(nitrate_pamdelta_best_lambda) 
+print(ammonium_pamdelta_best_lambda) 
 
 
 # Refit -------------------------------------------------------------------
 
 ## Nitrate
 Nitrate_PAM_delta_lasso <- refitRstanLasso(data = nitrate,
-                                            formula = as.formula(paste0('PAM_delta~',
+                                           formula = as.formula(paste0('PAM_delta~',
                                                            paste(c(c('feed', 'dose_level', 'temp', 'symbiont'),colnames(nitrate)[18:ncol(nitrate)]), collapse = '+'), 
                                                            '+(1|col_num_3)')),
-                                            best_lambda = nitrate_pamdelta_best_lambda)
+                                           best_lambda = nitrate_pamdelta_best_lambda,
+                                           iter = 4000)
 
 
 ## Ammonium
@@ -52,7 +53,8 @@ Ammonium_PAM_delta_lasso <- refitRstanLasso(data = ammonium,
                                             formula = as.formula(paste0('PAM_delta~',
                                                            paste(c(c('feed', 'dose_level', 'temp', 'symbiont'),colnames(nitrate)[18:ncol(nitrate)]), collapse = '+'), 
                                                            '+(1|col_num_3)')),
-                                            best_lambda = ammonium_pamdelta_best_lambda)
+                                            best_lambda = ammonium_pamdelta_best_lambda,
+                                            iter = 4000)
 
 
 

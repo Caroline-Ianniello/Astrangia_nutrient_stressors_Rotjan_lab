@@ -96,8 +96,8 @@ ammonium_pam_percchange_MSE_arr <- customizedRandomizedSearchCV(data = ammonium,
 
 ## Store results
 
-save(nitrate_pam_percchange_MSE_arr, file = 'MSSP/data/MSE-Arrays/nitrate_pam_percchange_MSE_arr.RDS')
-save(ammonium_pam_percchange_MSE_arr, file = 'MSSP/data/MSE-Arrays/ammonium_pam_percchange_MSE_arr.RDS')
+save(nitrate_pam_percchange_MSE_arr, file = 'MSSP/data/Cross-Validation-Results/MSE-Arrays/nitrate_pam_percchange_MSE_arr.RDS')
+save(ammonium_pam_percchange_MSE_arr, file = 'MSSP/data/Cross-Validation-Results/MSE-Arrays/ammonium_pam_percchange_MSE_arr.RDS')
 
 
 

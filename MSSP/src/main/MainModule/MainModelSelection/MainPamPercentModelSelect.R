@@ -24,13 +24,8 @@ ammonium_pamperc_best_lambda <- find_best_tune(ammonium_pam_percchange_MSE_arr)
 
 # write the result to external file ---------------------------------------
 
-record_lambda(file = 'MSSP/data/Cross-Validation-Results/MSE-Arrays/Nitrate-PAM-Percent-Change-CV-Summary.md', model_response = 'PAM_percent_change', pollution_type = 'nitrate', MSE_array = nitrate_pam_percchange_MSE_arr)
-record_lambda(file = 'MSSP/data/Cross-Validation-Results/MSE-Arrays/Ammonium-PAM-Percent-Change-CV-Summary.md', model_response = 'PAM_percent_change', pollution_type = 'ammonium', MSE_array = ammonium_pam_percchange_MSE_arr)
-
-
-
-
-
+record_lambda(file = 'MSSP/doc/Analysis-Log/Cross-Validation-Results/Nitrate-PAM-Percent-Change-CV-Summary.md', model_response = 'PAM_percent_change', pollution_type = 'nitrate', MSE_array = nitrate_pam_percchange_MSE_arr)
+record_lambda(file = 'MSSP/doc/Analysis-Log/Cross-Validation-Results/Ammonium-PAM-Percent-Change-CV-Summary.md', model_response = 'PAM_percent_change', pollution_type = 'ammonium', MSE_array = ammonium_pam_percchange_MSE_arr)
 
 
 

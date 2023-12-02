@@ -24,8 +24,8 @@ ammonium <- pam_model[pam_model$pollution == 'Ammonium',]
 
 # load MSE_array object ---------------------------------------------------
 
-nitrate_pam_percchange_MSE_arr <- load('MSSP/data/MSE-Arrays/nitrate_pam_percchange_MSE_arr.RDS')
-ammonium_pam_percchange_MSE_arr <- load('MSSP/data/MSE-Arrays/ammonium_pam_percchange_MSE_arr.RDS')
+load('MSSP/data/MSE-Arrays/nitrate_pam_percchange_MSE_arr.RDS')
+load('MSSP/data/MSE-Arrays/ammonium_pam_percchange_MSE_arr.RDS')
 
 # average MSE for each lambda ---------------------------------------------
 
@@ -43,7 +43,8 @@ Nitrate_PAM_percChange_lasso <- refitRstanLasso(data = nitrate,
                                                 formula = as.formula(paste0('pam_percent_change~',
                                                                paste(c(c('feed', 'dose_level', 'temp', 'symbiont'),colnames(nitrate)[18:ncol(nitrate)]), collapse = '+'), 
                                                                '+(1|col_num_3)')),
-                                                best_lambda = nitrate_pamperc_best_lambda)
+                                                best_lambda = nitrate_pamperc_best_lambda,
+                                                iter = 4000)
 
 
 ## Ammonium
@@ -51,7 +52,8 @@ Ammonium_PAM_percChange_lasso <- refitRstanLasso(data = ammonium,
                                                 formula = as.formula(paste0('pam_percent_change~',
                                                                paste(c(c('feed', 'dose_level', 'temp', 'symbiont'),colnames(nitrate)[18:ncol(nitrate)]), collapse = '+'), 
                                                                '+(1|col_num_3)')),
-                                                best_lambda = ammonium_pamperc_best_lambda)
+                                                best_lambda = ammonium_pamperc_best_lambda,
+                                                iter = 4000)
 
 
 
