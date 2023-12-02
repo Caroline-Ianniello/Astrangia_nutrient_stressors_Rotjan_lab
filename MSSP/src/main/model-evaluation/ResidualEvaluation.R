@@ -33,15 +33,28 @@ plot_residuals <- function(model) {
 
 # identify influential outliers -------------------------------------------
 
-plot_leverage <- function(model) {
-  plot(hatvalues(model),
-       rstandard(model),
-       xlab = "Leverage",
-       ylab = "Standardized Residuals",
-       main = "Residuals vs Leverage")
-  abline(h = 0, col = "red")
-}
+standirized_resid <- function(model) {
+  # Check if the model is a stanreg object
+  if (!inherits(model, "stanreg")) {
+    stop("Model must be a 'stanreg' object.")
+  }
 
+  # Use posterior_predict to get predictions
+  y_pred <- posterior_predict(model)
+
+  # Calculate standardized residuals
+  residuals <- residuals(model)
+  std_residuals <- residuals / sd(residuals)
+
+  data_for_plot <- data.frame(Index = 1:length(std_residuals), Std_Residuals = std_residuals)
+
+  # Create the ggplot
+  ggplot(data_for_plot, aes(x = Index, y = Std_Residuals)) +
+    geom_hline(yintercept = 0, color = "red") +
+    geom_point(alpha = 0.5) +
+    labs(x = "Index", y = "Standardized Residuals", title = "Standardized Residuals Plot") +
+    theme_minimal()
+}
 
 #  qqplot -----------------------------------------------------------------
 
