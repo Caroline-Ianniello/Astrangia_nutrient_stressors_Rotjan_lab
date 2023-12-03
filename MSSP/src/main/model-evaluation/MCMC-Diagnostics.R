@@ -3,6 +3,7 @@ if(!requireNamespace('bayesplot')){
 }
 
 library(bayesplot)
+library(ggplot2)
 
 
 # Trace Plot --------------------------------------------------------------
@@ -11,22 +12,21 @@ library(bayesplot)
 plot_trace <- function(model, params = NULL, check_separated = T) {
   if (check_separated){
     if(is.null(params)){
-      trace <- mcmc_trace(as.array(model)) +
+      trace <- mcmc_trace(as.matrix(model)) +
         scale_color_discrete()
     }
     else{
-      trace <- mcmc_trace(as.array(model), pars = params) +
-        facet_wraps(vars(params)) +
+      trace <- mcmc_trace(as.matrix(model), pars = params) +
         scale_color_discrete()
     }
   }
   else{
     if(is.null(params)){
-      trace <- mcmc_trace(as.array(model)) +
+      trace <- mcmc_trace(as.matrix(model)) +
         scale_color_discrete()
     }
     else{
-      trace <- mcmc_trace(as.array(model), pars = params) +
+      trace <- mcmc_trace(as.matrix(model), pars = params) +
         scale_color_discrete()
     }
   }
@@ -36,15 +36,20 @@ plot_trace <- function(model, params = NULL, check_separated = T) {
 # Density Overlay Plot ----------------------------------------------------
 
 plot_dens_overlay <- function(model, params) {
-  density <- mcmc_dens_overlay(model, pars = params) +
+  density <- mcmc_dens_overlay(model, pars = params)
   print(density)
 }
 
 
 # ACF plot ----------------------------------------------------------------
 
-plot_acf <- function(model, lags = 50) {
-  autocorr <- mcmc_acf(as.array(model), lags = lags)
+plot_acf <- function(model, params = NULL, lags = 50) {
+  if(is.null(params)){
+    autocorr <- mcmc_acf(as.matrix(model), lags = lags)
+  }
+  else{
+    autocorr <- mcmc_acf(as.matrix(model)[,params], lags = lags)
+  }
   print(autocorr)
 }
 
