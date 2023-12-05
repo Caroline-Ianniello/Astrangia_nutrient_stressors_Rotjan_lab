@@ -17,7 +17,7 @@ plot_mixeff_coef <- function(refit_model, title){
     ggtitle(title) +
     geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
     theme_bw() +
-    scale_color_manual(values = c("0 in 95% CI" = "black", "0 not in 95% CI" = "blue")) +
+    scale_color_manual(values = c("0 in 95% CI" = "orange", "0 not in 95% CI" = "blue")) +
     theme(legend.position = "none")
 }
 
