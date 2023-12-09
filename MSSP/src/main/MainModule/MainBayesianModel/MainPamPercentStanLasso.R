@@ -67,6 +67,8 @@ source('MSSP/src/main/modeling/Rstan-MixEff-Lasso.R')
 
 pam_model <- read_csv('MSSP/data/PAM_all_combinations_columns.csv')
 
+pam_model$temp <- as.character(pam_model$temp)
+
 nitrate <- pam_model[pam_model$pollution == 'Nitrate',]
 ammonium <- pam_model[pam_model$pollution == 'Ammonium',]
 
