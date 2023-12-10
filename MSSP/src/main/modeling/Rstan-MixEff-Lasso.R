@@ -10,7 +10,7 @@ set.MC.cores <- function(cores = 4){
   # ===
   # return: void
   if (cores != -1){
-    options(mc.cores = 4)
+    options(mc.cores = cores)
   }
   else{
     options(mc.cores = parallel::detectCores())
