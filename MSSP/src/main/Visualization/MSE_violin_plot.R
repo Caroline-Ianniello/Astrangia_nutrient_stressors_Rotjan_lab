@@ -15,7 +15,7 @@ MSE_violin_plot <- function(MSE_array, which_MSE = 'valid', title){
     melt_MSE_df <- melt(MSE_df, id.vars = 'lambda', measure.vars = paste0('fold', c(1:5)))
     
     plot <- ggplot(as.data.frame(melt_MSE_df)) +
-      geom_violin(aes(x = lambda, y = value, color = lambda), linewidth = 2) +
+      geom_violin(aes(x = lambda, y = value, color = lambda), linewidth = 2, size = 2) +
       ggtitle(title) +
       theme_bw() +
       theme(legend.position = "none") 
@@ -26,7 +26,7 @@ MSE_violin_plot <- function(MSE_array, which_MSE = 'valid', title){
     melt_MSE_df <- melt(MSE_df, id.vars = 'lambda', measure.vars = paste0('fold', c(1:5)))
     
     plot <- ggplot(as.data.frame(melt_MSE_df)) +
-      geom_violin(aes(x = lambda, y = value, color = lambda), linewidth = 2) +
+      geom_violin(aes(x = lambda, y = value, color = lambda), linewidth = 2, size = 2) +
       ggtitle(title) +
       theme_bw() +
       theme(legend.position = "none")
@@ -42,7 +42,7 @@ MSE_violin_plot <- function(MSE_array, which_MSE = 'valid', title){
     
     melt_MSE_df <- melt(MSE_df, id.vars = c('lambda', 'type'), measure.vars = paste0('fold', c(1:5)))
     plot <- ggplot(as.data.frame(melt_MSE_df)) +
-      geom_violin(aes(x = lambda, y = value, color = lambda), size = 2) +
+      geom_violin(aes(x = lambda, y = value, color = lambda), size = 2, linewidth = 2) +
       ggtitle(title) +
       facet_wrap(vars(type), scales = 'free_y') +
       theme_bw() +

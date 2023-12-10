@@ -2,22 +2,42 @@ source('MSSP/src/main/modeling/KFold-CV.R')
 library(rstan)
 library(rstanarm)
 
-rstan_mixEff_lasso <- function(data, formula, location = 0, lambda, chains = 4, iter = 2000, refresh = 0){
+set.MC.cores <- function(cores = 4){
+  # Specify number of cores for MCMC 
+  # ===
+  # cores: <int> numbers of cores, if set to -1 then take all resources
+  ## Don't set to -1 if you are working on cloud computing clusters.
+  # ===
+  # return: void
+  if (cores != -1){
+    options(mc.cores = 4)
+  }
+  else{
+    options(mc.cores = parallel::detectCores())
+  }
+}
+
+rstan_mixEff_lasso <- function(data, formula, location = 0, lambda, chains = 4, iter = 2000, refresh = 0, adapt_delta = NULL, QR = FALSE, sparse = FALSE){
   
   # Mixed Effect Lasso Bayesian Regression
-  # ======
+  # ===
   # data : data
   # formula : formula of the regression model
   # chain: How many chains for the stan program to conduct the HMC sampler (by default)
   # iter: number of iteration in each chain
   # refresh: set to 0 to cancel the output in console.
-  # ======
+  # adapt_delta: <float> specify the  target average proposal acceptance probability during Stan's adaptation period. (when using HMC)
+  # QR: <bool> if TRUE applies a scaled qr decomposition to the design matrix
+  # sparse: <bool> A logical scalar (defaulting to FALSE) indicating whether to use a sparse representation of the design (X) matrix. 
+  ## It is not possible to specify both QR = TRUE and sparse = TRUE.
+  # ===
 
   # Fit the model with the specified Laplace prior scale
   fit <- stan_glmer(formula, data = data, family = gaussian(), 
                     prior = laplace(location = location, scale = lambda, autoscale = FALSE), 
                     prior_covariance = decov(),
-                    chains = chains, iter = iter, refresh = refresh)
+                    chains = chains, iter = iter, refresh = refresh,
+                    adapt_delta = adapt_delta, QR = QR, sparse = sparse)
 
   return(fit)
 }
@@ -29,7 +49,7 @@ customizedRandomizedSearchCV <- function(data, formula, fold_number, stratified_
   # formula: <object = formula> formula object to pass to the fit model function
   # fold_number: <int> number k for k-fold CV.
   # stratified_target: <string> column name that is the stratified target for k-fold cv.
-  # MCMC_parms: <list> list for controlling MCMC sampling method(chains, iter, refresh)
+  # MCMC_parms: <list> list for controlling MCMC sampling method(chains, iter, refresh, adapt_delta, QR, sparse)
   # location: <int/float> mean of the laplace prior
   # lambda_dist: <callable distribution function> distribution function that lambda is going to sample from
   # ... : named parameters of the lambda_dist:
@@ -90,9 +110,12 @@ customizedRandomizedSearchCV <- function(data, formula, fold_number, stratified_
         # override MCMC settings
         chains <- MCMC_parms[['chains']]
         iter <- MCMC_parms[['iter']]
-        refresh <- MCMC_parms[['refresh']]  
+        refresh <- MCMC_parms[['refresh']]
+        adapt_delta <- MCMC_parms[['adapt_delta']]
+        QR <- MCMC_parms[['QR']]
+        sparse <- MCMC_parms[['sparse']]
         
-        fit <- rstan_mixEff_lasso(data = train_df, formula = formula, lambda = lambda, chains = chains, iter = iter, refresh = refresh)
+        fit <- rstan_mixEff_lasso(data = train_df, formula = formula, lambda = lambda, chains = chains, iter = iter, refresh = refresh, adapt_delta = adapt_delta, QR = QR, sparse = sparse)
         
         train_fitted <- fitted(fit)
         train_resid <- resid(fit)
@@ -189,8 +212,11 @@ customizedGridSearchCV <- function(data, formula, fold_number, stratified_target
         chains <- MCMC_parms[['chains']]
         iter <- MCMC_parms[['iter']]
         refresh <- MCMC_parms[['refresh']]  
+        adapt_delta <- MCMC_parms[['adapt_delta']]
+        QR <- MCMC_parms[['QR']]
+        sparse <- MCMC_parms[['sparse']]
         
-        fit <- rstan_mixEff_lasso(data = train_df, formula = formula, lambda = lambda, chains = chains, iter = iter, refresh = refresh)
+        fit <- rstan_mixEff_lasso(data = train_df, formula = formula, lambda = lambda, chains = chains, iter = iter, refresh = refresh, adapt_delta = adapt_delta, QR = QR, sparse = sparse)
         
         train_fitted <- fitted(fit)
         train_resid <- resid(fit)
