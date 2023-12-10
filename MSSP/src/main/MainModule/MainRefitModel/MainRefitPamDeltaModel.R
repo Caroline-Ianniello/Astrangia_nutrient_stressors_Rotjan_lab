@@ -5,21 +5,24 @@ source('MSSP/src/main/model-evaluation/ModelSelect.r')
 # Documentation -----------------------------------------------------------
 
 # rstan_mixEff_lasso
-  # Mixed Effect Lasso Bayesian Regression
-  # ===
   # data : data
   # formula : formula of the regression model
   # chain: How many chains for the stan program to conduct the HMC sampler (by default)
   # iter: number of iteration in each chain
   # refresh: set to 0 to cancel the output in console.
-  # ===
+  # adapt_delta: <float> specify the  target average proposal acceptance probability during Stan's adaptation period. (when using HMC)
+  # QR: <bool> if TRUE applies a scaled qr decomposition to the design matrix
+  # sparse: <bool> A logical scalar (defaulting to FALSE) indicating whether to use a sparse representation of the design (X) matrix. 
+  ## It is not possible to specify both QR = TRUE and sparse = TRUE.
 
+# refitRstanLasso 
+## (data, formula, best_lambda, location = 0, chains = 4, iter = 2000, refresh = 0, adapt_delta = NULL, QR = FALSE, sparse = FALSE)
 
 
 # Load Data and best Lambda -----------------------------------------------
 
 pam_model <- read_csv('MSSP/data/PAM_all_combinations_columns.csv')
-
+pam_model$temp <- factor(pam_model$temp, levels = c(20, 30))
 nitrate <- pam_model[pam_model$pollution == 'Nitrate',]
 ammonium <- pam_model[pam_model$pollution == 'Ammonium',]
 
