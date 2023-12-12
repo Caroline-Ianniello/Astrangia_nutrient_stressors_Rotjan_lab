@@ -64,3 +64,8 @@ Ammonium_Resp_lasso <- refitRstanLasso(data = ammonium,
 
 save(Nitrate_Resp_lasso, file = 'MSSP/data/Refit-Models/Respiration/Nitrate_Resp_lasso.RDS')
 save(Ammonium_Resp_lasso, file = 'MSSP/data/Refit-Models/Respiration/Ammonium_Resp_lasso.RDS')
+
+
+
+# lme4 --------------------------------------------------------------------
+
