@@ -35,7 +35,7 @@ amm_resp_var_name <- names(coef(ammo_resp_fit)[[1]])
 
 plot_trace(ammo_resp_fit, params = amm_resp_var_name[1:32])
 
-plot_dens_overlay(ammo_resp_fit, params = amm_resp_var_name[1:32])
+plot_dens_overlay(ammo_resp_fit, params = amm_resp_var_name[1:10])
 
-plot_acf(ammo_resp_fit, lags = 150, params = amm_resp_var_name[21:30])
+plot_acf(ammo_resp_fit, lags = 150, params = amm_resp_var_name[61:64])
 
