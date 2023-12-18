@@ -6,6 +6,12 @@ if(!require('caret', character.only = T)){
 
 library(caret)
 
+if(!require('tidyverse', character.only = T)){
+  install.packages('tidyverse')
+}
+
+library(tidyverse)
+
 k_fold_CV <- function(data, stratified_target = NULL, k, random_k_fold = F, rand_select_nobs = NULL){
   
   # K-Fold Cross Validation

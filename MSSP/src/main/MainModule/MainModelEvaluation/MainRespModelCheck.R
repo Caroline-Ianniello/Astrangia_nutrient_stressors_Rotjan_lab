@@ -1,4 +1,4 @@
-
+library(tidyverse)
 library(lme4)
 
 # load data ---------------------------------------------------------------
@@ -26,12 +26,12 @@ load('MSSP/data/Refit-Models/Respiration/Nitrate_Resp_lasso.RDS')
 load('MSSP/data/Refit-Models/Respiration/Ammonium_Resp_lasso.RDS')
 
 png('MSSP/doc/Analysis-Log/images/Model-Check/Nitrate-Respiration-Rate.png')
-plot(fixef(Nitrate_Resp_lasso$BestRefit),fixef(Nitrate_Resp_freqFit), xlab = 'Bayesian estimate', ylab = 'lme4')
+plot(fixef(Nitrate_Resp_lasso$BestRefit),fixef(Nitrate_Resp_freqFit), xlab = 'Bayesian estimate', ylab = 'lme4', main = 'Nitrate Model Check')
 abline(a = 0, b = 1, col = 'red')
 dev.off()
 
 png('MSSP/doc/Analysis-Log/images/Model-Check/Ammonium-Respiration-Rate.png')
-plot(fixef(Ammonium_Resp_lasso$BestRefit),fixef(Ammonium_Resp_freqFit), xlab = 'Bayesian estimate', ylab = 'lme4')
+plot(fixef(Ammonium_Resp_lasso$BestRefit),fixef(Ammonium_Resp_freqFit), xlab = 'Bayesian estimate', ylab = 'lme4', main = 'Ammonium Model Check')
 abline(a = 0, b = 1, col = 'red')
 dev.off()
 

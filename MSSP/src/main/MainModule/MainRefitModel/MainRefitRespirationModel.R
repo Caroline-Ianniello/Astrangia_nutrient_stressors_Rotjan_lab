@@ -57,7 +57,7 @@ Nitrate_Resp_lasso <- refitRstanLasso(data = nitrate,
 ## Ammonium
 Ammonium_Resp_lasso <- refitRstanLasso(data = ammonium,
                                             formula = as.formula('resp_rate ~ (dose_level + temp + feed + symbiont + e_coli)^5 + (1|col_num)'),
-                                            best_lambda = ammonium_resp_best_lambda, chains = 4, refresh = 1, iter = 2000)
+                                            best_lambda = ammonium_resp_best_lambda, chains = 4, refresh = 1, iter = 4000)
 
 
 # export the model --------------------------------------------------------
@@ -65,7 +65,4 @@ Ammonium_Resp_lasso <- refitRstanLasso(data = ammonium,
 save(Nitrate_Resp_lasso, file = 'MSSP/data/Refit-Models/Respiration/Nitrate_Resp_lasso.RDS')
 save(Ammonium_Resp_lasso, file = 'MSSP/data/Refit-Models/Respiration/Ammonium_Resp_lasso.RDS')
 
-
-
-# lme4 --------------------------------------------------------------------
 
