@@ -99,6 +99,8 @@ nitrate_resp_MSE_arr <- customizedRandomizedSearchCV(data = nitrate,
                                                      MCMC_parms = list(chains = 4, iter = 2000, refresh = 1, adapt_delta = 0.8, QR = TRUE, sparse = FALSE),
                                                      randomseed = 2023, lambda_dist = rexp, n = 5, rate = 0.8)
 
+save(nitrate_resp_MSE_arr, file = 'MSSP/data/Cross-Validation-Results/MSE-Arrays/nitrate_resp_MSE_arr.RDS')
+
 # ammonium
 ammonium_resp_MSE_arr <- customizedRandomizedSearchCV(data = ammonium, 
                                                      formula = as.formula('resp_rate ~ (dose_level + temp + feed + symbiont + e_coli)^5 + (1|col_num)'),
@@ -107,6 +109,6 @@ ammonium_resp_MSE_arr <- customizedRandomizedSearchCV(data = ammonium,
                                                      randomseed = 2023, lambda_dist = rexp, n = 5, rate = 0.8)
 
 
-save(nitrate_resp_MSE_arr, file = 'MSSP/data/Cross-Validation-Results/MSE-Arrays/nitrate_resp_MSE_arr.RDS')
+
 save(ammonium_resp_MSE_arr, file = 'MSSP/data/Cross-Validation-Results/MSE-Arrays/ammonium_resp_MSE_arr.RDS')
 

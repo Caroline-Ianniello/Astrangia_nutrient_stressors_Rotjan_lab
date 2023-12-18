@@ -2,7 +2,7 @@ library(tidyverse)
 library(data.table)
 library(reshape2)
 
-resp <- fread('Raw Data Archives/RESP_ALL_SUMMARY_cleaned_dead_and_broken_deleted_2_17_23.csv')
+resp <- fread('MSSP/data/raw/RESP_ALL_SUMMARY_ALL_cleaned_dead_and_broken_outlierG28Y65_deleted_SA_CORR_12_13_2023.csv')
 
 
 # Columns -----------------------------------------------------------------
@@ -16,7 +16,7 @@ resp <- fread('Raw Data Archives/RESP_ALL_SUMMARY_cleaned_dead_and_broken_delete
 # [21] "beetag_exprun"              "col_num"                     "jar_unique_ID"               "broken_or_damaged" 
 
 # Break down treatment ID -------------------------------------------------
-r
+
 resp_s <- resp[,.(col_num, treat_ID_full, e_coli = e_coli_plate, resp_rate)]
 
 # We separate the treat_ID_full back to each combination component.
