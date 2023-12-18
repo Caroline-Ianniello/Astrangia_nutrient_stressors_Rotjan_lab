@@ -1,0 +1,12 @@
+﻿o2.unit,time.unit,output.unit,volume,temp,salinity,pressure,Vial_number_A1,Vial_number_B1,Vial_number_C1,Vial_number_D1,Vial_number_A2,Vial_number_B2,Vial_number_C2,Vial_number_D2,Vial_number_A3,Vial_number_B3,Vial_number_C3,Vial_number_D3,Vial_number_A4,Vial_number_B4,Vial_number_C4,Vial_number_D4,Vial_number_A5,Vial_number_B5,Vial_number_C5,Vial_number_D5,Vial_number_A6,Vial_number_B6,Vial_number_C6,Vial_number_D6
+%,min,umol/min/g,0.0019,22.1,34.8,1.001875617,0.12345,0.12345,0.504,0.75,0.756,0.793,0.409,0.615,0.579,0.657,0.507,0.932,0.36,0.431,0.489,0.416,0.696,1.048,0.785,0.5,0.584,0.413,0.93,0.621
+,,,,,,,NEG CONTROL,SEAWATER CONTROL,CORAL,CORAL,CORAL,CORAL,CORAL,CORAL,CORAL,CORAL,CORAL,CORAL,CORAL,CORAL,CORAL,CORAL,CORAL,CORAL,CORAL,CORAL,CORAL,CORAL,CORAL,CORAL
+,,,,,,,made up number,made up number,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,because this is negative control,because this is seawater control,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,but code tripped up when I used 0,but code tripped up when I used 0,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,To give you an idea of what a plate looked like….,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,Each number and letter combination is an identifier for a coral.,,,,,,,,,,,,,,,,,,,,,,,
