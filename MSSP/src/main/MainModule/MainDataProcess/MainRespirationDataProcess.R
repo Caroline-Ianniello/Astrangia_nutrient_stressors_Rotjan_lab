@@ -17,7 +17,7 @@ resp <- fread('MSSP/data/raw/RESP_ALL_SUMMARY_ALL_cleaned_dead_and_broken_outlie
 
 # Break down treatment ID -------------------------------------------------
 
-resp_s <- resp[,.(col_num, treat_ID_full, e_coli = e_coli_plate, resp_rate)]
+resp_s <- resp[,.(col_num, treat_ID_full, e_coli = e_coli_plate, abs_resp_rate_SA_corr)]
 
 # We separate the treat_ID_full back to each combination component.
 
@@ -63,7 +63,7 @@ resp_s[, dose_level := fcase(pollution == 'Nitrate' & dose == '0' , 'control-0',
 resp_s[, new_treat_ID_full := str_c(pollution, dose_level, temp, feed, symbiont, sep = "_")]
 
 # Remove missing resp_rate num:8
-resp_s <- resp_s[!is.na(resp_rate), ]
+resp_s <- resp_s[!is.na(abs_resp_rate_SA_corr), ]
 
 write_csv(resp_s, file = 'MSSP/data/CleanRespiration.csv')
 
