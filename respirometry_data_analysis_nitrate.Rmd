@@ -1,5 +1,5 @@
 ---
-title: "Respirometry data analysis (NITRATE) C. Fleming Last updated: 2/24/23"
+title: "Respirometry data analysis (NITRATE) C. Fleming Last updated: 12/13/23"
 output:
   pdf_document: default
   html_notebook: default
@@ -15,8 +15,8 @@ authors: Caroline Fleming
 require("knitr")
 
 library("tidyverse")
-#install.packages("lmTest")
-library("lmTest")
+#install.packages("lmerTest")
+library("lmerTest")
 #install.packages("Matrix")
 library("Matrix")
 #install.packages("lme4")
@@ -58,20 +58,21 @@ options(max.print = 10000)
 
 ```{r Set working directory and upload data - NITRATE DATA ONLY}
 
-#FILE: 
-#RESP_NITRATE_cleaned_dead_and_broken_outlierG28Y65_deleted_random_controls_7_5_23
-#What I did to the above file is took all the cleaned nitrate respirometry data, deleted all controls, and replaced them with the randomized controls consistent with those used for the PAM analysis, so that nitrate and ammonium have the same controls.
-
-# We made a separate Nitrate excel file now so we're all set to upload & go
-resp_all_nitrate.data <- read.csv("RESP_NITRATE_cleaned_dead_and_broken_outlierG28Y65_deleted_random_controls_7_5_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE) #I added a new column called "control_or_nutrient" to make some plotting easier
-resp_all_nitrate.data<-na.omit(resp_all_nitrate.data)
+getwd()
+# We made a separate Nitrate excel file and added RGB now so we're all set to upload & go
+resp_all_nitrate.data <- read.csv("RESP_and_RGB_NITRATE_cleaned_dead_and_broken_outlierG28Y65_deleted_SA_CORR_12_18_2023.csv", header=TRUE, sep=",",stringsAsFactors = FALSE) #I added a new column called "control_or_nutrient" to make some plotting easier
+#resp_all_nitrate.data<-na.omit(resp_all_nitrate.data)
 #create a column for inverted resp rate for visuals
-resp_all_nitrate.data$resp_rate_inverted<- abs(resp_all_nitrate.data$resp_rate)
-hist(resp_all_nitrate.data$resp_rate) #slight skew but we're okay let's keep using it
-qqnorm(resp_all_nitrate.data$resp_rate) #this looks really nice
+
+hist(log(resp_all_nitrate.data$abs_resp_rate_SA_corr)) #logging this looks GREAT
+qqnorm(log(resp_all_nitrate.data$abs_resp_rate_SA_corr)) #this looks really nice
+
+#create a natural logged version of the absolute value of resp rate
+resp_all_nitrate.data$LOG_abs_resp_rate_SA_corr <- log(resp_all_nitrate.data$abs_resp_rate_SA_corr)
+hist(resp_all_nitrate.data$LOG_abs_resp_rate_SA_corr)
 
 #make sure treatID is a character
-resp_all_nitrate.data$treat_ID_full<-as.character(resp_all_nitrate.data$treat_ID_full)
+#resp_all_nitrate.data$treat_ID_full<-as.factor(resp_all_nitrate.data$treat_ID_full)
 
 #make sure everything else is a factor
 resp_all_nitrate.data$e_coli_plate <-as.factor(resp_all_nitrate.data$e_coli_plate)
@@ -101,13 +102,95 @@ resp_all_nitrate.data$N_species_dose <- factor(resp_all_nitrate.data$N_species_d
 # #this object gives us what we want, but we have to index from that object and put it in a new column
 # resp_all_nitrate.data$ordernorm_resp_rate<-orderNormobj_resp_rate$x.t
 # 
-# Essential subsets
-all_20C<-subset(resp_all_nitrate.data, resp_all_nitrate.data$temp==20)
-all_30C<-subset(resp_all_nitrate.data, resp_all_nitrate.data$temp==30)
-all_apo<-subset(resp_all_nitrate.data, resp_all_nitrate.data$sym_state=="A")
-all_sym<-subset(resp_all_nitrate.data, resp_all_nitrate.data$sym_state=="S")
-e_coli<-subset(resp_all_nitrate.data, resp_all_nitrate.data$e_coli_plate=="1")
-no_e_coli<-subset(resp_all_nitrate.data, resp_all_nitrate.data$e_coli_plate=="0")
+
+
+```
+
+```{r for SICB}
+#filter all fed, at all dose levels
+
+SICB_data_nitrate <- resp_all_nitrate.data %>%
+  filter(food=="F") %>%
+  filter(abs_resp_rate_SA_corr<0.7) %>% #there is one 7.5 at 20C thats really high and looks like an outlier to me
+  filter(beetag_exprun!= "G33Y97_exp2A") #this was at E coli at 30C, and it was at like 0.23 and also looked like an outlier
+
+#create an lmer with this dataset
+nitrate_SICB_model <- lmer(LOG_abs_resp_rate_SA_corr ~ N_species_dose + temp + red_day11 + e_coli_plate + N_species_dose*temp + N_species_dose*e_coli_plate + e_coli_plate*temp + e_coli_plate*red_day11 + N_species_dose*red_day11 + temp*red_day11 + N_species_dose*red_day11*temp + N_species_dose*temp*e_coli_plate + N_species_dose*red_day11*e_coli_plate + temp*red_day11*e_coli_plate + N_species_dose*red_day11*temp*e_coli_plate + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_nitrate)
+tab_model(nitrate_SICB_model) #gives you a chart
+plot_model(nitrate_SICB_model, vline="black")
+
+summary(nitrate_SICB_model)
+
+(summary(emmeans(nitrate_SICB_model, specs=pairwise ~ temp*e_coli_plate)))
+(summary(emmeans(nitrate_SICB_model, specs=pairwise ~ temp))) 
+#TEMPERATURE IS SIGNFICIANT
+library(ggplot2)
+ggplot(data = SICB_data_nitrate,
+       aes(x = e_coli_plate,
+           y = abs_resp_rate_SA_corr, color=temp)) +
+    geom_violin() +
+  geom_point(aes(x = e_coli_plate,
+           y = abs_resp_rate_SA_corr, color=temp))
+
+ggplot(data = SICB_data_nitrate,
+       aes(x = e_coli_plate,
+           y = abs_resp_rate_SA_corr, color=temp)) +
+    geom_violin() +
+     geom_point(position=position_jitterdodge())+
+  ggtitle("Nitrate") +
+  ylim(0, 0.25) +
+    scale_color_manual(values=c("blue", "darkred")) 
+
+ggplot(data = SICB_data_nitrate_noEC,
+       aes(x = temp,
+           y = abs_resp_rate_SA_corr)) +
+    geom_boxplot() +
+     #geom_point(position=position_jitterdodge())+
+  ggtitle("Nitrate") +
+  ylim(0, 0.25) +
+
+
+
+
+
+
+# THE STORY HERE
+#What we DONT see: significant effect of dose or temperature or symbiotic state
+#What we DO see: a significant effect of E. coli, increase in respiration rate
+#Interestingly, though, we see no significant difference in resp rates at 20 v 30C with NO e coli, but we do see significant metabolic depression at 30C when they are exposed to E. coli
+# When we give them an immune challenge, we see that 20 vs. 30 -- 30 has depression
+# The immune challenge is the straw that broke the camel's back -- they do fine without it, but with it they tend to exhibit depression, sublethal effect not being able to mount a proper response (KEY POINT, I think metabolic depression is bad here, is that safe to say?)
+
+
+#just keep everything fed NO E COLI
+SICB_data_nitrate_noEC <- resp_all_nitrate.data %>%
+  filter(food=="F") %>%
+  filter(e_coli_plate==0) %>%
+ filter(abs_resp_rate_SA_corr<0.7) %>% #there is one 7.5 at 20C thats really high and looks like an outlier to me
+  filter(beetag_exprun!= "G33Y97_exp2A") #this was at E coli at 30C, and it was at like 0.23 and also looked like an outlier
+nitrate_SICB_model_noEC <- lmer(LOG_abs_resp_rate_SA_corr ~ N_species_dose + temp + red_day11 +  N_species_dose*temp + N_species_dose*red_day11 + temp*red_day11 + N_species_dose*red_day11*temp  + N_species_dose*red_day11*temp+ (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_nitrate_noEC)
+# boundary (singular) fit: see help('isSingular') HAPPENS WHEN RANDOM EFFECTS ARE VERY SMALL
+plot_model(nitrate_SICB_model_noEC, vline.color="black")
+
+summary(nitrate_SICB_model_noEC)
+#nothing sig
+(summary(emmeans(nitrate_SICB_model_noEC, specs=pairwise ~ temp)))
+#again we see metabolic depression
+
+
+
+#now lets look at RGB between 20 and 30 
+nitrate_SICB_model_RGB <- lmer(red_day11 ~ N_species_dose + temp + sym_state + N_species_dose*temp + N_species_dose*sym_state + temp*sym_state + N_species_dose*sym_state*temp  + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_nitrate)
+summary(nitrate_SICB_model_RGB)
+(summary(emmeans(nitrate_SICB_model_RGB, specs=pairwise ~ temp))) 
+
+library(ggplot2)
+ggplot(data = SICB_data_nitrate,
+       aes(x = red_day11,
+           y =sym_state, color=temp)) +
+    geom_point() 
+#NO RELATIONSHIP BETWEEN COLOR AND RESP RATE IN NITRATE (not all that surprising)
+
 ```
 
 
