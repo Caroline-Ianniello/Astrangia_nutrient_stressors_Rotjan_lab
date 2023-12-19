@@ -94,7 +94,7 @@ set.MC.cores(4)
 
 #nitrate
 nitrate_resp_MSE_arr <- customizedRandomizedSearchCV(data = nitrate, 
-                                                     formula = as.formula('resp_rate ~ (dose_level + temp + feed + symbiont + e_coli)^5 + (1|col_num)'),
+                                                     formula = as.formula('abs_resp_rate_SA_corr ~ (dose_level + temp + feed + symbiont + e_coli)^5 + (1|col_num)'),
                                                      fold_number = 5, stratified_target = 'col_num',
                                                      MCMC_parms = list(chains = 4, iter = 2000, refresh = 1, adapt_delta = 0.8, QR = TRUE, sparse = FALSE),
                                                      randomseed = 2023, lambda_dist = rexp, n = 5, rate = 0.8)
@@ -103,7 +103,7 @@ save(nitrate_resp_MSE_arr, file = 'MSSP/data/Cross-Validation-Results/MSE-Arrays
 
 # ammonium
 ammonium_resp_MSE_arr <- customizedRandomizedSearchCV(data = ammonium, 
-                                                     formula = as.formula('resp_rate ~ (dose_level + temp + feed + symbiont + e_coli)^5 + (1|col_num)'),
+                                                     formula = as.formula('abs_resp_rate_SA_corr ~ (dose_level + temp + feed + symbiont + e_coli)^5 + (1|col_num)'),
                                                      fold_number = 5, stratified_target = 'col_num',
                                                      MCMC_parms = list(chains = 4, iter = 2000, refresh = 1, adapt_delta = 0.8, QR = TRUE, sparse = FALSE),
                                                      randomseed = 2023, lambda_dist = rexp, n = 5, rate = 0.8)

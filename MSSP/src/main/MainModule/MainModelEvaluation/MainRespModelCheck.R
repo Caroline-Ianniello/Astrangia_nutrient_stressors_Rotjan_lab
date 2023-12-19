@@ -14,10 +14,10 @@ ammonium <- resp_model[resp_model$pollution == 'Ammonium',]
 
 # Frequentist Fit ---------------------------------------------------------------------
 
-Nitrate_Resp_freqFit <- lmer(formula = resp_rate ~ (dose_level + temp + feed + symbiont + e_coli)^5 + (1|col_num), 
+Nitrate_Resp_freqFit <- lmer(formula = abs_resp_rate_SA_corr ~ (dose_level + temp + feed + symbiont + e_coli)^5 + (1|col_num), 
                               data = nitrate)
 
-Ammonium_Resp_freqFit <- lmer(formula = resp_rate ~ (dose_level + temp + feed + symbiont + e_coli)^5 + (1|col_num), 
+Ammonium_Resp_freqFit <- lmer(formula = abs_resp_rate_SA_corr ~ (dose_level + temp + feed + symbiont + e_coli)^5 + (1|col_num), 
                               data = ammonium)
 
 # Load Bayesian Models ----------------------------------------------------

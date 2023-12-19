@@ -50,13 +50,13 @@ set.MC.cores(4)
 
 ## Nitrate
 Nitrate_Resp_lasso <- refitRstanLasso(data = nitrate,
-                                           formula = as.formula('resp_rate ~ (dose_level + temp + feed + symbiont + e_coli)^5 + (1|col_num)'),
+                                           formula = as.formula('abs_resp_rate_SA_corr ~ (dose_level + temp + feed + symbiont + e_coli)^5 + (1|col_num)'),
                                            best_lambda = nitrate_resp_best_lambda, chains = 4, refresh = 1, iter = 2000)
 
 
 ## Ammonium
 Ammonium_Resp_lasso <- refitRstanLasso(data = ammonium,
-                                            formula = as.formula('resp_rate ~ (dose_level + temp + feed + symbiont + e_coli)^5 + (1|col_num)'),
+                                            formula = as.formula('abs_resp_rate_SA_corr ~ (dose_level + temp + feed + symbiont + e_coli)^5 + (1|col_num)'),
                                             best_lambda = ammonium_resp_best_lambda, chains = 4, refresh = 1, iter = 4000)
 
 
