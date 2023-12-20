@@ -1,0 +1,29 @@
+---
+title: "Script for putting 2 blank rows between each row in a dataset"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+library(tidyverse)
+
+```
+```{r}
+#upload my RGB data
+rgb_data_unformatted <- read.csv("RGB_NITRATE_RAW_not_recomputed_12_18_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE) 
+getwd()
+
+```
+# Ultimate goal here is to put 2 blank (or NA) rows in between EACH row so that we can go back and calucate the true RGB value using the  "Color value Matlab Sheet--recomputed" made by Jeff Chabot
+
+#Data setup
+Needs to have a column "row_number" with a simple integer for the length of the dataset
+```{r}
+rgb_formatted_data <- rgb_data_unformatted %>%
+  group_split(row_number) %>%
+  map_dfr(~ .x[1:(nrow(.x) + 2),]) #this adds two blank rows after every data row
+
+write.csv(rgb_formatted_data, file="FORMATTED_RGB_NITRATE_RAW_not_recomputed_12_18_23.csv", row.names=TRUE)
+```
+
