@@ -1,0 +1,1514 @@
+---
+title:  "Respirometry data analysis (ALL) C. Fleming Last updated: 2/22/23"
+output:
+  pdf_document: default
+  html_notebook: default
+authors: Caroline Fleming
+
+#Some resources:
+  #https://rstudio-pubs-static.s3.amazonaws.com/63556_e35cc7e2dfb54a5bb551f3fa4b3ec4ae.html
+---
+
+```{r Install all packages required}
+require("knitr")
+
+#install.packages("lmerTest")
+library("lmerTest")
+#install.packages("Matrix")
+library("Matrix")
+#install.packages("lme4")
+library("lme4")
+#install.packages("emmeans")
+library("emmeans")
+#install.packages("pbkrtest")
+library("pbkrtest")
+library("tidyverse")
+library("performance")
+#install.packages("see")
+library("see")
+#install.packages("ggrepel")
+library("ggrepel")
+#install.packages("sjPlot") #for visualizing linear models
+library(sjPlot)
+#install.packages("MASS")
+library(MASS)
+#install.packages("glmmTMB") # for visualizing model checks
+library(glmmTMB)
+#install.packages("relaimpo") #for quantifying the effects of predictor variables
+library(relaimpo)
+#install.packages("outliers") #for checking out whether a data point is an outlier
+library(outliers)
+
+#turn off scientific notation
+options(scipen=999)
+
+#let dplyr print a bunch of numbers
+options(dplyr.print_max = 1e9)
+options(max.print = 10000)   
+```
+
+
+```{r Set working directory and upload data}
+#opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox/N_Ecotox_Chapter_2_ANALYSIS/Astrangia_nutrient_stressors_Rotjan_lab")
+#getwd()
+resp_all.data <- read.csv("RESP_ALL_SUMMARY_ALL_cleaned_dead_and_broken_outlierG28Y65_deleted_2_17_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+resp_all.data<-na.omit(resp_all.data)
+
+
+#make sure treatID is a character
+resp_all.data$treat_ID_full<-as.character(resp_all.data$treat_ID_full)
+
+# #adding a log transformed resp rate
+# resp_all.data$log_resp_rate<-abs(resp_all.data$resp_rate)
+# resp_all.data$log_resp_rate<-log(resp_all.data$log_resp_rate)
+# resp_all.data$arcsin_resp_rate<-asin(resp_all.data$resp_rate)
+# 
+# #testing for normality
+# #TESTING FOR NORMALITY IN PAM_delta
+# #install new package to see what the best transformation is
+# #install.packages("bestNormalize")
+# library("bestNormalize")
+# bestNormalize(resp_all.data$resp_rate)
+# #in order for this to work I need to change the PAM_delta in to a vector
+# resp_all.data$resp_rate_vector<-as.vector(resp_all.data$resp_rate_vector)
+# #then I run the orderNorm command into a new object
+# orderNormobj_resp_rate<-orderNorm(resp_all.data$resp_rate)
+# #this object gives us what we want, but we have to index from that object and put it in a new column
+# resp_all.data$ordernorm_resp_rate<-orderNormobj_resp_rate$x.t
+
+# Essential subsets
+all_20C<-subset(resp_all.data, resp_all.data$temp==20)
+all_30C<-subset(resp_all.data, resp_all.data$temp==30)
+all_apo<-subset(resp_all.data, resp_all.data$sym_state=="A")
+all_sym<-subset(resp_all.data, resp_all.data$sym_state=="S")
+e_coli<-subset(resp_all.data, resp_all.data$e_coli_plate=="1")
+no_e_coli<-subset(resp_all.data, resp_all.data$e_coli_plate=="0")
+
+
+```
+
+```{r All subsets and some preliminary t tests}
+control_all_20<-subset(resp_all.data, resp_all.data$N_dose=="0" & resp_all.data$temp=="20")
+control_ecoli_20<-subset(resp_all.data, resp_all.data$N_dose=="0" & resp_all.data$temp=="20" & resp_all.data$e_coli=="1")
+control_no_ecoli_20<-subset(resp_all.data, resp_all.data$N_dose=="0" & resp_all.data$temp=="20" & resp_all.data$e_coli=="0")
+control_all_30<-subset(resp_all.data, resp_all.data$N_dose=="0" & resp_all.data$temp=="30")
+control_ecoli_30<-subset(resp_all.data, resp_all.data$N_dose=="0" & resp_all.data$temp=="30" & resp_all.data$e_coli=="1")
+control_no_ecoli_30<-subset(resp_all.data, resp_all.data$N_dose=="0" & resp_all.data$temp=="30" & resp_all.data$e_coli=="0")
+A_5_20 <-subset(resp_all.data, resp_all.data$N_species=="A"& resp_all.data$N_dose=="5" & resp_all.data$temp=="20")
+A_5_30 <- A_5_20 <-subset(resp_all.data, resp_all.data$N_species=="A"& resp_all.data$N_dose=="5" & resp_all.data$temp=="30")
+A_7.5_20 <-subset(resp_all.data, resp_all.data$N_species=="A"& resp_all.data$N_dose=="7.5" & resp_all.data$temp=="20")
+A_7.5_30 <- A_5_20 <-subset(resp_all.data, resp_all.data$N_species=="A"& resp_all.data$N_dose=="7.5" & resp_all.data$temp=="30")
+A_10_20 <-subset(resp_all.data, resp_all.data$N_species=="A"& resp_all.data$N_dose=="10" & resp_all.data$temp=="20")
+A_10_30 <- A_5_20 <-subset(resp_all.data, resp_all.data$N_species=="A"& resp_all.data$N_dose=="10" & resp_all.data$temp=="30")
+N_1.5_20 <-subset(resp_all.data, resp_all.data$N_species=="N"& resp_all.data$N_dose=="1.5" & resp_all.data$temp=="20")
+N_1.5_30 <- A_5_20 <-subset(resp_all.data, resp_all.data$N_species=="N"& resp_all.data$N_dose=="1.5" & resp_all.data$temp=="30")
+N_5_20 <-subset(resp_all.data, resp_all.data$N_species=="N"& resp_all.data$N_dose=="5" & resp_all.data$temp=="20")
+N_5_30 <- A_5_20 <-subset(resp_all.data, resp_all.data$N_species=="N"& resp_all.data$N_dose=="5" & resp_all.data$temp=="30")
+N_18_20 <-subset(resp_all.data, resp_all.data$N_dose=="18" & resp_all.data$temp=="20")
+N_18_30 <-subset(resp_all.data, resp_all.data$N_dose=="18" & resp_all.data$temp=="30")
+e_coli<-subset(resp_all.data, resp_all.data$e_coli==1)
+no_e_coli<-subset(resp_all.data, resp_all.data$e_coli==0)
+N_18_30_e_coli <-subset(resp_all.data, resp_all.data$N_dose=="18" & resp_all.data$temp=="30" & resp_all.data$e_coli==1)
+
+#e coli controls
+t.test(control_ecoli_30$resp_rate, control_no_ecoli_20$resp_rate) #no difference
+
+# Control 20 v control 30
+t.test(control_all_20$resp_rate, control_all_30$resp_rate)
+# A 5 20 v A 5 30
+t.test(A_5_20$resp_rate, A_5_30$resp_rate)
+# A 7.5 20 v A 7.5 30
+t.test(A_7.5_20$resp_rate, A_7.5_30$resp_rate)
+# Control 20 v. A10 20
+t.test(control_all_20$resp_rate, A_10_20$resp_rate)
+# Control 30 v. A10 30
+t.test(control_all_30$resp_rate, A_10_30$resp_rate)
+# A10 20 v A10 30
+t.test(A_10_20$resp_rate, A_10_30$resp_rate)
+# N 1.5 20 v N 1.5 30
+t.test(N_1.5_20$resp_rate, N_1.5_30$resp_rate)
+# N 5 20 v N 5 30
+t.test(N_5_20$resp_rate, N_5_30$resp_rate)
+# Control 20 v. N18 20
+t.test(control_all_20$resp_rate, N_18_20$resp_rate)
+# Control 30 v. Control N18 30
+t.test(control_all_30$resp_rate, N_18_30$resp_rate)
+
+# e coli vs. no ecoli 
+t.test(e_coli$resp_rate, no_e_coli$resp_rate)
+# N 18 e coli 30 vs. control 30
+t.test(control_all_30$resp_rate, N_18_30_e_coli$resp_rate)
+       
+```
+
+
+#Linear models
+
+```{r linear models - ALL DATA}
+
+#stepAIC is from the MASS package
+fullModel = lm(resp_rate ~   N_species_dose + temp + sym_state + e_coli_plate + N_species_dose*temp + N_species_dose*sym_state + N_species_dose*e_coli_plate  + temp*sym_state + temp*e_coli_plate + sym_state*e_coli_plate, data= resp_all.data) # model with all 9 variables and possible combinations
+
+nullModel = lm(resp_rate ~  1, data= resp_all.data) # model with the intercept only
+
+summary(stepAIC(nullModel, # start with a model containing no variables
+                direction = 'forward', # run forward selection
+                scope = list(upper = fullModel, # the maximum to consider is a model with all variables
+                             lower = nullModel), # the minimum to consider is a model with no variables
+                trace = 1)) # do not show the step-by-step process of model selection
+resp_all.data$N_species_dose<-as.factor(resp_all.data$N_species_dose)
+resp_all.data$N_species_dose <- factor(resp_all.data$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5", "A_10", "N_1.5", "N_5","N_18"))
+
+lm_test<- lm(formula = resp_rate ~ N_species_dose + temp + e_coli_plate + 
+    sym_state, data = resp_all.data)
+summary(lm_test)
+elm_test=emmeans(lm_test, specs=pairwise ~ e_coli_plate*temp)
+summary(elm_test)
+
+
+
+mm_resp_null <- lmer(resp_rate ~ 1 + (1|vial_ID) + (1|col_num) + (1|exp_num) +(1|exp_subrun) +(1|jar_unique_ID) + (1|resp_run) , data= resp_all.data)
+summary(mm_resp_null)
+#that null looks good
+
+#full model with all interactions possible
+mm_resp_1 <- lmer(resp_rate ~ N_species + N_species_dose + temp + food + sym_state + e_coli_plate + +N_species*N_species_dose + N_species*temp + N_species*food + N_species*sym_state + N_species*e_coli_plate + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + N_species_dose*e_coli_plate + temp*food + temp*sym_state + temp*e_coli_plate + food*sym_state + food*e_coli_plate + sym_state*e_coli_plate + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= resp_all.data)
+summary(mm_resp_1)
+emm_resp_1_e_coli=emmeans(mm_resp_1, specs=pairwise ~ N_species)
+summary(emm_resp_1_e_coli)
+#WARNING:
+# boundary (singular) fit: see help('isSingular')
+help('isSingular')
+
+# OKAY NOW LETS TRY TO DO A STEPWISE LINEAR REGRESSION A LA RANDI's SUGGESTION
+# This stepwise function includes random effects
+full.model <- lmer(resp_rate ~ N_species + N_species_dose + temp + food + sym_state + e_coli_plate + +N_species*N_species_dose + N_species*temp + N_species*food + N_species*sym_state + N_species*e_coli_plate + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + N_species_dose*e_coli_plate + temp*food + temp*sym_state + temp*e_coli_plate + food*sym_state + food*e_coli_plate + sym_state*e_coli_plate + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= resp_all.data)
+print(step.model<- step(full.model))
+
+# here is the model that it recommends:
+mm_resp_stepwise_output <- lmer(resp_rate ~ N_species + N_species_dose + temp + sym_state + e_coli_plate + (1 | col_num) + N_species*N_species_dose + N_species*e_coli_plate, data=resp_all.data)
+summary(mm_resp_stepwise_output)
+
+mm_resp_test <- lmer(resp_rate ~ N_species + N_species_dose + temp + sym_state + e_coli_plate + (1 | col_num) + N_species*e_coli_plate, data=resp_all.data)
+summary(mm_resp_test)
+
+mm_resp_test2 <- lmer(resp_rate ~ N_species_dose + temp + sym_state + e_coli_plate + (1 | col_num), data=resp_all.data)
+summary(mm_resp_test)
+
+AIC(mm_resp_1,mm_resp_test2) #interestingly when I entirely drop N_species the AIC goes down (which is a good thing)
+# I think it makes biological sense to get rid of N_species and its interactions and keep N_species_dose
+
+# so let's reassign it to mm_resp_2
+mm_resp_2 <- lmer(resp_rate ~ N_species_dose + temp + sym_state + e_coli_plate + (1 | col_num), data=resp_all.data)
+summary(mm_resp_2)
+
+    #Question: is there an effect of nitrogen species on respiration? #lets use the old model here, the one that the code selected
+emm_resp_2_N_species=emmeans(mm_resp_stepwise_output, specs=pairwise ~ N_species)
+summary(emm_resp_2_N_species)
+#  contrast    estimate       SE  df t.ratio p.value
+#  A - CNTRL -0.0002370 0.000161 663  -1.468  0.3069
+#  A - N     -0.0001812 0.000160 699  -1.130  0.4961
+#  CNTRL - N  0.0000557 0.000167 675   0.334  0.9405
+# Answer: There seems to be an overall effect of nitrogen species when we look at the overall model output, but this breaks down pairwise. I feel pretty comfortable getting rid of it.
+
+    # Question: is there a dose of nitrate where we see a statistically significant effect on respiration?
+#Pairwise for N_species_dose
+emm_resp_2_N_species_dose=emmeans(mm_resp_test2, specs=pairwise ~ N_species_dose)
+summary(emm_resp_2_N_species_dose)
+#  contrast          estimate       SE  df t.ratio p.value
+#  A_10 - A_5      -0.0001743 0.000251 655  -0.693  0.9930
+#  A_10 - A_7.5    -0.0009320 0.000245 649  -3.798  0.0030 ***
+#  A_10 - CNTRL_0  -0.0006040 0.000215 655  -2.811  0.0749 **
+#  A_10 - N_1.5    -0.0008979 0.000255 684  -3.523  0.0082
+#  A_10 - N_18     -0.0002225 0.000273 692  -0.815  0.9834
+#  A_10 - N_5      -0.0005032 0.000261 685  -1.931  0.4606
+#  A_5 - A_7.5     -0.0007577 0.000249 645  -3.047  0.0386 ***
+#  A_5 - CNTRL_0   -0.0004297 0.000220 663  -1.950  0.4481
+#  A_5 - N_1.5     -0.0007236 0.000259 686  -2.791  0.0790 ** (I think you can ignore me, nothing else going on in Nitrate)
+#  A_5 - N_18      -0.0000482 0.000276 687  -0.175  1.0000
+#  A_5 - N_5       -0.0003289 0.000264 681  -1.246  0.8759
+#  A_7.5 - CNTRL_0  0.0003280 0.000214 660   1.530  0.7268
+#  A_7.5 - N_1.5    0.0000340 0.000254 684   0.134  1.0000
+#  A_7.5 - N_18     0.0007095 0.000272 691   2.610  0.1244
+#  A_7.5 - N_5      0.0004288 0.000260 685   1.650  0.6499
+#  CNTRL_0 - N_1.5 -0.0002939 0.000217 659  -1.355  0.8252
+#  CNTRL_0 - N_18   0.0003815 0.000237 672   1.609  0.6767
+#  CNTRL_0 - N_5    0.0001008 0.000225 665   0.449  0.9994
+#  N_1.5 - N_18     0.0006755 0.000266 652   2.544  0.1457
+#  N_1.5 - N_5      0.0003947 0.000254 645   1.553  0.7121
+#  N_18 - N_5      -0.0002808 0.000270 646  -1.041  0.9443
+# # Not really -- no consistent pattern. A10 vs. 0 could be interesting here:
+mean(resp_all.data[resp_all.data$N_species_dose == "A_10","resp_rate"], na.rm=TRUE) 
+#-0.004824468
+mean(resp_all.data[resp_all.data$N_species_dose == "CNTRL_0","resp_rate"], na.rm=TRUE) 
+#-0.004205968
+mean(resp_all.data[resp_all.data$N_species_dose == "A_7.5","resp_rate"], na.rm=TRUE) 
+#-0.003938632
+#A_10 respired MARGINALLY more than control, but SIGNFICANTLY more than A_7.5 (this will be interesting to look at in the ammonium subset)
+
+
+
+    # Question: do corals that experienced heat stress have statistically significant different respiration?
+#pairwise for temp
+emm_resp_2_temp=emmeans(mm_resp_2, specs=pairwise ~ temp)
+summary(emm_resp_2_temp)
+ # contrast        estimate       SE  df t.ratio p.value
+ # temp20 - temp30 -0.00045 0.000129 667  -3.500  0.0005
+    # Answer: Yes! Corals at 30C respired less than those at 20C.
+mean(all_20C$resp_rate, na.rm=TRUE)
+#-0.004557241 #respired more than 30C
+mean(all_30C$resp_rate, na.rm=TRUE)
+#-0.00414011
+
+# Question: do sym versus apo have statistically significant different respiration?
+#pairwise for sym state
+emm_resp_2_sym_state=emmeans(mm_resp_2, specs=pairwise ~ sym_state)
+summary(emm_resp_2_sym_state)
+# contrast estimate       SE  df t.ratio p.value
+#  A - S    0.000345 0.000165 456   2.095  0.0367
+  #Answer: symbiotic colonies respired more than aposymbiotic colonies.
+mean(all_apo$resp_rate, na.rm=TRUE)
+#-0.004144803
+mean(all_sym$resp_rate, na.rm=TRUE)
+# -0.004542045 #respired more than apo
+
+# Question: do E. coli versus no e coli have statistically significant different respiration?
+#pairwise for e coli
+emm_resp_2_e_coli=emmeans(mm_resp_2, specs=pairwise ~ e_coli_plate)
+summary(emm_resp_2_e_coli)
+ # contrast                      estimate       SE  df t.ratio p.value
+ # e_coli_plate0 - e_coli_plate1   0.0004 0.000141 692   2.835  0.0047
+  #Answer: E. coli plates respired more than plates without e coli.
+mean(e_coli$resp_rate, na.rm=TRUE)
+# -0.00455119 #respired more than no_e_coli
+mean(no_e_coli$resp_rate, na.rm=TRUE)
+# -0.00414025
+
+
+
+
+#  CHECKING MODEL FITNESS AND VISUALIZING MODEL for our winning model mm_resp_2
+#checking for model fit
+plot(mm_resp_2) #homogeneity of variance,looks okay--they are relatively distributed around 0
+r2(mm_resp_2) #marginal id variance just by fixed factors, conditional includes variance explained by random factor
+  # treatment explains 7% of variation
+  # Random effects 24% genetic effect 
+# !!!!!!!!!!!!! WEE WOO LOOK INTO THIS !!!!!!!!!!!!!!!!!!
+check_collinearity(mm_resp_2) #check for predictor variables are correlated #Low or moderate correlation
+check_outliers(mm_resp_2) #we fixed this previously so no outlier detected
+
+check_heteroscedasticity(mm_resp_2) #heteroscadasticity detected
+check_homogeneity(mm_resp_2) #variances different between groups
+check_autocorrelation(mm_resp_2) #autcorrelated residuals detected
+#Now this command will plot all of our model diagnostics to visualize them
+plot_model(mm_resp_2, type="diag") #everything looks pretty good, a little different than a normal distribution but I think its okay
+
+#checking out the contribution of each variable to the mode
+summary(mm_resp_2)$coef
+#we can just interpret t as an index of how important the effect is without trying to use some p-value to describe it
+
+#looking at just the random effect part of the model
+VarCorr(mm_resp_2) #not really sure how to interpret this
+
+plot_model(mm_resp_2, "eff") # plots the predicted effects of each variable on respiration rate 
+plot_model(mm_resp_2, type="re") # plots random effects
+
+plot_model(mm_resp_2)
+tab_model(mm_resp_2, digits=7) #adding digits tells it to include more decimal places
+
+#let's try using the package relaimpo to give us a sense of the relative contribution of each variable to the model
+# link for info on this package: https://advstats.psychstat.org/book/mregression/importance.php
+library(relaimpo)
+lm_resp_2_relimp <- lm(resp_rate ~ factor(N_species_dose) + factor(sym_state) + factor(temp) + 
+    factor(e_coli_plate), data = resp_all.data) #for some reason this code would not run unless I treated them as factors
+calc.relimp(lm_resp_2_relimp, type="lmg", rela=TRUE)
+#need to identify exactly what lmg means
+```
+
+
+```{r playing around with Sarahs code}
+mm_resp_TREAT_ID <- lmer(resp_rate ~ treat_ID_collapsed_controls + (1|vial_ID) + (1|col_num), data= resp_all.data)
+mm_resp_TREAT_ID_test <- Log(mm_resp_TREAT_ID)~e_coli_plate + (1|vial_ID) + (1|col_num)
+summary(mm_resp_TREAT_ID_test)
+TukeyHSD(mm_resp_TREAT_ID_test)
+
+# Question: Is there a significant change of resp rate at each treatment ID under E coli?
+# create grouping factor to run all linear models for each treatment at once
+by_treat_all <- group_by(resp_all.data, treat_ID_collapsed_controls)
+
+# Create a df with the parameter coefficients of the linear models  
+response.lm_all <- 
+  do(by_treat_all, 
+   tidy(                     
+     lm(resp_rate~e_coli_plate, data= .)))
+response.lm_all
+
+#Let's try this after taking away the significant treatments: 
+# A_5_20_S_S p=0.02913
+# A_7.5_20_S_S p=0.02913
+# A_7.5_30_F_A p= 0.01167
+# A_7.5_30_S_A p= 0.05110
+
+# TEMP
+#create grouping factor to run all linear models for each treatment at once
+by_treat_20C<- group_by(all_20C, treat_ID_collapsed_controls)
+
+# Create a df with the parameter coefficients of the linear models  
+response.lm_20C <- 
+  do(by_treat_20C, 
+   tidy(                     
+     lm(resp_rate~e_coli_plate, data= .)))
+response.lm_20C
+
+# create grouping factor to run all linear models for each treatment at once
+by_treat_30C<- group_by(all_30C, treat_ID_collapsed_controls)
+
+# Create a df with the parameter coefficients of the linear models  
+response.lm_30C <- 
+  do(by_treat_30C, 
+   tidy(                     
+     lm(resp_rate~e_coli_plate, data= .)))
+response.lm_30C
+
+# SYM STATE
+#create grouping factor to run all linear models for each treatment at once
+by_treat_sym<- group_by(all_sym, treat_ID_collapsed_controls)
+
+# Create a df with the parameter coefficients of the linear models  
+response.lm_sym <- 
+  do(by_treat_sym, 
+   tidy(                     
+     lm(resp_rate~e_coli_plate, data= .)))
+response.lm_sym
+
+# create grouping factor to run all linear models for each treatment at once
+by_treat_apo<- group_by(all_apo, treat_ID_collapsed_controls)
+
+# Create a df with the parameter coefficients of the linear models  
+response.lm_apo <- 
+  do(by_treat_apo, 
+   tidy(                     
+     lm(resp_rate~e_coli_plate, data= .)))
+response.lm_apo
+
+
+# create grouping factor to run all linear models for each treatment at once
+by_treat_apo<- group_by(all_apo, treat_ID_collapsed_controls)
+
+# Create a df with the parameter coefficients of the linear models  
+response.lm_apo <- 
+  do(by_treat_apo, 
+   tidy(                     
+     lm(resp_rate~e_coli_plate, data= .)))
+response.lm_apo
+
+```
+
+
+
+```{r linear models - E. COLI DATA}
+mm_e_coli_null <- lmer(resp_rate ~ 1 + (1|vial_ID) + (1|col_num) + (1|exp_num) +(1|exp_subrun) +(1|jar_unique_ID) + (1|resp_run) , data= e_coli)
+summary(mm_e_coli_null)
+#that null looks good
+
+#full model with all interactions possible
+mm_e_coli_1 <- lmer(resp_rate ~ N_species + N_species_dose + temp + food + sym_state + N_species*N_species_dose + N_species*temp + N_species*food + N_species*sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state  + food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= e_coli)
+summary(mm_e_coli_1)
+
+# OKAY NOW LETS TRY TO DO A STEPWISE LINEAR REGRESSION A LA RANDI's SUGGESTION
+# This stepwise function includes random effects
+full.model_e_coli <- lmer(resp_rate ~ N_species + N_species_dose + temp + food + sym_state + N_species*N_species_dose + N_species*temp + N_species*food + N_species*sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state  + food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= e_coli)
+print(step.model<- step(full.model_e_coli))
+
+# here is the model that it recommends:
+mm_e_coli_2 <- lmer(resp_rate ~ N_species + N_species_dose + temp + food + sym_state + (1 | col_num) + (1 | exp_num) + N_species:N_species_dose + N_species:sym_state + N_species_dose:sym_state + temp:food, data= e_coli)
+summary(mm_e_coli_2)
+
+```
+
+```{r linear models - NO E. COLI DATA}
+
+mm_no_e_coli_null <- lmer(resp_rate ~ 1 + (1|vial_ID) + (1|col_num) + (1|exp_num) +(1|exp_subrun) +(1|jar_unique_ID) + (1|resp_run) , data= no_e_coli)
+summary(mm_no_e_coli_null)
+#that null looks good
+
+#full model with all interactions possible
+mm_no_e_coli_1 <- lmer(resp_rate ~ N_species + N_species_dose + temp + food + sym_state + N_species*N_species_dose + N_species*temp + N_species*food + N_species*sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state  + food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= no_e_coli)
+summary(mm_no_e_coli_1)
+
+# OKAY NOW LETS TRY TO DO A STEPWISE LINEAR REGRESSION A LA RANDI's SUGGESTION
+# This stepwise function includes random effects
+full.model_no_e_coli <- lmer(resp_rate ~ N_species + N_species_dose + temp + food + sym_state + N_species*N_species_dose + N_species*temp + N_species*food + N_species*sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state  + food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= no_e_coli)
+print(step.model<- step(full.model_no_e_coli))
+
+# here is the model that it recommends:
+mm_e_coli_2 <- lmer(resp_rate ~ N_species + N_species_dose + (1 | col_num), data=e_coli)
+summary(mm_e_coli_2)
+```
+
+
+
+```{r linear model fitness }
+#posthoc pairwise
+#need to change the max print because we have so many comparisons
+options(max.print = 10000)   
+emm_treat_ID=emmeans(mm_resp_2, specs=pairwise ~ N_species)
+summary(emm_treat_ID)
+
+#checking for model fit
+plot(mm_resp_2) #homogeneity of variance,looks okay
+r2(mm_resp_2) #marginal id variance just by fixed factors, conditional includes variance explained by random factor
+  # treatment explains 9.5% of variation in ln.sum.arms
+?check_model()
+
+check_collinearity(mm_resp_2) #check for predictor variables are correlated
+#check_model(mm_resp_treat)
+check_outliers(mm_resp_2)
+check_heteroscedasticity(mm_resp_2)
+check_homogeneity(mm_resp_2) #plot
+check_autocorrelation(mm_resp_2) #plot
+
+plot(mm_resp_2)
+```
+
+
+
+
+
+
+```{r all subsets}
+control_all_20<-subset(resp_all.data, resp_all.data$N_dose=="0" & resp_all.data$temp=="20")
+control_ecoli_20<-subset(resp_all.data, resp_all.data$N_dose=="0" & resp_all.data$temp=="20" & resp_all.data$e_coli=="1")
+control_no_ecoli_20<-subset(resp_all.data, resp_all.data$N_dose=="0" & resp_all.data$temp=="20" & resp_all.data$e_coli=="0")
+control_all_30<-subset(resp_all.data, resp_all.data$N_dose=="0" & resp_all.data$temp=="30")
+control_ecoli_30<-subset(resp_all.data, resp_all.data$N_dose=="0" & resp_all.data$temp=="30" & resp_all.data$e_coli=="1")
+control_no_ecoli_30<-subset(resp_all.data, resp_all.data$N_dose=="0" & resp_all.data$temp=="30" & resp_all.data$e_coli=="0")
+A_5_20 <-subset(resp_all.data, resp_all.data$N_species=="A"& resp_all.data$N_dose=="5" & resp_all.data$temp=="20")
+A_5_30 <- A_5_20 <-subset(resp_all.data, resp_all.data$N_species=="A"& resp_all.data$N_dose=="5" & resp_all.data$temp=="30")
+A_7.5_20 <-subset(resp_all.data, resp_all.data$N_species=="A"& resp_all.data$N_dose=="7.5" & resp_all.data$temp=="20")
+A_7.5_30 <- A_5_20 <-subset(resp_all.data, resp_all.data$N_species=="A"& resp_all.data$N_dose=="7.5" & resp_all.data$temp=="30")
+A_10_20 <-subset(resp_all.data, resp_all.data$N_species=="A"& resp_all.data$N_dose=="10" & resp_all.data$temp=="20")
+A_10_30 <- A_5_20 <-subset(resp_all.data, resp_all.data$N_species=="A"& resp_all.data$N_dose=="10" & resp_all.data$temp=="30")
+N_1.5_20 <-subset(resp_all.data, resp_all.data$N_species=="N"& resp_all.data$N_dose=="1.5" & resp_all.data$temp=="20")
+N_1.5_30 <- A_5_20 <-subset(resp_all.data, resp_all.data$N_species=="N"& resp_all.data$N_dose=="1.5" & resp_all.data$temp=="30")
+N_5_20 <-subset(resp_all.data, resp_all.data$N_species=="N"& resp_all.data$N_dose=="5" & resp_all.data$temp=="20")
+N_5_30 <- A_5_20 <-subset(resp_all.data, resp_all.data$N_species=="N"& resp_all.data$N_dose=="5" & resp_all.data$temp=="30")
+N_18_20 <-subset(resp_all.data, resp_all.data$N_dose=="18" & resp_all.data$temp=="20")
+N_18_30 <-subset(resp_all.data, resp_all.data$N_dose=="18" & resp_all.data$temp=="30")
+e_coli<-subset(resp_all.data, resp_all.data$e_coli==1)
+no_e_coli<-subset(resp_all.data, resp_all.data$e_coli==0)
+N_18_30_e_coli <-subset(resp_all.data, resp_all.data$N_dose=="18" & resp_all.data$temp=="30" & resp_all.data$e_coli==1)
+
+#e coli controls
+t.test(control_ecoli_30$resp_rate, control_no_ecoli_30$resp_rate)
+
+
+#means of e coli vs no e coli
+mean(e_coli$resp_rate)
+#-0.00445
+mean(no_e_coli$resp_rate)
+#-0.003760578
+
+# Control 20 v control 30
+t.test(control_all_20$resp_rate, control_all_30$resp_rate)
+# A 5 20 v A 5 30
+t.test(A_5_20$resp_rate, A_5_30$resp_rate)
+# A 7.5 20 v A 7.5 30
+t.test(A_7.5_20$resp_rate, A_7.5_30$resp_rate)
+# Control 20 v. A10 20
+t.test(control_all_20$resp_rate, A_10_20$resp_rate)
+# Control 30 v. A10 30
+t.test(control_all_30$resp_rate, A_10_30$resp_rate)
+# A10 20 v A10 30
+t.test(A_10_20$resp_rate, A_10_30$resp_rate)
+# N 1.5 20 v N 1.5 30
+t.test(N_1.5_20$resp_rate, N_1.5_30$resp_rate)
+# N 5 20 v N 5 30
+t.test(N_5_20$resp_rate, N_5_30$resp_rate)
+# Control 20 v. N18 20
+t.test(control_all_20$resp_rate, N_18_20$resp_rate)
+# Control 30 v. Control N18 30
+t.test(control_all_30$resp_rate, N_18_30$resp_rate)
+
+# e coli vs. no ecoli 
+t.test(e_coli$resp_rate, no_e_coli$resp_rate)
+# N 18 e coli 30 vs. control 30
+t.test(control_all_30$resp_rate, N_18_30_e_coli$resp_rate)
+       
+```
+
+
+```{r Graphs}
+#1
+gg_resp_all_ecoli<-
+  ggplot(e_coli, aes(x=treat_ID_full, y=resp_rate, color=col_num)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by treat ID - E. coli")
+gg_resp_all_ecoli
+
+#2
+gg_food_sym_state_ecoli<-
+  ggplot(e_coli, aes(x=food_sym_state, y=resp_rate, color=col_num)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by Food and Symbiotic State (Food_Symstate) - E. coli")
+gg_food_sym_state_ecoli
+
+#3
+gg_resp_all_no_ecoli<-
+  ggplot(no_e_coli, aes(x=treat_ID_collapsed_controls, y=resp_rate, color=col_num)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by treat ID - No E. coli")
+gg_resp_all_no_ecoli
+
+#4
+gg_food_sym_state_no_ecoli<-
+  ggplot(no_e_coli, aes(x=food_sym_state, y=resp_rate, color=col_num)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by Food and Symbiotic State (Food_Symstate) - No E. coli")
+gg_food_sym_state_no_ecoli
+
+
+#5
+gg_N_species_dose_ecoli<-
+  ggplot(e_coli, aes(x=N_species_dose, y=resp_rate, color=col_num)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+  geom_label(position="jitter", label=col_num)+
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual()+
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by N_species_dose - E. coli")
+gg_N_species_dose_ecoli
+?geom_label
+
+#6
+gg_N_species_dose_no_ecoli<-
+  ggplot(no_e_coli, aes(x=N_species_dose, y=resp_rate, color=col_num)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by N_species_dose - No E. coli")
+gg_N_species_dose_no_ecoli
+
+
+#7
+e_coli$temp<-as.factor(e_coli$temp)
+gg_temp_ecoli<-
+  ggplot(e_coli, aes(x=temp, y=resp_rate)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Temperature")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by Temp - E. coli")
+gg_temp_ecoli
+
+#8
+no_e_coli$temp<-as.factor(no_e_coli$temp)
+gg_temp_no_ecoli<-
+  ggplot(no_e_coli, aes(x=temp, y=resp_rate, color=col_num)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by Temp - No E. coli")
+gg_temp_no_ecoli
+
+#9
+no_e_coli$sym_state<-as.factor(no_e_coli$sym_state)
+gg_sym_state_no_ecoli<-
+  ggplot(no_e_coli, aes(x=sym_state, y=resp_rate)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by Sym state - No E. coli")
+gg_sym_state_no_ecoli
+
+#10
+e_coli$sym_state<-as.factor(e_coli$sym_state)
+gg_sym_state_ecoli<-
+  ggplot(e_coli, aes(x=sym_state, y=resp_rate)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by Sym state - No E. coli")
+gg_sym_state_ecoli
+
+```
+
+```{r SUBSETS NO E COLI for t tests verus the control for that group}
+#ammonium high 20C
+sym_fed_ammonium_high_20C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="10" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0"& resp_all.data$e_coli_plate=="0")
+apo_fed_ammonium_high_20C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="10" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+sym_starved_ammonium_high_20C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="10" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+apo_starved_ammonium_high_20C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="10" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+#nitrate high 20C
+sym_fed_nitrate_high_20C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="18" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+apo_fed_nitrate_high_20C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="18" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+sym_starved_nitrate_high_20C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="18" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+apo_starved_nitrate_high_20C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="18" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+
+#control 20C
+sym_fed_control_20C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="0" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+apo_fed_control_20C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="0" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+sym_starved_control_20C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="0" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+apo_starved_control_20C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="0" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+
+#ammonium 5uM 20C
+sym_fed_ammonium_5um_20C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="S"& resp_all.data$food=="F" & resp_all.data$N_dose=="5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+apo_fed_ammonium_5um_20C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+sym_starved_ammonium_5um_20C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+apo_starved_ammonium_5um_20C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+#nitrate 5um 20C
+sym_fed_nitrate_5um_20C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+apo_fed_nitrate_5um_20C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+sym_starved_nitrate_5um_20C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+apo_starved_nitrate_5um_20C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+
+#ammonium high 30C
+sym_fed_ammonium_high_30C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="10" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+apo_fed_ammonium_high_30C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="10" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+sym_starved_ammonium_high_30C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="10" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+apo_starved_ammonium_high_30C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="10" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+#nitrate high 30C
+sym_fed_nitrate_high_30C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="18" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+apo_fed_nitrate_high_30C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="18" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+sym_starved_nitrate_high_30C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="18" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+apo_starved_nitrate_high_30C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="18" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+
+#control 30C
+sym_fed_control_30C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="0" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+apo_fed_control_30C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="0" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+sym_starved_control_30C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="0" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+apo_starved_control_30C_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="0" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+
+#ammonium 5um 30C
+sym_fed_ammonium_5um_30C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+apo_fed_ammonium_5um_30C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+sym_starved_ammonium_5um_30C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+apo_starved_ammonium_5um_30C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+#nitrate 5um 30C
+sym_fed_nitrate_5um_30C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="N" &  resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+apo_fed_nitrate_5um_30C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+sym_starved_nitrate_5um_30C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+apo_starved_nitrate_5um_30C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+
+#nitrate 1.5um 30C
+sym_fed_nitrate_1.5um_30C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="1.5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+apo_fed_nitrate_1.5um_30C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="1.5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+sym_starved_nitrate_1.5um_30C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="1.5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+apo_starved_nitrate_1.5um_30C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="1.5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+
+#nitrate 1.5um 20C
+sym_fed_nitrate_1.5um_20C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="1.5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+apo_fed_nitrate_1.5um_20C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="1.5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+sym_starved_nitrate_1.5um_20C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="1.5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+apo_starved_nitrate_1.5um_20C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="1.5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+
+#ammonium 7.5um 30C
+sym_fed_ammonium_7.5um_30C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="7.5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+apo_fed_ammonium_7.5um_30C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="7.5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+sym_starved_ammonium_7.5um_30C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="7.5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+apo_starved_ammonium_7.5um_30C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="7.5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="0")
+
+#ammonium 7.5um 20C
+sym_fed_ammonium_7.5um_20C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="7.5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+apo_fed_ammonium_7.5um_20C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="7.5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+sym_starved_ammonium_7.5um_20C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="7.5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+apo_starved_ammonium_7.5um_20C_no_ecoli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="7.5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="0")
+```
+
+# OVERALL ANOVA
+```{r MANOVA or ANOVA}
+
+#What is a MANOVA?
+  # A MANOVA is used when there are multiple dependent variables as well as independent variables in the study. MANOVA combines the multiple dependent variables in a linear manner to produce a combination which best separates the independent variable groups. Can only be used when the dependent variable is continuous
+      # NOTE: the non parametric version of this is a PERMANOVA
+
+#What is the difference between a MANOVA and a linear model?
+  #  MANOVA will give you a very different answer than multiple regression analyses. MANOVA will look for a linear combination of the independent variables that minimizes ordinary least squares for the set of dependent variables. So, if the variables are not related in some way, it doesn't make much sense to combine them. To answer your question about why do a MANOVA, we can simply state that running multiple regressions (or ANOVAs) will inflate your type I error rate. Think about why you run an ANOVA instead of many t-tests.
+
+# I ACTUALLY THINK WE WANT A UNIVARIATE ANALYSIS BECAUSE WE ONLY HAVE ONE OUTPUT -- RESPIRATION RATE
+
+#We should do a seperate ANOVA for e coli and no e coli
+aov_resp_e_coli <- aov(resp_rate ~ N_species * N_dose * temp * food * sym_state, data=e_coli)
+summary(aov_resp_e_coli)
+
+
+
+```
+
+
+#Subsets and t tests
+```{r SUBSETS E COLI for t tests verus the control for that group}
+
+#everything at 20C vs. everything at 30C
+all_20C <-subset(resp_all.data,  resp_all.data$temp=="20")
+mean(all_20C$resp_rate, na.rm=TRUE)
+# mean = -0.004676263
+all_30C <-subset(resp_all.data,  resp_all.data$temp=="30")
+mean(all_30C$resp_rate, na.rm=TRUE)
+# mean = -0.004191459
+
+# INTERESTING -- overall corals at 20C respired more
+
+#ammonium high 20C
+sym_fed_ammonium_high_20C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="10" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1"& resp_all.data$e_coli_plate=="1")
+apo_fed_ammonium_high_30C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="10" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+sym_starved_ammonium_high_20C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="10" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+apo_starved_ammonium_high_20C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="10" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+#nitrate high 20C
+sym_fed_nitrate_high_20C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="18" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+apo_fed_nitrate_high_20C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="18" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+sym_starved_nitrate_high_20C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="18" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+apo_starved_nitrate_high_20C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="18" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+
+#control 20C
+sym_fed_control_20C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="0" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+apo_fed_control_20C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="0" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+sym_starved_control_20C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="0" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+apo_starved_control_20C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="0" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+
+#ammonium 5uM 20C
+sym_fed_ammonium_5um_20C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="S"& resp_all.data$food=="F" & resp_all.data$N_dose=="5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+apo_fed_ammonium_5um_20C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+sym_starved_ammonium_5um_20C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+apo_starved_ammonium_5um_20C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+#nitrate 5um 20C
+sym_fed_nitrate_5um_20C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+apo_fed_nitrate_5um_20C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+sym_starved_nitrate_5um_20C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+apo_starved_nitrate_5um_20C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+
+#ammonium high 30C
+sym_fed_ammonium_high_30C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="10" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+apo_fed_ammonium_high_30C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="10" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+sym_starved_ammonium_high_30C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="10" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+apo_starved_ammonium_high_30C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="10" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+#nitrate high 30C
+sym_fed_nitrate_high_30C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="18" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+apo_fed_nitrate_high_30C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="18" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+sym_starved_nitrate_high_30C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="18" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+apo_starved_nitrate_high_30C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="18" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+
+#control 30C
+sym_fed_control_30C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="0" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+apo_fed_control_30C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="0" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+sym_starved_control_30C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="0" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+apo_starved_control_30C_e_coli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="0" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+
+#ammonium 5um 30C
+sym_fed_ammonium_5um_30C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+apo_fed_ammonium_5um_30C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+sym_starved_ammonium_5um_30C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+apo_starved_ammonium_5um_30C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+#nitrate 5um 30C
+sym_fed_nitrate_5um_30C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="N" &  resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+apo_fed_nitrate_5um_30C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+sym_starved_nitrate_5um_30C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+apo_starved_nitrate_5um_30C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+
+#nitrate 1.5um 30C
+sym_fed_nitrate_1.5um_30C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="1.5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+apo_fed_nitrate_1.5um_30C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="1.5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+sym_starved_nitrate_1.5um_30C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="1.5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+apo_starved_nitrate_1.5um_30C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="1.5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+
+#nitrate 1.5um 20C
+sym_fed_nitrate_1.5um_20C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="1.5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+apo_fed_nitrate_1.5um_20C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="1.5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+sym_starved_nitrate_1.5um_20C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="1.5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+apo_starved_nitrate_1.5um_20C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="N" & resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="1.5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+
+#ammonium 7.5um 30C
+sym_fed_ammonium_7.5um_30C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="7.5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+apo_fed_ammonium_7.5um_30C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="7.5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+sym_starved_ammonium_7.5um_30C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="7.5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+apo_starved_ammonium_7.5um_30C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="7.5" & resp_all.data$temp=="30"& resp_all.data$e_coli_plate=="1")
+
+#ammonium 7.5um 20C
+sym_fed_ammonium_7.5um_20C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$N_dose=="7.5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+apo_fed_ammonium_7.5um_20C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$N_dose=="7.5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+sym_starved_ammonium_7.5um_20C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$N_dose=="7.5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+apo_starved_ammonium_7.5um_20C_e_coli <-subset(resp_all.data, resp_all.data$N_species=="A" & resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$N_dose=="7.5" & resp_all.data$temp=="20"& resp_all.data$e_coli_plate=="1")
+```
+
+```{r t tests compared to relevant control - E. coli}
+
+#sym fed 20C, all compared to control sym fed 20C
+t.test(sym_fed_control_20C_e_coli$resp_rate, sym_fed_nitrate_1.5um_20C_e_coli$resp_rate)
+#p=0.1042
+t.test(sym_fed_control_20C_e_coli$resp_rate, sym_fed_ammonium_5um_20C_e_coli$resp_rate)
+#p=0.4771
+t.test(sym_fed_control_20C_e_coli$resp_rate, sym_fed_nitrate_5um_20C_e_coli$resp_rate)
+#p=0.5502
+t.test(sym_fed_control_20C_e_coli$resp_rate, sym_fed_ammonium_7.5um_20C_e_coli$resp_rate)
+#p=0.232
+t.test(sym_fed_control_20C_e_coli$resp_rate, sym_fed_ammonium_high_20C_e_coli$resp_rate)
+#p=0.2024
+t.test(sym_fed_control_20C_e_coli$resp_rate, sym_fed_nitrate_high_20C_e_coli$resp_rate)
+#p=0.1682
+
+#sym fed 30C, all compared to control sym fed 30C
+t.test(sym_fed_control_30C_e_coli$resp_rate, sym_fed_nitrate_1.5um_30C_e_coli$resp_rate)
+#p=0.4524
+t.test(sym_fed_control_30C_e_coli$resp_rate, sym_fed_ammonium_5um_30C_e_coli$resp_rate)
+#p=0.6342
+t.test(sym_fed_control_30C_e_coli$resp_rate, sym_fed_nitrate_5um_30C_e_coli$resp_rate)
+#p=0.96
+t.test(sym_fed_control_30C_e_coli$resp_rate, sym_fed_ammonium_7.5um_30C_e_coli$resp_rate)
+#p=0.0127**
+mean(sym_fed_control_30C_e_coli$resp_rate) # -0.004670833
+mean(sym_fed_ammonium_7.5um_30C_e_coli$resp_rate) #-0.00321
+#reduction in metabolic rate compared to the control
+t.test(sym_fed_control_30C_e_coli$resp_rate, sym_fed_ammonium_high_30C_e_coli$resp_rate)
+#p=0.1383
+t.test(sym_fed_control_30C_e_coli$resp_rate, sym_fed_nitrate_high_30C_e_coli$resp_rate)
+#p=0.7563
+
+#___ Sym starved 
+
+#sym starved 20C, all compared to control sym fed 20C
+t.test(sym_starved_control_20C_e_coli$resp_rate, sym_starved_nitrate_1.5um_20C_e_coli$resp_rate)
+#p=0.0556
+mean(sym_starved_control_20C_e_coli$resp_rate) #-0.004846667
+mean(sym_starved_nitrate_1.5um_20C_e_coli$resp_rate) #-0.006415
+#marginally significant increase in rate comared to control
+t.test(sym_starved_control_20C_e_coli$resp_rate, sym_starved_ammonium_5um_20C_e_coli$resp_rate)
+#p= 0.1202
+t.test(sym_starved_control_20C_e_coli$resp_rate, sym_starved_nitrate_5um_20C_e_coli$resp_rate)
+#p= 0.7142
+t.test(sym_starved_control_20C_e_coli$resp_rate, sym_starved_ammonium_7.5um_20C_e_coli$resp_rate)
+#p= 0.3707
+t.test(sym_starved_control_20C_e_coli$resp_rate, sym_starved_ammonium_high_20C_e_coli$resp_rate)
+#p= 0.4604
+t.test(sym_starved_control_20C_e_coli$resp_rate, sym_starved_nitrate_high_20C_e_coli$resp_rate)
+#p= 0.7019
+
+#sym starved 30C, all compared to control sym fed 30C
+t.test(sym_starved_control_30C_e_coli$resp_rate, sym_starved_nitrate_1.5um_30C_e_coli$resp_rate)
+#p=0.1613
+t.test(sym_starved_control_30C_e_coli$resp_rate, sym_starved_ammonium_5um_30C_e_coli$resp_rate)
+#p=0.6113
+t.test(sym_starved_control_30C_e_coli$resp_rate, sym_starved_nitrate_5um_30C_e_coli$resp_rate)
+#p=0.9276
+t.test(sym_starved_control_30C_e_coli$resp_rate, sym_starved_ammonium_7.5um_30C_e_coli$resp_rate)
+#p= 0.05253
+mean(sym_starved_control_30C_e_coli$resp_rate) # -0.004903333
+mean(sym_starved_ammonium_7.5um_30C_e_coli$resp_rate) #-0.003205
+t.test(sym_starved_control_30C_e_coli$resp_rate, sym_starved_ammonium_high_30C_e_coli$resp_rate)
+#p= 0.6491
+t.test(sym_starved_control_30C_e_coli$resp_rate, sym_starved_nitrate_high_30C_e_coli$resp_rate)
+#p= 0.1142
+
+#___ apo fed 
+
+#apo fed 20C
+t.test(apo_fed_control_20C_e_coli$resp_rate, apo_fed_nitrate_1.5um_20C_e_coli$resp_rate)
+#p= 0.4355
+t.test(apo_fed_control_20C_e_coli$resp_rate, apo_fed_ammonium_5um_20C_e_coli$resp_rate)
+#p= 0.6995
+t.test(apo_fed_control_20C_e_coli$resp_rate, apo_fed_nitrate_5um_20C_e_coli$resp_rate)
+#p= 0.9564
+t.test(apo_fed_control_20C_e_coli$resp_rate, apo_fed_ammonium_7.5um_20C_e_coli$resp_rate)
+#p= 0.6399
+t.test(apo_fed_control_20C_e_coli$resp_rate, apo_fed_ammonium_high_20C_e_coli$resp_rate)
+#p= 0.4461
+t.test(apo_fed_control_20C_e_coli$resp_rate, apo_fed_nitrate_high_20C_e_coli$resp_rate)
+#p= 0.3519
+
+#apo fed 30C
+t.test(apo_fed_control_30C_e_coli$resp_rate, apo_fed_nitrate_1.5um_30C_e_coli$resp_rate)
+#p=0.5267
+t.test(apo_fed_control_30C_e_coli$resp_rate, apo_fed_ammonium_5um_30C_e_coli$resp_rate)
+#p=0.4213
+t.test(apo_fed_control_30C_e_coli$resp_rate, apo_fed_nitrate_5um_30C_e_coli$resp_rate)
+#p=0.5673
+t.test(apo_fed_control_30C_e_coli$resp_rate, apo_fed_ammonium_7.5um_30C_e_coli$resp_rate)
+#p= 0.3054
+t.test(apo_fed_control_30C_e_coli$resp_rate, apo_fed_ammonium_high_30C_e_coli$resp_rate)
+#p= 0.4159
+t.test(apo_fed_control_30C_e_coli$resp_rate, apo_fed_nitrate_high_30C_e_coli$resp_rate)
+#p= 0.04549
+mean(apo_fed_control_30C_e_coli$resp_rate) # -0.003823333
+mean(apo_fed_nitrate_high_30C_e_coli$resp_rate) # -0.005401667
+#significant increase in resp rate compared to control
+
+#___ apo starved
+
+t.test(apo_starved_control_20C_e_coli$resp_rate, apo_starved_nitrate_1.5um_20C_e_coli$resp_rate)
+#p= 0.748
+t.test(apo_starved_control_20C_e_coli$resp_rate, apo_starved_ammonium_5um_20C_e_coli$resp_rate)
+#p= 0.9562
+t.test(apo_starved_control_20C_e_coli$resp_rate, apo_starved_nitrate_5um_20C_e_coli$resp_rate, na.rm=TRUE)
+#p=0.08441
+mean(apo_starved_control_20C_e_coli$resp_rate) #-0.0039725
+mean(apo_starved_nitrate_5um_20C_e_coli$resp_rate, na.rm=TRUE) #-0.005892
+
+t.test(apo_starved_control_20C_e_coli$resp_rate, apo_starved_ammonium_7.5um_20C_e_coli$resp_rate)
+#p= 0.7132
+t.test(apo_starved_control_20C_e_coli$resp_rate, apo_starved_ammonium_high_20C_e_coli$resp_rate)
+#p=0.1955
+t.test(apo_starved_control_20C_e_coli$resp_rate, apo_starved_nitrate_high_20C_e_coli$resp_rate)
+#p= 0.06472
+mean(apo_starved_control_20C_e_coli$resp_rate) #-0.0039725
+mean(apo_starved_nitrate_high_20C_e_coli$resp_rate) #-0.005861667
+
+#apo fed 30C
+t.test(apo_starved_control_30C_e_coli$resp_rate, apo_starved_nitrate_1.5um_30C_e_coli$resp_rate)
+#p= 0.3879
+t.test(apo_starved_control_30C_e_coli$resp_rate, apo_starved_ammonium_5um_30C_e_coli$resp_rate)
+#p= 0.714
+t.test(apo_starved_control_30C_e_coli$resp_rate, apo_starved_nitrate_5um_30C_e_coli$resp_rate)
+#p= 0.2444
+t.test(apo_starved_control_30C_e_coli$resp_rate, apo_starved_ammonium_7.5um_30C_e_coli$resp_rate)
+#p= 0.9543
+t.test(apo_starved_control_30C_e_coli$resp_rate, apo_starved_ammonium_high_30C_e_coli$resp_rate)
+#p= 0.2142
+t.test(apo_starved_control_30C_e_coli$resp_rate, apo_starved_nitrate_high_30C_e_coli$resp_rate)
+#p= 0.1545
+
+
+```
+```{r t tests No e coli}
+#TO DO JANUARY 5
+#sym fed 20C, all compared to control sym fed 20C
+t.test(sym_fed_control_20C_no_ecoli$resp_rate, sym_fed_nitrate_1.5um_20C_no_ecoli$resp_rate)
+#p= 0.5939
+t.test(sym_fed_control_20C_no_ecoli$resp_rate, sym_fed_ammonium_5um_20C_no_ecoli$resp_rate)
+#p= 0.7668
+t.test(sym_fed_control_20C_no_ecoli$resp_rate, sym_fed_nitrate_5um_20C_no_ecoli$resp_rate)
+#p= 0.6099
+t.test(sym_fed_control_20C_no_ecoli$resp_rate, sym_fed_ammonium_7.5um_20C_no_ecoli$resp_rate)
+#p= 0.4135
+t.test(sym_fed_control_20C_no_ecoli$resp_rate, sym_fed_ammonium_high_20C_no_ecoli$resp_rate)
+#p=0.6549
+t.test(sym_fed_control_20C_no_ecoli$resp_rate, sym_fed_nitrate_high_20C_no_ecoli$resp_rate)
+#p= 0.7044
+
+#sym fed 30C, all compared to control sym fed 30C
+t.test(sym_fed_control_30C_no_ecoli$resp_rate, sym_fed_nitrate_1.5um_30C_no_ecoli$resp_rate)
+#p= 0.5475
+t.test(sym_fed_control_30C_no_ecoli$resp_rate, sym_fed_ammonium_5um_30C_no_ecoli$resp_rate)
+#p= 0.4574
+t.test(sym_fed_control_30C_no_ecoli$resp_rate, sym_fed_nitrate_5um_30C_no_ecoli$resp_rate)
+#p= 0.6833
+t.test(sym_fed_control_30C_no_ecoli$resp_rate, sym_fed_ammonium_7.5um_30C_no_ecoli$resp_rate)
+#p=  0.2402
+t.test(sym_fed_control_30C_no_ecoli$resp_rate, sym_fed_ammonium_high_30C_no_ecoli$resp_rate)
+#p=  0.8251
+t.test(sym_fed_control_30C_no_ecoli$resp_rate, sym_fed_nitrate_high_30C_no_ecoli$resp_rate)
+#p= 0.9937
+
+#___ Sym starved 
+
+#sym starved 20C, all compared to control 
+t.test(sym_starved_control_20C_no_ecoli$resp_rate, sym_starved_nitrate_1.5um_20C_no_ecoli$resp_rate)
+#p= 0.7133
+t.test(sym_starved_control_20C_no_ecoli$resp_rate, sym_starved_ammonium_5um_20C_no_ecoli$resp_rate)
+#p=  0.4512
+t.test(sym_starved_control_20C_no_ecoli$resp_rate, sym_starved_nitrate_5um_20C_no_ecoli$resp_rate)
+#p=  0.6387
+t.test(sym_starved_control_20C_no_ecoli$resp_rate, sym_starved_ammonium_7.5um_20C_no_ecoli$resp_rate)
+#p=   0.2497
+t.test(sym_starved_control_20C_no_ecoli$resp_rate, sym_starved_ammonium_high_20C_no_ecoli$resp_rate)
+#p= 0.257
+t.test(sym_starved_control_20C_no_ecoli$resp_rate, sym_starved_nitrate_high_20C_no_ecoli$resp_rate)
+#p= 0.5483
+
+#sym starved 30C, all compared to control 
+t.test(sym_starved_control_30C_no_ecoli$resp_rate, sym_starved_nitrate_1.5um_30C_no_ecoli$resp_rate)
+#p= 0.03202 ***
+#looking at what the difference is 
+mean(sym_starved_control_30C_no_ecoli$resp_rate) # avg = -0.00492
+mean(sym_starved_nitrate_1.5um_30C_no_ecoli$resp_rate) # avg = -0.00307
+#This means that the control respired MORE than the nitrate 1.5, metabolic depression
+t.test(sym_starved_control_30C_no_ecoli$resp_rate, sym_starved_ammonium_5um_30C_no_ecoli$resp_rate)
+#p=0.6934
+t.test(sym_starved_control_30C_no_ecoli$resp_rate, sym_starved_nitrate_5um_30C_no_ecoli$resp_rate)
+#p= 0.2712
+t.test(sym_starved_control_30C_no_ecoli$resp_rate, sym_starved_ammonium_7.5um_30C_no_ecoli$resp_rate)
+#p= 0.1486
+t.test(sym_starved_control_30C_no_ecoli$resp_rate, sym_starved_ammonium_high_30C_no_ecoli$resp_rate)
+#p= 0.2506
+t.test(sym_starved_control_30C_no_ecoli$resp_rate, sym_starved_nitrate_high_30C_no_ecoli$resp_rate)
+#p= 0.8016
+
+#___ apo fed 
+
+#apo fed 20C
+t.test(apo_fed_control_20C_no_ecoli$resp_rate, apo_fed_nitrate_1.5um_20C_no_ecoli$resp_rate)
+#p= 0.987
+t.test(apo_fed_control_20C_no_ecoli$resp_rate, apo_fed_ammonium_5um_20C_no_ecoli$resp_rate)
+#p= 0.4447
+t.test(apo_fed_control_20C_no_ecoli$resp_rate, apo_fed_nitrate_5um_20C_no_ecoli$resp_rate)
+#p= 0.8832
+t.test(apo_fed_control_20C_no_ecoli$resp_rate, apo_fed_ammonium_7.5um_20C_no_ecoli$resp_rate)
+#p= 0.07457 * marginally significant
+mean(apo_fed_control_20C_no_ecoli$resp_rate) #-0.0044275
+mean(apo_fed_ammonium_7.5um_20C_no_ecoli$resp_rate) # -0.003235
+t.test(apo_fed_control_20C_no_ecoli$resp_rate, apo_fed_ammonium_high_20C_no_ecoli$resp_rate)
+#p=  0.6497
+t.test(apo_fed_control_20C_no_ecoli$resp_rate, apo_fed_nitrate_high_20C_no_ecoli$resp_rate)
+#p= 0.9887
+
+#apo fed 30C
+t.test(apo_fed_control_30C_no_ecoli$resp_rate, apo_fed_nitrate_1.5um_30C_no_ecoli$resp_rate)
+#p= 0.07359
+mean(apo_fed_control_30C_no_ecoli$resp_rate) #-0.003946667
+mean(apo_fed_nitrate_1.5um_30C_no_ecoli$resp_rate) #-0.002713333
+t.test(apo_fed_control_30C_no_ecoli$resp_rate, apo_fed_ammonium_5um_30C_no_ecoli$resp_rate)
+#p=0.1096
+t.test(apo_fed_control_30C_no_ecoli$resp_rate, apo_fed_nitrate_5um_30C_no_ecoli$resp_rate)
+#p=0.8034
+t.test(apo_fed_control_30C_no_ecoli$resp_rate, apo_fed_ammonium_7.5um_30C_no_ecoli$resp_rate)
+#p= 0.08376
+mean(apo_fed_control_30C_no_ecoli$resp_rate) #-0.003946667
+mean(apo_fed_ammonium_7.5um_30C_no_ecoli$resp_rate) #-0.002761667
+t.test(apo_fed_control_30C_no_ecoli$resp_rate, apo_fed_ammonium_high_30C_no_ecoli$resp_rate)
+#p= 0.5962
+t.test(apo_fed_control_30C_no_ecoli$resp_rate, apo_fed_nitrate_high_30C_no_ecoli$resp_rate)
+#p= 0.8624
+
+#___ apo starved
+
+#apo fed 20C
+t.test(apo_starved_control_20C_no_ecoli$resp_rate, apo_starved_nitrate_1.5um_20C_no_ecoli$resp_rate)
+#p= 0.6904
+t.test(apo_starved_control_20C_no_ecoli$resp_rate, apo_starved_ammonium_5um_20C_no_ecoli$resp_rate)
+#p=0.6018
+t.test(apo_starved_control_20C_no_ecoli$resp_rate, apo_starved_nitrate_5um_20C_no_ecoli$resp_rate)
+#p= 0.2128
+t.test(apo_starved_control_20C_no_ecoli$resp_rate, apo_starved_ammonium_7.5um_20C_no_ecoli$resp_rate)
+#p= 0.5757
+t.test(apo_starved_control_20C_no_ecoli$resp_rate, apo_starved_ammonium_high_20C_no_ecoli$resp_rate)
+#p= 0.7744
+t.test(apo_starved_control_20C_no_ecoli$resp_rate, apo_starved_nitrate_high_20C_no_ecoli$resp_rate)
+#p= 0.6394
+
+#apo fed 30C
+t.test(apo_starved_control_30C_no_ecoli$resp_rate, apo_starved_nitrate_1.5um_30C_no_ecoli$resp_rate)
+#p= 0.8124
+t.test(apo_starved_control_30C_no_ecoli$resp_rate, apo_starved_ammonium_5um_30C_no_ecoli$resp_rate)
+#p= 0.545
+t.test(apo_starved_control_30C_no_ecoli$resp_rate, apo_starved_nitrate_5um_30C_no_ecoli$resp_rate)
+#p= 0.8734
+t.test(apo_starved_control_30C_no_ecoli$resp_rate, apo_starved_ammonium_7.5um_30C_no_ecoli$resp_rate)
+#p= 0.3203
+t.test(apo_starved_control_30C_no_ecoli$resp_rate, apo_starved_ammonium_high_30C_no_ecoli$resp_rate)
+#p=  0.62
+t.test(apo_starved_control_30C_no_ecoli$resp_rate, apo_starved_nitrate_high_30C_no_ecoli$resp_rate)
+#p= 0.657
+```
+
+```{r}
+gg_N_species<-
+  ggplot(resp_all.data, aes(x=N_species, y=resp_rate, color=treat_ID_collapsed_controls)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("N species")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by N species - all")
+gg_N_species
+```
+
+
+
+```{r ANOVAs and visualizations - SYM FED E. COLI}
+#first lets subset what we want
+sym_fed_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$e_coli_plate=="1")
+
+#then lets look at the histogram to make sure its not egregious
+hist(sym_fed_ecoli$resp_rate)
+#eh its not great, pretty right skewed
+#but we have been taught about the robustness of ANOVAs and t tests so lets ride
+
+#plut it in to make an anova object
+aov_sym_fed_ecoli <-aov(resp_rate ~ treat_ID_collapsed_controls, data=sym_fed_ecoli)
+#need to summarize the anova object
+summary(aov_sym_fed_ecoli)
+#now we will do a pairwise Tukey
+TukeyHSD(aov_sym_fed_ecoli)
+
+gg_sym_fed_ecoli<-
+  ggplot(sym_fed_ecoli, aes(x=treat_ID_collapsed_controls, y=resp_rate, color=temp)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by treat ID - Sym Fed E. coli")
+gg_sym_fed_ecoli
+
+all_by_e_coli<-
+  ggplot(resp_all.data, aes(x=treat_ID_collapsed_controls, y=resp_rate, color=e_coli_plate)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("ALL - color = e. coli")
+all_by_e_coli
+
+boxplot(resp_all.data$resp_rate ~ resp_all.data$e_coli_plate)
+```
+
+```{r ANOVAs and visualizations - SYM FED NO E. COLI}
+#first lets subset what we want
+sym_fed_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="F" & resp_all.data$e_coli_plate=="0")
+
+#then lets look at the histogram to make sure its not egregious
+hist(sym_fed_no_ecoli$resp_rate)
+#eh its not great, pretty right skewed
+#but we have been taught about the robustness of ANOVAs and t tests so lets ride
+
+#plut it in to make an anova object
+aov_sym_fed_no_ecoli <-aov(resp_rate ~ treat_ID_collapsed_controls, data=sym_fed_no_ecoli)
+#need to summarize the anova object
+summary(aov_sym_fed_no_ecoli)
+#now we will do a pairwise Tukey
+TukeyHSD(aov_sym_fed_no_ecoli)
+
+gg_sym_fed_no_ecoli<-
+  ggplot(sym_fed_no_ecoli, aes(x=treat_ID_collapsed_controls, y=resp_rate, color=temp)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by treat ID - Sym Fed NO E. coli")
+gg_sym_fed_no_ecoli
+```
+```{r ANOVAs and visualizations - SYM STARVED E. COLI}
+#first lets subset what we want
+sym_starved_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$e_coli_plate=="1")
+
+#then lets look at the histogram to make sure its not egregious
+hist(sym_starved_ecoli$resp_rate)
+#eh its not great, pretty right skewed
+#but we have been taught about the robustness of ANOVAs and t tests so lets ride
+
+#plut it in to make an anova object
+aov_sym_starved_ecoli <-aov(resp_rate ~ treat_ID_collapsed_controls, data=sym_starved_ecoli)
+#need to summarize the anova object
+summary(aov_sym_starved_ecoli)
+#now we will do a pairwise Tukey
+TukeyHSD(aov_sym_starved_ecoli)
+
+gg_sym_starved_ecoli<-
+  ggplot(sym_starved_ecoli, aes(x=treat_ID_collapsed_controls, y=resp_rate, color=temp)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by treat ID - Sym starved E. coli")
+gg_sym_starved_ecoli
+
+
+```
+
+```{r ANOVAs and visualizations - SYM STARVED NO E. COLI}
+#first lets subset what we want
+sym_starved_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="S" & resp_all.data$food=="S" & resp_all.data$e_coli_plate=="0")
+
+#then lets look at the histogram to make sure its not egregious
+hist(sym_starved_no_ecoli$resp_rate)
+#eh its not great, pretty right skewed
+#but we have been taught about the robustness of ANOVAs and t tests so lets ride
+
+#plut it in to make an anova object
+aov_sym_starved_no_ecoli <-aov(resp_rate ~ treat_ID_collapsed_controls, data=sym_starved_no_ecoli)
+#need to summarize the anova object
+summary(aov_sym_starved_no_ecoli)
+#now we will do a pairwise Tukey
+TukeyHSD(aov_sym_starved_no_ecoli)
+
+gg_sym_starved_no_ecoli<-
+  ggplot(sym_starved_no_ecoli, aes(x=treat_ID_collapsed_controls, y=resp_rate, color=temp)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by treat ID - Sym Starved NO E. coli")
+gg_sym_starved_no_ecoli
+```
+
+# Apo
+```{r ANOVAs and visualizations - apo FED E. COLI}
+#first lets subset what we want
+apo_fed_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$e_coli_plate=="1")
+
+#then lets look at the histogram to make sure its not egregious
+hist(apo_fed_ecoli$resp_rate)
+#eh its not great, pretty right skewed
+#but we have been taught about the robustness of ANOVAs and t tests so lets ride
+
+#plut it in to make an anova object
+aov_apo_fed_ecoli <-aov(resp_rate ~ treat_ID_collapsed_controls, data=apo_fed_ecoli)
+#need to summarize the anova object
+summary(aov_apo_fed_ecoli)
+#now we will do a pairwise Tukey
+TukeyHSD(aov_apo_fed_ecoli)
+
+gg_apo_fed_ecoli<-
+  ggplot(apo_fed_ecoli, aes(x=treat_ID_collapsed_controls, y=resp_rate, color=temp)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by treat ID - apo Fed E. coli")
+gg_apo_fed_ecoli
+
+
+```
+
+```{r ANOVAs and visualizations - apo FED NO E. COLI}
+#first lets subset what we want
+apo_fed_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="F" & resp_all.data$e_coli_plate=="0")
+
+#then lets look at the histogram to make sure its not egregious
+hist(apo_fed_no_ecoli$resp_rate)
+#eh its not great, pretty right skewed
+#but we have been taught about the robustness of ANOVAs and t tests so lets ride
+
+#plut it in to make an anova object
+aov_apo_fed_no_ecoli <-aov(resp_rate ~ treat_ID_collapsed_controls, data=apo_fed_no_ecoli)
+#need to summarize the anova object
+summary(aov_apo_fed_no_ecoli)
+#now we will do a pairwise Tukey
+TukeyHSD(aov_apo_fed_no_ecoli)
+
+gg_apo_fed_no_ecoli<-
+  ggplot(apo_fed_no_ecoli, aes(x=treat_ID_collapsed_controls, y=resp_rate, color=temp)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by treat ID - apo Fed NO E. coli")
+gg_apo_fed_no_ecoli
+```
+
+```{r ANOVAs and visualizations - apo STARVED E. COLI}
+#first lets subset what we want
+apo_starved_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$e_coli_plate=="1")
+
+#then lets look at the histogram to make sure its not egregious
+hist(apo_starved_ecoli$resp_rate)
+#eh its not great, pretty right skewed
+#but we have been taught about the robustness of ANOVAs and t tests so lets ride
+
+#plut it in to make an anova object
+aov_apo_starved_ecoli <-aov(resp_rate ~ treat_ID_collapsed_controls, data=apo_starved_ecoli)
+#need to summarize the anova object
+summary(aov_apo_starved_ecoli)
+#now we will do a pairwise Tukey
+TukeyHSD(aov_apo_starved_ecoli)
+
+gg_apo_starved_ecoli<-
+  ggplot(apo_starved_ecoli, aes(x=treat_ID_collapsed_controls, y=resp_rate, color=temp)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by treat ID - apo starved E. coli")
+gg_apo_starved_ecoli
+
+
+```
+
+```{r ANOVAs and visualizations - apo STARVED NO E. COLI}
+#first lets subset what we want
+apo_starved_no_ecoli <-subset(resp_all.data, resp_all.data$sym_state=="A" & resp_all.data$food=="S" & resp_all.data$e_coli_plate=="0")
+
+#then lets look at the histogram to make sure its not egregious
+hist(apo_starved_no_ecoli$resp_rate)
+#eh its not great, pretty right skewed
+#but we have been taught about the robustness of ANOVAs and t tests so lets ride
+
+#plut it in to make an anova object
+aov_apo_starved_no_ecoli <-aov(resp_rate ~ treat_ID_collapsed_controls, data=apo_starved_no_ecoli)
+#need to summarize the anova object
+summary(aov_apo_starved_no_ecoli)
+#now we will do a pairwise Tukey
+TukeyHSD(aov_apo_starved_no_ecoli)
+
+gg_apo_starved_no_ecoli<-
+  ggplot(apo_starved_no_ecoli, aes(x=treat_ID_collapsed_controls, y=resp_rate, color=temp)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) +
+ # geom_line(aes(group=e_coli_plate), col="darkgray")+
+  ylab("Respirometry rate")+
+  xlab("Treat ID")+
+  theme(legend.position="none", plot.title = element_text(size = 9)) +
+  #scale_color_manual(name = "Day of experiment",
+                     #labels = c("Day 1","Day 11"),
+                   # values = c("royalblue","darkorchid1"))+
+ # scale_x_discrete(labels=c("Day 1","Day 11")) +
+    theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1))+ #this makes the x axis labels up and down instead of side to side to prevent overlapping
+ annotate("text", x = Inf, y = Inf, label = paste("  "), vjust = 1, hjust = 1, size=3)+
+  ggtitle("Resp rate by treat ID - apo Starved NO E. coli")
+gg_apo_starved_no_ecoli
+```
+# Question - when do we see a change in respirometry rate based on dosage?
