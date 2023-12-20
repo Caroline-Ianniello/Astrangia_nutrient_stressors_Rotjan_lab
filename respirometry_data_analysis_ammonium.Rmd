@@ -102,76 +102,117 @@ resp_all_ammonium.data$sym_state <- as.factor(resp_all_ammonium.data$sym_state)
 
 ```{r for SICB}
 
+#Fed, 20C, no E coli
+SICB_data_ammonium_1 <- resp_all_ammonium.data %>%
+  filter(food=="F") %>%
+  filter(temp==20) %>%
+  filter(abs_resp_rate_SA_corr<0.3)
+
+ggplot(data = SICB_data_ammonium_1 ,
+       aes(x = N_species_dose,
+           y = abs_resp_rate_SA_corr, color=N_species_dose)) +
+    geom_boxplot() +
+     geom_point(position=position_jitterdodge())+
+  ggtitle("ammonium") +
+  ylim(0, 0.25) +
+  labs(x = "ammonium dose", 
+         y = expression(paste("Rate O2 Consumption (umol*hr"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="0uM", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))
+
+ammonium_SICB_model_1 <- lmer(LOG_abs_resp_rate_SA_corr ~ N_species_dose + red_day11 +  N_species_dose*red_day11 + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_ammonium_1)
+summary(ammonium_SICB_model_1)
+(summary(emmeans(ammonium_SICB_model_1, specs=pairwise ~ N_species_dose)))
+
+
+#fed, with temperature, NO E. coli
+SICB_data_ammonium_noEC <- resp_all_ammonium.data %>%
+  filter(food=="F") %>%
+  filter(e_coli_plate=="0") %>%
+filter(abs_resp_rate_SA_corr<0.3)
+
+ammonium_SICB_model_noEC <- lmer(LOG_abs_resp_rate_SA_corr ~ control_or_nutrient + temp + red_day11 +  control_or_nutrient*temp + control_or_nutrient*red_day11 + temp*red_day11 + control_or_nutrient*red_day11*temp  + control_or_nutrient*red_day11*temp + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_ammonium_noEC)
+# boundary (singular) fit: see help('isSingular') HAPPENS WHEN RANDOM EFFECTS ARE VERY SMALL
+plot_model(ammonium_SICB_model_noEC, vline.color="black")
+summary(ammonium_SICB_model_noEC)
+#nothing sig
+(summary(emmeans(ammonium_SICB_model_noEC, specs=pairwise ~ temp)))
+#again we see metabolic depression
+SICB_data_ammonium_noEC$control_or_nutrient <- factor(SICB_data_ammonium_noEC$control_or_nutrient, levels=c("Control","Ammonium"))
+ggplot(data = SICB_data_ammonium_noEC ,
+       aes(x = control_or_nutrient,
+           y = abs_resp_rate_SA_corr, color=temp)) +
+    geom_boxplot() +
+     geom_point(position=position_jitterdodge())+
+  ggtitle("Ammonium") +
+  ylim(0, 0.2) +
+  labs(x = "ammonium dose", 
+         y = expression(paste("Rate O2 Consumption (umol*hr"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("", labels=c(Control="No ammonium", ammonium="ammonium")) +
+    scale_color_manual(values=c("blue", "darkred")) 
+
+
+
+
 #just keep everything fed
 SICB_data_ammonium <- resp_all_ammonium.data %>%
   filter(food=="F") %>%
  filter(abs_resp_rate_SA_corr<0.3) #BECAUSE THERES AN OUTLIER around 0.3 for temp 30! KEEP TRACK OF ME
 #create an lmer with this dataset
-ammonium_SICB_model <- lmer(LOG_abs_resp_rate_SA_corr ~ N_species_dose + temp + red_day11 + e_coli_plate + N_species_dose*temp + N_species_dose*e_coli_plate + e_coli_plate*temp + e_coli_plate*red_day11 + N_species_dose*red_day11 + temp*red_day11 + N_species_dose*red_day11*temp + N_species_dose*temp*e_coli_plate + N_species_dose*red_day11*e_coli_plate + temp*red_day11*e_coli_plate + N_species_dose*red_day11*temp*e_coli_plate + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_ammonium)
+ammonium_SICB_model <- lmer(LOG_abs_resp_rate_SA_corr ~ control_or_nutrient + temp + red_day11 + e_coli_plate + control_or_nutrient*temp + control_or_nutrient*e_coli_plate + e_coli_plate*temp + e_coli_plate*red_day11 + control_or_nutrient*red_day11 + temp*red_day11 + control_or_nutrient*red_day11*temp + control_or_nutrient*temp*e_coli_plate + control_or_nutrient*red_day11*e_coli_plate + temp*red_day11*e_coli_plate + control_or_nutrient*red_day11*temp*e_coli_plate + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_ammonium)
 # boundary (singular) fit: see help('isSingular') HAPPENS WHEN RANDOM EFFECTS ARE VERY SMALL
 
 summary(ammonium_SICB_model)
 #marginally sig effect of temp
 #no overall effect of e coli, dose, or sym state
+(summary(emmeans(ammonium_SICB_model, specs=pairwise ~ temp)))
+(summary(emmeans(ammonium_SICB_model, specs=pairwise ~ e_coli_plate)))
+(summary(emmeans(ammonium_SICB_model, specs=pairwise ~ control_or_nutrient)))
+(summary(emmeans(ammonium_SICB_model, specs=pairwise ~ temp*e_coli_plate*control_or_nutrient)))
 
-(summary(emmeans(ammonium_SICB_model, specs=pairwise ~ temp*e_coli_plate)))
-#TEMPERATURE IS SIGNFICIANT, pairwise, with OR without E. coli
-
-
-#just keep everything fed NO E COLI
-SICB_data_ammonium_noEC <- resp_all_ammonium.data %>%
-  filter(food=="F") %>%
-  filter(e_coli_plate==0) %>%
- filter(abs_resp_rate_SA_corr<0.3) #BECAUSE THERES AN OUTLIER around 0.3 for temp 30! KEEP TRACK OF ME
-#create an lmer with this dataset
-ammonium_SICB_model_noEC <- lmer(LOG_abs_resp_rate_SA_corr ~ N_species_dose + temp + red_day11 +  N_species_dose*temp + N_species_dose*red_day11 + temp*red_day11 + N_species_dose*red_day11*temp  + N_species_dose*red_day11*temp+ (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_ammonium_noEC)
-# boundary (singular) fit: see help('isSingular') HAPPENS WHEN RANDOM EFFECTS ARE VERY SMALL
-
-summary(ammonium_SICB_model_noEC)
-(summary(emmeans(ammonium_SICB_model_noEC, specs=pairwise ~temp)))
-
-
-library(ggplot2)
-ggplot(data = SICB_data_ammonium,
-       aes(x = temp,
-           y = abs_resp_rate_SA_corr, color=temp)) +
-    geom_violin() +
-  geom_jitter()
-#Metabolic depression at 30C
-
-ggplot(data = SICB_data_ammonium,
-       aes(x = e_coli_plate,
-           y = abs_resp_rate_SA_corr, color=temp)) +
-    geom_violin() +
-  geom_point(position=position_jitterdodge()) +
+SICB_data_ammonium$control_or_nutrient <- factor(SICB_data_ammonium$control_or_nutrient, levels=c("Control","Ammonium"))
+ggplot(data = SICB_data_ammonium ,
+       aes(x = control_or_nutrient,
+           y = abs_resp_rate_SA_corr, color=temp, shape=e_coli_plate)) +
+    geom_boxplot(outlier.shape = NA) +
+     geom_point(position=position_jitterdodge(), size=2)+
   ggtitle("Ammonium") +
-  scale_color_manual(values=c("blue", "darkred")) +
-  ylim(0, 0.25)
-
-ggplot(data = SICB_data_ammonium_noEC,
-       aes(x = temp,
-           y = abs_resp_rate_SA_corr)) +
-    geom_boxplot() +
-  #geom_point(position=position_jitterdodge()) +
-  ggtitle("Ammonium") +
-  ylim(0, 0.25)
+  ylim(0, 0.25) +
+  labs(x = "ammonium dose", 
+         y = expression(paste("Rate O2 Consumption (umol*hr"^"-1"~"*cm"^"2"~")")), 
+         caption = " " ) +
+    scale_x_discrete("", labels=c(Control="No Ammonium", ammonium="Ammonium")) +
+    scale_color_manual("Temperature", labels=c("20°C", "30°C"),values=c("blue", "darkred")) +
+  scale_shape_manual("E. coli presence",labels=c("No E. coli", "E. coli"),values=c(19, 4))
 
 
 
 #RGB
 #now lets look at RGB between 20 and 30 
-ammonium_SICB_model_RGB_noEC <- lmer(red_day11 ~ N_species_dose + temp + N_species_dose*temp  + N_species_dose*temp  + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_ammonium_noEC)
+ammonium_SICB_model_RGB_noEC <- lmer(red_day11 ~ control_or_nutrient + temp + control_or_nutrient*temp  + control_or_nutrient*temp  + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_ammonium_noEC)
 summary(ammonium_SICB_model_RGB_noEC)
-(summary(emmeans(ammonium_SICB_model_RGB, specs=pairwise ~ temp))) 
+(summary(emmeans(ammonium_SICB_model_RGB_noEC, specs=pairwise ~ control_or_nutrient))) 
 
 library(ggplot2)
 ggplot(data = SICB_data_ammonium,
-       aes(x = red_day1,
-           y = sym_state, color=temp)) +
+       aes(x = control_or_nutrient,
+           y = red_day11, color=temp)) +
     geom_point() +
   geom_abline()
 
 
+ggplot(data = SICB_data_ammonium ,
+       aes(x = control_or_nutrient,
+           y = red_day11, color=temp)) +
+    geom_boxplot(outlier.shape = NA) +
+     geom_point(position=position_jitterdodge(), size=2)+
+  ggtitle("Ammonium RGB") +
+  labs(x = "ammonium dose", 
+         y = expression(paste("Red Channel Value")), 
+         caption = " " ) +
+    scale_x_discrete("", labels=c(Control="No Ammonium", ammonium="Ammonium")) +
+    scale_color_manual("Temperature", labels=c("20°C", "30°C"),values=c("blue", "darkred")) 
 
 
 

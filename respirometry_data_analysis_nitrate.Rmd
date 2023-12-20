@@ -107,39 +107,92 @@ resp_all_nitrate.data$N_species_dose <- factor(resp_all_nitrate.data$N_species_d
 ```
 
 ```{r for SICB}
-#filter all fed, at all dose levels
+#Fed, 20C, no E coli
+SICB_data_nitrate_1 <- resp_all_nitrate.data %>%
+  filter(food=="F") %>%
+  filter(temp==20) %>%
+  filter(abs_resp_rate_SA_corr<0.7) %>% #there is one 7.5 at 20C thats really high and looks like an outlier to me
+  filter(beetag_exprun!= "G33Y97_exp2A") #this was at E coli at 30C, and it was at like 0.23 and also looked like an outlier
 
+ggplot(data = SICB_data_nitrate_1 ,
+       aes(x = N_species_dose,
+           y = abs_resp_rate_SA_corr, color=N_species_dose)) +
+    geom_boxplot() +
+     geom_point(position=position_jitterdodge())+
+  ggtitle("Nitrate") +
+  ylim(0, 0.25) +
+  labs(x = "Nitrate dose", 
+         y = expression(paste("Rate O2 Consumption (umol*hr"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("Nitrate dose", labels=c(CNTRL_0="0uM", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))
+
+nitrate_SICB_model_1 <- lmer(LOG_abs_resp_rate_SA_corr ~ N_species_dose + red_day11 +  N_species_dose*red_day11 + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_nitrate_1)
+summary(nitrate_SICB_model_1)
+(summary(emmeans(nitrate_SICB_model_1, specs=pairwise ~ N_species_dose)))
+
+#fed, with temperature, NO E. coli
+SICB_data_nitrate_noEC <- resp_all_nitrate.data %>%
+  filter(food=="F") %>%
+  filter(e_coli_plate==0) %>%
+ filter(abs_resp_rate_SA_corr<0.7) %>% #there is one 7.5 at 20C thats really high and looks like an outlier to me
+  filter(beetag_exprun!= "G33Y97_exp2A") #this was at E coli at 30C, and it was at like 0.23 and also looked like an outlier
+nitrate_SICB_model_noEC <- lmer(LOG_abs_resp_rate_SA_corr ~ control_or_nutrient + temp + red_day11 +  control_or_nutrient*temp + control_or_nutrient*red_day11 + temp*red_day11 + control_or_nutrient*red_day11*temp  + control_or_nutrient*red_day11*temp + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_nitrate_noEC)
+# boundary (singular) fit: see help('isSingular') HAPPENS WHEN RANDOM EFFECTS ARE VERY SMALL
+plot_model(nitrate_SICB_model_noEC, vline.color="black")
+summary(nitrate_SICB_model_noEC)
+#nothing sig
+(summary(emmeans(nitrate_SICB_model_noEC, specs=pairwise ~ temp)))
+#again we see metabolic depression
+ggplot(data = SICB_data_nitrate_noEC ,
+       aes(x = control_or_nutrient,
+           y = abs_resp_rate_SA_corr, color=temp)) +
+    geom_boxplot() +
+     geom_point(position=position_jitterdodge())+
+  ggtitle("Nitrate") +
+  ylim(0, 0.2) +
+  labs(x = "Nitrate dose", 
+         y = expression(paste("Rate O2 Consumption (umol*hr"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("", labels=c(Control="No nitrate", Nitrate="Nitrate")) +
+    scale_color_manual(values=c("blue", "darkred")) 
+
+count(SICB_data_nitrate_noEC$control_or_nutrient=="Control")
+
+
+
+#filter all fed, at all dose levels
 SICB_data_nitrate <- resp_all_nitrate.data %>%
   filter(food=="F") %>%
   filter(abs_resp_rate_SA_corr<0.7) %>% #there is one 7.5 at 20C thats really high and looks like an outlier to me
   filter(beetag_exprun!= "G33Y97_exp2A") #this was at E coli at 30C, and it was at like 0.23 and also looked like an outlier
 
 #create an lmer with this dataset
-nitrate_SICB_model <- lmer(LOG_abs_resp_rate_SA_corr ~ N_species_dose + temp + red_day11 + e_coli_plate + N_species_dose*temp + N_species_dose*e_coli_plate + e_coli_plate*temp + e_coli_plate*red_day11 + N_species_dose*red_day11 + temp*red_day11 + N_species_dose*red_day11*temp + N_species_dose*temp*e_coli_plate + N_species_dose*red_day11*e_coli_plate + temp*red_day11*e_coli_plate + N_species_dose*red_day11*temp*e_coli_plate + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_nitrate)
+nitrate_SICB_model <- lmer(LOG_abs_resp_rate_SA_corr ~ control_or_nutrient + temp + red_day11 + e_coli_plate + control_or_nutrient*temp + control_or_nutrient*e_coli_plate + e_coli_plate*temp + e_coli_plate*red_day11 + control_or_nutrient*red_day11 + temp*red_day11 + control_or_nutrient*red_day11*temp + control_or_nutrient*temp*e_coli_plate + control_or_nutrient*red_day11*e_coli_plate + temp*red_day11*e_coli_plate + control_or_nutrient*red_day11*temp*e_coli_plate + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_nitrate)
 tab_model(nitrate_SICB_model) #gives you a chart
 plot_model(nitrate_SICB_model, vline="black")
 
 summary(nitrate_SICB_model)
+(summary(emmeans(nitrate_SICB_model, specs=pairwise ~ temp)))
+(summary(emmeans(nitrate_SICB_model, specs=pairwise ~ e_coli_plate)))
+(summary(emmeans(nitrate_SICB_model, specs=pairwise ~ control_or_nutrient)))
+(summary(emmeans(nitrate_SICB_model, specs=pairwise ~ temp*e_coli_plate*control_or_nutrient)))
 
-(summary(emmeans(nitrate_SICB_model, specs=pairwise ~ temp*e_coli_plate)))
-(summary(emmeans(nitrate_SICB_model, specs=pairwise ~ temp))) 
 #TEMPERATURE IS SIGNFICIANT
 library(ggplot2)
-ggplot(data = SICB_data_nitrate,
-       aes(x = e_coli_plate,
-           y = abs_resp_rate_SA_corr, color=temp)) +
-    geom_violin() +
-  geom_point(aes(x = e_coli_plate,
-           y = abs_resp_rate_SA_corr, color=temp))
 
-ggplot(data = SICB_data_nitrate,
-       aes(x = e_coli_plate,
-           y = abs_resp_rate_SA_corr, color=temp)) +
-    geom_violin() +
-     geom_point(position=position_jitterdodge())+
+ggplot(data = SICB_data_nitrate ,
+       aes(x = control_or_nutrient,
+           y = abs_resp_rate_SA_corr, color=temp, shape=e_coli_plate)) +
+    geom_boxplot(outlier.shape = NA) +
+     geom_point(position=position_jitterdodge(), size=2)+
   ggtitle("Nitrate") +
   ylim(0, 0.25) +
-    scale_color_manual(values=c("blue", "darkred")) 
+  labs(x = "Nitrate dose", 
+         y = expression(paste("Rate O2 Consumption (umol*hr"^"-1"~"*cm"^"2"~")")), 
+         caption = " " ) +
+    scale_x_discrete("", labels=c(Control="No nitrate", Nitrate="Nitrate")) +
+    scale_color_manual("Temperature", labels=c("20°C", "30°C"),values=c("blue", "darkred")) +
+  scale_shape_manual("E. coli presence",labels=c("No E. coli", "E. coli"),values=c(19, 4))
 
 ggplot(data = SICB_data_nitrate_noEC,
        aes(x = temp,
@@ -147,48 +200,31 @@ ggplot(data = SICB_data_nitrate_noEC,
     geom_boxplot() +
      #geom_point(position=position_jitterdodge())+
   ggtitle("Nitrate") +
-  ylim(0, 0.25) +
+  ylim(0, 0.25) 
 
 
 
 
 
-
-# THE STORY HERE
-#What we DONT see: significant effect of dose or temperature or symbiotic state
-#What we DO see: a significant effect of E. coli, increase in respiration rate
-#Interestingly, though, we see no significant difference in resp rates at 20 v 30C with NO e coli, but we do see significant metabolic depression at 30C when they are exposed to E. coli
-# When we give them an immune challenge, we see that 20 vs. 30 -- 30 has depression
-# The immune challenge is the straw that broke the camel's back -- they do fine without it, but with it they tend to exhibit depression, sublethal effect not being able to mount a proper response (KEY POINT, I think metabolic depression is bad here, is that safe to say?)
-
-
-#just keep everything fed NO E COLI
-SICB_data_nitrate_noEC <- resp_all_nitrate.data %>%
-  filter(food=="F") %>%
-  filter(e_coli_plate==0) %>%
- filter(abs_resp_rate_SA_corr<0.7) %>% #there is one 7.5 at 20C thats really high and looks like an outlier to me
-  filter(beetag_exprun!= "G33Y97_exp2A") #this was at E coli at 30C, and it was at like 0.23 and also looked like an outlier
-nitrate_SICB_model_noEC <- lmer(LOG_abs_resp_rate_SA_corr ~ N_species_dose + temp + red_day11 +  N_species_dose*temp + N_species_dose*red_day11 + temp*red_day11 + N_species_dose*red_day11*temp  + N_species_dose*red_day11*temp+ (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_nitrate_noEC)
-# boundary (singular) fit: see help('isSingular') HAPPENS WHEN RANDOM EFFECTS ARE VERY SMALL
-plot_model(nitrate_SICB_model_noEC, vline.color="black")
-
-summary(nitrate_SICB_model_noEC)
-#nothing sig
-(summary(emmeans(nitrate_SICB_model_noEC, specs=pairwise ~ temp)))
-#again we see metabolic depression
 
 
 
 #now lets look at RGB between 20 and 30 
-nitrate_SICB_model_RGB <- lmer(red_day11 ~ N_species_dose + temp + sym_state + N_species_dose*temp + N_species_dose*sym_state + temp*sym_state + N_species_dose*sym_state*temp  + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_nitrate)
+nitrate_SICB_model_RGB <- lmer(red_day11 ~ control_or_nutrient + temp + sym_state + control_or_nutrient*temp + control_or_nutrient*sym_state + temp*sym_state + control_or_nutrient*sym_state*temp  + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_nitrate)
 summary(nitrate_SICB_model_RGB)
-(summary(emmeans(nitrate_SICB_model_RGB, specs=pairwise ~ temp))) 
+(summary(emmeans(nitrate_SICB_model_RGB, specs=pairwise ~ control_or_nutrient))) 
 
-library(ggplot2)
-ggplot(data = SICB_data_nitrate,
-       aes(x = red_day11,
-           y =sym_state, color=temp)) +
-    geom_point() 
+ggplot(data = SICB_data_nitrate ,
+       aes(x = control_or_nutrient,
+           y = red_day11, color=temp)) +
+    geom_boxplot(outlier.shape = NA) +
+     geom_point(position=position_jitterdodge(), size=2)+
+  ggtitle("Nitrate RGB") +
+  labs(x = "Nitrate dose", 
+         y = expression(paste("Red Channel Value")), 
+         caption = " " ) +
+    scale_x_discrete("", labels=c(Control="No Nitrate", nitrate="Nitrate")) +
+    scale_color_manual("Temperature", labels=c("20°C", "30°C"),values=c("blue", "darkred")) 
 #NO RELATIONSHIP BETWEEN COLOR AND RESP RATE IN NITRATE (not all that surprising)
 
 ```
