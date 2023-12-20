@@ -68,3 +68,20 @@ Files starts with **`Main`** are those we are going to execute. Required functio
    -  `ResidualAnalysis`: Files with `ResidualAnalysis` suffix mean to check the residuals pattern of the model.
    -  `MCMCDiagnostics`: Files with `MCMCDiagnostics` suffix mean to diagnose the MCMC sampling, checking if the sampling converge or not.
    -  `ModelCheck`: Files with `ModelCheck` suffix mean to compare the result between our estimation and the results from a frequantist approach. If both of them are close enough, then we can state that our estimation is valid.
+
+
+## Usage example:
+
+Take `Respiration Rate` as an example:
+
+Steps:
+
+1. `MainRespirationDataProcess.R`
+2. `MainRespirationStanLasso.R`
+3. `MainRespModelSelect.R`
+4. `MainMSEViolinPlot.R`
+5. `MainRefitRespirationModel.R`
+6. `MainRespModelCheck.R`
+7. `MainRespirationCoefPlot.R`
+8. `MainRespirationResidualAnalysis.R`
+9. `MainRespMCMCDiagnostics.R`
