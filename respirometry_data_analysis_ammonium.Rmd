@@ -108,17 +108,26 @@ SICB_data_ammonium_1 <- resp_all_ammonium.data %>%
   filter(temp==20) %>%
   filter(abs_resp_rate_SA_corr<0.3)
 
-ggplot(data = SICB_data_ammonium_1 ,
+sum_N_species_dose_ammonium <- summarySE(SICB_data_ammonium_1, measurevar = "abs_resp_rate_SA_corr", groupvars = c("N_species_dose"))
+ggplot(data = sum_N_species_dose_ammonium ,
        aes(x = N_species_dose,
-           y = abs_resp_rate_SA_corr, color=N_species_dose)) +
-    geom_boxplot() +
-     geom_point(position=position_jitterdodge())+
+           y = abs_resp_rate_SA_corr, fill="black")) +
+    geom_col(fill=c("#587E9F","#B398D0","#795695","#4C1B66"), color="black", alpha=0.8, width=0.5) +
+      geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.1, size = 1) +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 14),
+          axis.title.x=element_text(size=14)) +
   ggtitle("ammonium") +
-  ylim(0, 0.25) +
-  labs(x = "ammonium dose", 
+  ylim(0, 0.15) +
+  labs(x = "Ammonium dose", 
          y = expression(paste("Rate O2 Consumption (umol*hr"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
-    scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="0uM", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))
+    scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="0 uM", A_5="5 uM", A_7.5="7.5 uM", A_10="10 uM"))
 
 ammonium_SICB_model_1 <- lmer(LOG_abs_resp_rate_SA_corr ~ N_species_dose + red_day11 +  N_species_dose*red_day11 + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_ammonium_1)
 summary(ammonium_SICB_model_1)
@@ -131,26 +140,42 @@ SICB_data_ammonium_noEC <- resp_all_ammonium.data %>%
   filter(e_coli_plate=="0") %>%
 filter(abs_resp_rate_SA_corr<0.3)
 
-ammonium_SICB_model_noEC <- lmer(LOG_abs_resp_rate_SA_corr ~ control_or_nutrient + temp + red_day11 +  control_or_nutrient*temp + control_or_nutrient*red_day11 + temp*red_day11 + control_or_nutrient*red_day11*temp  + control_or_nutrient*red_day11*temp + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_ammonium_noEC)
+ammonium_SICB_model_noEC <- lmer(LOG_abs_resp_rate_SA_corr ~ control_or_nutrient + temp + red_day11 +  control_or_nutrient*temp + control_or_nutrient*red_day11 + temp*red_day11 + control_or_nutrient*red_day11*temp + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_ammonium_noEC)
+
 # boundary (singular) fit: see help('isSingular') HAPPENS WHEN RANDOM EFFECTS ARE VERY SMALL
 plot_model(ammonium_SICB_model_noEC, vline.color="black")
 summary(ammonium_SICB_model_noEC)
 #nothing sig
-(summary(emmeans(ammonium_SICB_model_noEC, specs=pairwise ~ temp)))
+(summary(emmeans(ammonium_SICB_model_noEC, specs=pairwise ~ temp*control_or_nutrient)))
 #again we see metabolic depression
 SICB_data_ammonium_noEC$control_or_nutrient <- factor(SICB_data_ammonium_noEC$control_or_nutrient, levels=c("Control","Ammonium"))
-ggplot(data = SICB_data_ammonium_noEC ,
+
+sum_SICB_data_ammonium_noEC <- summarySE(SICB_data_ammonium_noEC, measurevar = "abs_resp_rate_SA_corr", groupvars = c("control_or_nutrient", "temp"))
+
+sum_SICB_data_ammonium_noEC$temp <- as.factor(sum_SICB_data_ammonium_noEC$temp)
+sum_SICB_data_ammonium_noEC$control_or_nutrient <- factor(sum_SICB_data_ammonium_noEC$control_or_nutrient, levels=c("Control", "Ammonium"))
+
+ggplot(data = sum_SICB_data_ammonium_noEC,
        aes(x = control_or_nutrient,
-           y = abs_resp_rate_SA_corr, color=temp)) +
-    geom_boxplot() +
-     geom_point(position=position_jitterdodge())+
-  ggtitle("Ammonium") +
-  ylim(0, 0.2) +
-  labs(x = "ammonium dose", 
+           y = abs_resp_rate_SA_corr, fill=temp)) +
+       geom_bar(position="dodge", alpha=0.8, width=0.5, stat="identity") + 
+        geom_errorbar(aes(x=control_or_nutrient, ymin=abs_resp_rate_SA_corr-se, 
+            ymax=abs_resp_rate_SA_corr+se), width=0.2, size = 0.8, position=position_dodge(0.5))  +
+    ggtitle("Ammonium") +
+    ylim(0, 0.125) +
+    labs(x = "Ammonium dose", 
          y = expression(paste("Rate O2 Consumption (umol*hr"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
-    scale_x_discrete("", labels=c(Control="No ammonium", ammonium="ammonium")) +
-    scale_color_manual(values=c("blue", "darkred")) 
+    scale_x_discrete("", labels=c(Control="No Ammonium", Ammonium="Ammonium")) +
+   theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 14),
+          axis.title.x=element_text(size=14)) +    scale_fill_manual("Temperature", labels=c("20°C", "30°C"),values=c("#607FBE", "#BE6860")) 
+
 
 
 
@@ -188,31 +213,166 @@ ggplot(data = SICB_data_ammonium ,
 
 
 
-#RGB
+# RED DAY 11
 #now lets look at RGB between 20 and 30 
 ammonium_SICB_model_RGB_noEC <- lmer(red_day11 ~ control_or_nutrient + temp + control_or_nutrient*temp  + control_or_nutrient*temp  + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_ammonium_noEC)
 summary(ammonium_SICB_model_RGB_noEC)
-(summary(emmeans(ammonium_SICB_model_RGB_noEC, specs=pairwise ~ control_or_nutrient))) 
+(summary(emmeans(ammonium_SICB_model_RGB_noEC, specs=pairwise ~ control_or_nutrient*temp))) 
 
-library(ggplot2)
-ggplot(data = SICB_data_ammonium,
+
+#using summary function to graph
+sum_SICB_data_ammonium_rgb<- summarySE(SICB_data_ammonium_noEC, measurevar = "red_day11", groupvars = c("control_or_nutrient", "temp"))
+sum_SICB_data_ammonium_rgb$temp <- as.factor(sum_SICB_data_ammonium_rgb$temp)
+sum_SICB_data_ammonium_rgb$control_or_nutrient <- factor(sum_SICB_data_ammonium_rgb$control_or_nutrient, levels=c("Control", "Ammonium"))
+ggplot(data = sum_SICB_data_ammonium_rgb,
        aes(x = control_or_nutrient,
-           y = red_day11, color=temp)) +
-    geom_point() +
-  geom_abline()
+           y = red_day11, fill=temp)) +
+       geom_bar(position="dodge", alpha=0.8, width=0.5, stat="identity") + 
+        geom_errorbar(aes(x=control_or_nutrient, ymin=red_day11-se, 
+            ymax=red_day11+se), width=0.2, size = 0.8, position=position_dodge(0.5))  +
+    ggtitle("Ammonium") +
+    labs(x = "Ammonium dose", 
+         y = expression(paste("Symbiosis Color Proxy")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("", labels=c(Control="No Ammonium", Ammonium="Ammonium")) +
+   theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 14),
+          axis.title.x=element_text(size=14)) +    scale_fill_manual("Temperature", labels=c("20°C", "30°C"),values=c("#607FBE", "#BE6860")) 
 
 
-ggplot(data = SICB_data_ammonium ,
+#Randi and Justin want red channel AND resp rate on one graph, high ho
+#using two datasets:
+#sum_SICB_data_ammonium_noEC
+#sum_SICB_data_ammonium_rgb
+sum_SICB_data_ammonium_rgb_res<- summarySE(SICB_data_ammonium_noEC, measurevar = c("red_day11" & "abs_resp_rate_SA_corr"), groupvars = c("control_or_nutrient", "temp"))
+
+test<- data.frame(left_join(sum_SICB_data_ammonium_rgb, sum_SICB_data_ammonium_noEC, by=c("temp","control_or_nutrient")))
+test$red
+
+plotting_rgb_resp_data <- data.frame(cbind(sum_SICB_data_ammonium_rgb, sum_SICB_data_ammonium_noEC[,4:7]))
+?rbind
+
+write.csv(plotting_rgb_resp_data, "plotting_rgb_resp_data.csv")
+
+plotting_rgb_resp_data<- read.csv("plotting_rgb_resp_data.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+plotting_rgb_resp_data<- data.frame(plotting_rgb_resp_data)
+# plotting_rgb_resp_data$metric <- factor(plotting_rgb_resp_data$metric, levels=c("red_day11","abs_resp_rate_SA_corr_times1000
+# "))
+plotting_rgb_resp_data$metric <- as.factor(plotting_rgb_resp_data$metric)
+plotting_rgb_resp_data$temp <- as.factor(plotting_rgb_resp_data$temp)
+plotting_rgb_resp_data$control_or_nutrient <- factor(plotting_rgb_resp_data$control_or_nutrient ,levels=c("Control","Ammonium"))
+
+plotting_rgb_resp_data %>%
+  group_by(metric)
+
+coeff=1/1000
+ggplot(data=plotting_rgb_resp_data, aes(x = control_or_nutrient, y=value, fill=temp, color=metric)) +
+       geom_bar(position=position_dodge(.6), width=0.5, stat="identity", size=1.4, aes(order=metric)) + 
+        geom_errorbar(aes(order=metric, ymin=value-se, 
+            ymax=value+se), width=0.3, position=position_dodge(0.6))  +
+    ggtitle("Ammonium") +
+    labs(x = "Ammonium dose", 
+         y = expression(paste("Symbiosis Color Proxy")), 
+         caption = "data represent mean +/- SEM") +
+    scale_x_discrete("", labels=c(Control="No Ammonium", Ammonium="Ammonium")) +
+  scale_y_continuous(name="Symbiosis color proxy", sec.axis=sec_axis(~.*coeff, name="Rate O2 Consumption (umol*hr"^"-1"~"*cm"^"2"~")"))+ #coeff is an option to scale the other axis
+    theme_classic() +
+   theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title.y = element_text(size = 12, margin=(margin(r = 10, l = 10))),
+          axis.title.y.right = element_text(size = 12, margin=(margin(r = 10, l = 10))),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 14),
+          axis.title.x=element_text(size=14)) +    
+  scale_fill_manual("Temperature", labels=c("20°C", "30°C"),values=c("#607FBE", "#BE6860")) +
+  scale_color_manual("Metric", labels=c("Respiration Rate","Symbiosis Color Proxy"), values=c("gray30","#119B9D")) 
+
+
+
+
+# RED RELATIVE CHANGE
+SICB_data_ammonium_noEC$relative_change_red<- (SICB_data_ammonium_noEC$red_day11 - SICB_data_ammonium_noEC$red_day1)/ (SICB_data_ammonium_noEC$red_day1)
+hist(SICB_data_ammonium_noEC$relative_change_red) #normal so lets proceed
+ammonium_SICB_model_RGB_delta_noEC <- lmer(relative_change_red ~ control_or_nutrient + temp + control_or_nutrient*temp  + control_or_nutrient*temp  + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_ammonium_noEC)
+summary(ammonium_SICB_model_RGB_noEC)
+(summary(emmeans(ammonium_SICB_model_RGB_noEC, specs=pairwise ~ control_or_nutrient*temp))) 
+
+
+#using summary function to graph
+sum_SICB_data_ammonium_rgb<- summarySE(SICB_data_ammonium_noEC, measurevar = "relative_change_red", groupvars = c("control_or_nutrient", "temp"))
+sum_SICB_data_ammonium_rgb$temp <- as.factor(sum_SICB_data_ammonium_rgb$temp)
+sum_SICB_data_ammonium_rgb$control_or_nutrient <- factor(sum_SICB_data_ammonium_rgb$control_or_nutrient, levels=c("Control", "Ammonium"))
+ggplot(data = sum_SICB_data_ammonium_rgb,
        aes(x = control_or_nutrient,
-           y = red_day11, color=temp)) +
-    geom_boxplot(outlier.shape = NA) +
-     geom_point(position=position_jitterdodge(), size=2)+
-  ggtitle("Ammonium RGB") +
-  labs(x = "ammonium dose", 
-         y = expression(paste("Red Channel Value")), 
-         caption = " " ) +
-    scale_x_discrete("", labels=c(Control="No Ammonium", ammonium="Ammonium")) +
-    scale_color_manual("Temperature", labels=c("20°C", "30°C"),values=c("blue", "darkred")) 
+           y = relative_change_red, fill=temp)) +
+       geom_bar(position="dodge", width=0.5, stat="identity", alpha=0.8) + 
+        geom_errorbar(aes( ymin=relative_change_red-se, 
+            ymax=relative_change_red+se), width=0.3, position=position_dodge(0.5))  +
+  #  ggtitle("Ammonium") +
+    labs(x = "Ammonium dose", 
+         y = expression(paste("Percent Change in Color")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("", labels=c(Control="No Ammonium", Ammonium="Ammonium")) +
+   theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 14),
+          axis.title.x=element_text(size=14)) +    scale_fill_manual("Temperature", labels=c("20°C", "30°C"),values=c("#607FBE", "#BE6860")) +
+  ylim(-0.15,0.12)
+
+#Randi and Justin want red channel AND resp rate on one graph, high ho
+#using two datasets:
+#sum_SICB_data_ammonium_noEC
+#sum_SICB_data_ammonium_rgb
+sum_SICB_data_ammonium_rgb_res<- summarySE(SICB_data_ammonium_noEC, measurevar = c("relative_change_red"), groupvars = c("control_or_nutrient", "temp"))
+
+relative_change_and_resp <- data.frame(left_join(sum_SICB_data_ammonium_rgb, sum_SICB_data_ammonium_noEC, by=c("temp","control_or_nutrient")))
+test$red
+write.csv(relative_change_and_resp, "relative_change_and_resp.csv")
+
+relative_change_and_resp<- read.csv("relative_change_and_resp.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+relative_change_and_resp<- data.frame(relative_change_and_resp)
+# plotting_rgb_resp_data$metric <- factor(plotting_rgb_resp_data$metric, levels=c("relative_change_red","abs_resp_rate_SA_corr_times1000
+# "))
+relative_change_and_resp$metric <- as.factor(relative_change_and_resp$metric)
+relative_change_and_resp$temp <- as.factor(relative_change_and_resp$temp)
+relative_change_and_resp$control_or_nutrient <- factor(relative_change_and_resp$control_or_nutrient ,levels=c("Control","Ammonium"))
+
+relative_change_and_resp %>%
+  group_by(metric)
+
+coeff=1
+ggplot(data=relative_change_and_resp, aes(x = control_or_nutrient, y=value, fill=temp, color=metric)) +
+       geom_bar(position=position_dodge(.6), width=0.5, stat="identity", size=1.4, aes(order=metric)) + 
+        geom_errorbar(aes(order=metric, ymin=value-se, 
+            ymax=value+se), width=0.3, position=position_dodge(0.6))  +
+    labs(x = "Ammonium dose", 
+         y = expression(paste("Percent Change in Color")), 
+         caption = "data represent mean +/- SEM") +
+    scale_x_discrete("", labels=c(Control="No Ammonium", Ammonium="Ammonium")) +
+  scale_y_continuous(name="Percent Change in Color", sec.axis=sec_axis(~.*coeff, name="Rate O2 Consumption (umol*hr"^"-1"~"*cm"^"2"~")"))+ #coeff is an option to scale the other axis
+  theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title.y = element_text(size = 12, margin=(margin(r = 10, l = 10))),
+          axis.title.y.right = element_text(size = 12, margin=(margin(r = 10, l = 10))),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 14),
+          axis.title.x=element_text(size=14)) +    
+  scale_fill_manual("Temperature", labels=c("20°C", "30°C"),values=c("#607FBE", "#BE6860")) +
+  scale_color_manual("Metric", labels=c("Respiration Rate","Percent Change in Color"), values=c("gray30","#119B9D")) 
+
 
 
 

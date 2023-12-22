@@ -114,19 +114,28 @@ SICB_data_nitrate_1 <- resp_all_nitrate.data %>%
   filter(abs_resp_rate_SA_corr<0.7) %>% #there is one 7.5 at 20C thats really high and looks like an outlier to me
   filter(beetag_exprun!= "G33Y97_exp2A") #this was at E coli at 30C, and it was at like 0.23 and also looked like an outlier
 
-ggplot(data = SICB_data_nitrate_1 ,
+sum_N_species_dose_nitrate <- summarySE(SICB_data_nitrate_1, measurevar = "abs_resp_rate_SA_corr", groupvars = c("N_species_dose"))
+ggplot(data = sum_N_species_dose_nitrate ,
        aes(x = N_species_dose,
-           y = abs_resp_rate_SA_corr, color=N_species_dose)) +
-    geom_boxplot() +
-     geom_point(position=position_jitterdodge())+
+           y = abs_resp_rate_SA_corr, fill="black")) +
+    geom_col(fill=c("#587E9F","#71E379","#57A45D","#026109"), color="black", alpha=0.8, width=0.5) +
+      geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.1, size = 1) +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 14),
+          axis.title.x=element_text(size=14)) +
   ggtitle("Nitrate") +
-  ylim(0, 0.25) +
+  ylim(0, 0.15) +
   labs(x = "Nitrate dose", 
          y = expression(paste("Rate O2 Consumption (umol*hr"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
-    scale_x_discrete("Nitrate dose", labels=c(CNTRL_0="0uM", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))
+    scale_x_discrete("Nitrate dose", labels=c(CNTRL_0="0 uM", N_1.5="1.5 uM", N_5="5 uM", N_18="18 uM"))
 
-nitrate_SICB_model_1 <- lmer(LOG_abs_resp_rate_SA_corr ~ N_species_dose + red_day11 +  N_species_dose*red_day11 + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_nitrate_1)
+nitrate_SICB_model_1 <- lmer(LOG_abs_resp_rate_SA_corr ~ N_species_dose + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_nitrate_1)
 summary(nitrate_SICB_model_1)
 (summary(emmeans(nitrate_SICB_model_1, specs=pairwise ~ N_species_dose)))
 
@@ -136,29 +145,42 @@ SICB_data_nitrate_noEC <- resp_all_nitrate.data %>%
   filter(e_coli_plate==0) %>%
  filter(abs_resp_rate_SA_corr<0.7) %>% #there is one 7.5 at 20C thats really high and looks like an outlier to me
   filter(beetag_exprun!= "G33Y97_exp2A") #this was at E coli at 30C, and it was at like 0.23 and also looked like an outlier
-nitrate_SICB_model_noEC <- lmer(LOG_abs_resp_rate_SA_corr ~ control_or_nutrient + temp + red_day11 +  control_or_nutrient*temp + control_or_nutrient*red_day11 + temp*red_day11 + control_or_nutrient*red_day11*temp  + control_or_nutrient*red_day11*temp + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_nitrate_noEC)
+nitrate_SICB_model_noEC <- lmer(LOG_abs_resp_rate_SA_corr ~ control_or_nutrient + temp + red_day11 +  control_or_nutrient*temp + control_or_nutrient*red_day11 + temp*red_day11 + control_or_nutrient*red_day11*temp + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_nitrate_noEC)
 # boundary (singular) fit: see help('isSingular') HAPPENS WHEN RANDOM EFFECTS ARE VERY SMALL
 plot_model(nitrate_SICB_model_noEC, vline.color="black")
 summary(nitrate_SICB_model_noEC)
 #nothing sig
 (summary(emmeans(nitrate_SICB_model_noEC, specs=pairwise ~ temp)))
 #again we see metabolic depression
-ggplot(data = SICB_data_nitrate_noEC ,
+
+sum_SICB_data_nitrate_noEC <- summarySE(SICB_data_nitrate_noEC, measurevar = "abs_resp_rate_SA_corr", groupvars = c("control_or_nutrient", "temp"))
+
+sum_SICB_data_nitrate_noEC$temp <- as.factor(sum_SICB_data_nitrate_noEC$temp)
+
+ggplot(data = sum_SICB_data_nitrate_noEC,
        aes(x = control_or_nutrient,
-           y = abs_resp_rate_SA_corr, color=temp)) +
-    geom_boxplot() +
-     geom_point(position=position_jitterdodge())+
-  ggtitle("Nitrate") +
-  ylim(0, 0.2) +
-  labs(x = "Nitrate dose", 
+           y = abs_resp_rate_SA_corr, fill=temp)) +
+       geom_bar(position="dodge", alpha=0.8, width=0.5, stat="identity") + 
+        geom_errorbar(aes(x=control_or_nutrient, ymin=abs_resp_rate_SA_corr-se, 
+            ymax=abs_resp_rate_SA_corr+se), width=0.2, size = 0.8, position=position_dodge(0.5))  +
+    ggtitle("Nitrate") +
+    ylim(0, 0.125) +
+    labs(x = "Nitrate dose", 
          y = expression(paste("Rate O2 Consumption (umol*hr"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
-    scale_x_discrete("", labels=c(Control="No nitrate", Nitrate="Nitrate")) +
-    scale_color_manual(values=c("blue", "darkred")) 
+    scale_x_discrete("", labels=c(Control="No Nitrate", Nitrate="Nitrate")) +
+   theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 14),
+          axis.title.x=element_text(size=14)) +    scale_fill_manual("Temperature", labels=c("20°C", "30°C"),values=c("#607FBE", "#BE6860")) 
 
 count(SICB_data_nitrate_noEC$control_or_nutrient=="Control")
 
-
+?geom_errorbar
 
 #filter all fed, at all dose levels
 SICB_data_nitrate <- resp_all_nitrate.data %>%
