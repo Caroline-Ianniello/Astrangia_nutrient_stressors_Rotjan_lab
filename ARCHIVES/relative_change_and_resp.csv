@@ -1,0 +1,9 @@
+control_or_nutrient,temp,metric,value,se
+Control,20,relative_change_red,-0.058402148,0.071731262
+Control,30,relative_change_red,0.022144713,0.042610969
+Ammonium,20,relative_change_red,-0.058505907,0.024346609
+Ammonium,30,relative_change_red,0.020800474,0.028741516
+Control,20,abs_resp_rate_SA_corr_times1000,0.086469873,0.009343692
+Control,30,abs_resp_rate_SA_corr_times1000,0.067500308,0.011666862
+Ammonium,20,abs_resp_rate_SA_corr_times1000,0.096868035,0.00662936
+Ammonium,30,abs_resp_rate_SA_corr_times1000,0.070001104,0.004544636
