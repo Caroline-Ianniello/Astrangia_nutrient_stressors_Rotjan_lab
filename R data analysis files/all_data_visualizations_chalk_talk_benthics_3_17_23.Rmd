@@ -1,0 +1,762 @@
+---
+title: "Nitrate + Ammonium  data for chalk talk"
+author: "Caroline Fleming"
+date: "2023-03-17"
+output: html_document
+---
+
+```{r Loading all necessary packages}
+# library("knitr")
+# require("knitr")
+# opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox")
+# setwd("C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox")
+# getwd()
+#install.packages("lme4")
+#compare with and without predictor
+library("lme4")
+#install.packages("lmerTest")
+library("lmerTest")
+#install.packages("emmeans")
+library("emmeans")
+#install.packages("pbkrtest")
+library("pbkrtest")
+#reshape melts our datasets in the way we want
+library("reshape2")
+library("dplyr")
+library("plyr")
+library("tidyverse")
+library("Rmisc")
+library("ggplot2")
+#multiple response variables 
+#check model with performance package
+  #model tools R markdown
+  #check for colinearity
+  #r squared figures
+#install.packages("performance")
+#install.packages(c("rlang", "ggplot2", "performance", "dplyr", "ggrepel", "see"), dependencies = TRUE)
+library("performance")
+#install.packages("see")
+library("see")
+#install.packages("ggrepel")
+library("ggrepel")
+#install.packages("sjPlot") #for visualizing linear models
+library(sjPlot)
+library(car)
+#gg effects
+
+#increase the number of results it will show
+options(max.print=1000000)
+```
+
+
+```{r RESP - Inputting data & making sure everything is organized correctly}
+resp_all.data <- read.csv("RESP_ALL_SUMMARY_ALL_cleaned_dead_and_broken_outlierG28Y65_deleted_2_17_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+summary(resp_all.data$N_species)
+
+#add an absolute value column 
+resp_all.data$resp_rate_abs <- abs(resp_all.data$resp_rate)
+
+#getting rid of all the extra data at the bottom-- we only want rows 1:959 OR 1:639 if only looking at exp 2 and 3 (remember we got rid of the outlier!)
+#resp_all.data  <- resp_all.data[(1:482),]
+resp_all.data <- na.omit(resp_all.data)
+
+#Setting everything I need as factors for linear model and stats
+resp_all.data$N_species<-as.factor(resp_all.data$N_species)
+resp_all.data$N_species <- factor(resp_all.data$N_species, levels=c("CNTRL", "N","A"))
+resp_all.data$N_dose<-as.factor(resp_all.data$N_dose)
+resp_all.data$N_species_dose<-as.factor(resp_all.data$N_species_dose)
+resp_all.data$temp<-as.factor(resp_all.data$temp)
+resp_all.data$food<-as.factor(resp_all.data$food)
+resp_all.data$sym_state<-as.character(resp_all.data$sym_state)
+resp_all.data$food_sym_state<-as.factor(resp_all.data$food_sym_state)
+resp_all.data$control_or_nutrient<-as.factor(resp_all.data$control_or_nutrient)
+resp_all.data$control_or_nutrient <- factor(resp_all.data$control_or_nutrient, levels=c("Control", "Nitrate","Ammonium"))
+resp_all.data$e_coli_plate<-as.factor(resp_all.data$e_coli_plate)
+summary(resp_all.data$temp)
+
+#let dplyr print a bunch of numbers
+options(dplyr.print_max = 1e9)
+options(max.print = 10000) 
+
+table(pam_all_ammonium.data$N_species_dose)
+```
+
+
+```{r Basic list of subsets}
+# all aposymbiotic
+all_apo<-subset(resp_all.data, resp_all.data$sym_state=="A")
+# all symbiotic
+all_sym<-subset(resp_all.data, resp_all.data$sym_state=="S")
+# all fed
+all_fed<-subset(resp_all.data, resp_all.data$food=="F")
+# all starved
+all_starved<-subset(resp_all.data, resp_all.data$food=="S")
+# all 20C
+all_20<-subset(resp_all.data, resp_all.data$temp=="20")
+# all 30C
+all_30<-subset(resp_all.data, resp_all.data$temp=="30")
+#all_e_coli
+e_coli <- subset(resp_all.data, resp_all.data$e_coli_plate=="1")
+#no_e_coli
+no_e_coli <- subset(resp_all.data, resp_all.data$e_coli_plate=="0")
+
+#no e coli ammonium
+no_e_coli_ammonium <- subset(no_e_coli, no_e_coli$N_species=="A" | no_e_coli$N_species=="CNTRL")
+no_e_coli_ammonium$N_species<-as.factor(no_e_coli_ammonium$N_species)
+no_e_coli_ammonium$N_species <- factor(no_e_coli_ammonium$N_species, levels=c("CNTRL", "N","A"))
+no_e_coli_ammonium$N_dose<-as.factor(no_e_coli_ammonium$N_dose)
+no_e_coli_ammonium$N_species_dose<-as.factor(no_e_coli_ammonium$N_species_dose)
+no_e_coli_ammonium$temp<-as.factor(no_e_coli_ammonium$temp)
+no_e_coli_ammonium$food<-as.factor(no_e_coli_ammonium$food)
+no_e_coli_ammonium$sym_state<-as.character(no_e_coli_ammonium$sym_state)
+no_e_coli_ammonium$food_sym_state<-as.factor(no_e_coli_ammonium$food_sym_state)
+no_e_coli_ammonium$control_or_nutrient<-as.factor(no_e_coli_ammonium$control_or_nutrient)
+no_e_coli_ammonium$control_or_nutrient <- factor(no_e_coli_ammonium$control_or_nutrient, levels=c("Control", "Nitrate","Ammonium"))
+no_e_coli_ammonium$N_species_dose <- as.factor(no_e_coli_ammonium$N_species_dose)
+no_e_coli_ammonium$N_species_dose<- factor(no_e_coli_ammonium$N_species_dose, levels=c("CNTRL_0", "A_5","A_7.5","A_10"))
+
+#no e coli nitrate
+no_e_coli_nitrate <- subset(no_e_coli, no_e_coli$N_species=="N" | no_e_coli$N_species=="CNTRL")
+no_e_coli_nitrate$N_species<-as.factor(no_e_coli_nitrate$N_species)
+no_e_coli_nitrate$N_species <- factor(no_e_coli_nitrate$N_species, levels=c("CNTRL", "N","A"))
+no_e_coli_nitrate$N_dose<-as.factor(no_e_coli_nitrate$N_dose)
+no_e_coli_nitrate$N_species_dose<-as.factor(no_e_coli_nitrate$N_species_dose)
+no_e_coli_nitrate$temp<-as.factor(no_e_coli_nitrate$temp)
+no_e_coli_nitrate$food<-as.factor(no_e_coli_nitrate$food)
+no_e_coli_nitrate$sym_state<-as.character(no_e_coli_nitrate$sym_state)
+no_e_coli_nitrate$food_sym_state<-as.factor(no_e_coli_nitrate$food_sym_state)
+no_e_coli_nitrate$control_or_nutrient<-as.factor(no_e_coli_nitrate$control_or_nutrient)
+no_e_coli_nitrate$control_or_nutrient <- factor(no_e_coli_nitrate$control_or_nutrient, levels=c("Control", "Nitrate","Ammonium"))
+no_e_coli_nitrate$N_species_dose <- as.factor(no_e_coli_nitrate$N_species_dose)
+no_e_coli_nitrate$N_species_dose<- factor(no_e_coli_nitrate$N_species_dose, levels=c("CNTRL_0", "N_1.5","N_5","N_18"))
+
+
+#without controls
+no_controls <- subset(resp_all.data, resp_all.data$N_dose!=0)
+```
+
+```{r Respiration by dose + stats}
+summary(resp_all.data$N_species)
+
+#BY DOSE - on no e. coli data
+#AMMONIUM 
+# Summarize by N_species_dose so we can visualize
+sum_N_species_dose_ammonium <- summarySE(no_e_coli_ammonium, measurevar = "resp_rate_abs", groupvars = c("N_species_dose"))
+sum_N_species_dose_ammonium$N_species_dose<- factor(sum_N_species_dose_ammonium$N_species_dose, levels=c("CNTRL_0", "A_5","A_7.5","A_10"))
+# Visualize
+gg_N_species_dose_ammonium<-ggplot(data = sum_N_species_dose_ammonium,
+       aes(x = N_species_dose,
+           y = resp_rate_abs, col=N_species_dose)) +
+    geom_point(size=4) +
+    theme (axis.text.x = element_text(size = 20),
+   axis.title.x = element_text(size = 24),
+  axis.text.y = element_text(size = 20),
+   axis.title.y = element_text(size = 18)) +
+    ylim(0.0033, 0.0052) +
+    geom_errorbar(aes(ymin=resp_rate_abs-se, ymax=resp_rate_abs+se), width=0.3, size = 2) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+  #  ggtitle ("Ammonium - N Species Dose summary") +
+   theme(legend.position="none")+
+    labs(x = "\n", 
+         y = expression(paste("Metabolic rate (umol oxygen*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("Dose", labels=c(CNTRL_0="Control", A_5="Ambient", A_7.5="Intermediate", A_10="High"))+
+    scale_color_manual(labels=labels, values=c("blue", "orchid1","blueviolet","purple4"))
+gg_N_species_dose_ammonium
+
+# Summarize by N_species_dose so we can visualize
+sum_N_species_dose_nitrate <- summarySE(no_e_coli_nitrate, measurevar = "resp_rate_abs", groupvars = c("N_species_dose"))
+sum_N_species_dose_nitrate$N_species_dose<- factor(sum_N_species_dose_nitrate$N_species_dose, levels=c("CNTRL_0", "N_1.5","N_5","N_18"))
+# Visualize
+gg_N_species_dose_nitrate<-ggplot(data = sum_N_species_dose_nitrate,
+       aes(x = N_species_dose,
+           y = resp_rate_abs, col=N_species_dose)) +
+    geom_point(size=4) +
+    theme (axis.text.x = element_text(size = 20),
+   axis.title.x = element_text(size = 24),
+  axis.text.y = element_text(size = 20),
+   axis.title.y = element_text(size = 18)) +
+    ylim(0.0033, 0.0052) +
+    geom_errorbar(aes(ymin=resp_rate_abs-se, ymax=resp_rate_abs+se), width=0.3, size = 2) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+  #  ggtitle ("nitrate - N Species Dose summary") +
+   theme(legend.position="none")+
+    labs(x = "\n", 
+         y = expression(paste("Metabolic rate (umol oxygen*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("Dose", labels=c(CNTRL_0="Control", N_1.5="Ambient", N_5="Intermediate", N_18="High"))+
+    scale_color_manual(labels=labels, values=c("blue", "#9DCE9D","#359C35","darkgreen"))
+gg_N_species_dose_nitrate
+
+#Doing the full model isnt helpful
+mm_resp_no_e_coli <- lmer(resp_rate ~  N_species_dose + temp + food + sym_state +  N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state  + temp*food + temp*sym_state  + food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= no_e_coli)
+print(step.model<- step(mm_resp_no_e_coli))
+
+mm_resp_2_no_e_coli <- lm(resp_rate ~ control_or_nutrient, data=no_e_coli)
+summary(mm_resp_2_no_e_coli)
+tab_model(mm_resp_2_no_e_coli)
+
+emm_resp_2_no_e_coli=emmeans(mm_resp_2_no_e_coli, specs=pairwise ~ control_or_nutrient)
+summary(emm_resp_2_no_e_coli)
+
+
+#split it up by nitrate an ammonium
+
+mm_resp_no_e_coli <- lmer(resp_rate ~  N_species_dose + temp + food + sym_state +  N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state  + temp*food + temp*sym_state  + food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= no_e_coli_ammonium)
+print(step.model<- step(mm_resp_no_e_coli))
+
+mm_resp_2_no_e_coli <- lmer(resp_rate ~ N_species_dose + sym_state + (1 | col_num), data=no_e_coli_ammonium)
+summary(mm_resp_2_no_e_coli)
+
+emm_resp_2_no_e_coli=emmeans(mm_resp_2_no_e_coli, specs=pairwise ~ N_species_dose)
+summary(emm_resp_2_no_e_coli)
+
+#5uM is MARGINALLY significant vs. 7.5uM
+
+
+mm_resp_no_e_coli <- lmer(resp_rate ~  N_species_dose + temp + food + sym_state +  N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state  + temp*food + temp*sym_state  + food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= no_e_coli_nitrate)
+print(step.model<- step(mm_resp_no_e_coli))
+
+mm_resp_2_no_e_coli <- lmer(resp_rate ~ N_species_dose + (1 | col_num), data=no_e_coli_nitrate)
+summary(mm_resp_2_no_e_coli)
+
+emm_resp_2_no_e_coli=emmeans(mm_resp_2_no_e_coli, specs=pairwise ~ N_species_dose)
+summary(emm_resp_2_no_e_coli)
+
+#
+
+```
+
+
+```{r Respiration graphs}
+# GRAPH
+sum_e_coli_control_nutrient <- summarySE(resp_all.data, measurevar = "resp_rate_abs", groupvars = c("e_coli_plate", "N_species"))
+gg_e_coli_ammonium<-ggplot(data = sum_e_coli_control_nutrient,
+       aes(x = N_species,
+           y = resp_rate_abs, col=e_coli_plate)) +
+   geom_point(size = 4) +
+   theme(
+  axis.text.x = element_text(size = 22),
+   axis.title.x = element_text(size = 12),
+  axis.text.y = element_text(size = 20),
+   axis.title.y = element_text(size = 20)) +
+  theme(legend.position = "right",
+          legend.text= element_text(size=18),
+          legend.background = element_blank())+
+    ylim(0.0038, 0.005) +
+    geom_errorbar(aes(ymin=resp_rate_abs-se, ymax=resp_rate_abs+se), width=0.3, size = 2) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+   # ggtitle ("All dosed & control data summary") +
+    labs(x = " ", 
+     y = expression(paste("Metabolic rate (umol oxygen*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+     scale_x_discrete(" ", labels=c(CNTRL="Control", N="Nitrate", A="Ammonium"))+
+    scale_color_manual(" ", labels=c("No E. coli","E. coli"), values=c("gray45", "orange"))
+gg_e_coli_ammonium
+
+#temperature
+sum_temp_control_nutrient <- summarySE(no_e_coli, measurevar = "resp_rate_abs", groupvars = c("temp", "N_species"))
+write.csv(sum_temp_control_nutrient, "sum_temp_control_nutrient.csv", row.names=FALSE)
+gg_temp<-ggplot(data = sum_temp_control_nutrient,
+       aes(x = N_species,
+           y = resp_rate_abs, col=temp)) +
+   geom_point(size = 4) +
+   theme(
+  axis.text.x = element_text(size = 22),
+   axis.title.x = element_text(size = 12),
+  axis.text.y = element_text(size = 20),
+   axis.title.y = element_text(size = 20)) +
+  theme(legend.position = "right",
+          legend.text= element_text(size=18),
+          legend.background = element_blank())+
+     ylim(0.0030, 0.005) +
+    geom_errorbar(aes(ymin=resp_rate_abs-se, ymax=resp_rate_abs+se), width=0.3, size = 2) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+   # ggtitle ("All dosed & control data summary") +
+    labs(x = " ", 
+     y = expression(paste("Metabolic rate (umol oxygen*min"^"-1"~"*g"^"-1"~")")),  
+         caption = "data represent mean +/- SEM" ) +
+   scale_x_discrete(" ", labels=c(CNTRL="Control", N="Nitrate", A="Ammonium"))+
+    scale_color_manual(" ", labels=c("20°C","30°C"), values=c("dodgerblue3", "darkred"))
+gg_temp
+
+#stats 
+summary(aov_no_EC<-aov(resp_rate ~ temp +control_or_nutrient, data=resp_all.data))
+TukeyHSD(aov_no_EC, "N_species_dose")
+
+#JITTER
+
+sum_e_coli_control_nutrient_jitter <- summarySE(resp_all.data, measurevar = "resp_rate_abs", groupvars = c("e_coli_plate", "control_or_nutrient"))
+gg_e_coli_jitter <-ggplot(data = resp_all.data,
+       aes(x = control_or_nutrient,
+           y = resp_rate_abs, col=e_coli_plate)) +
+    geom_boxplot(width=0.8) +
+  #geom_jitter(width=0.15, alpha=0.9) + #this overlays the raw data
+    ylim(0.0036, 0.005) +
+    #geom_errorbar(aes(ymin=resp_rate_abs-se, ymax=resp_rate_abs+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("All dosed & control data summary") +
+    labs(x = " ", 
+     y = expression(paste("Metabolic rate (umol oxygen*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_color_manual(" ", labels=c("Control","E. coli"), values=c("blue", "orange"))
+gg_e_coli_jitter
+
+
+
+# STATS STATS STATS
+mm_resp_control_v_nutrient <- lmer(resp_rate ~ e_coli_plate + control_or_nutrient + (1|col_num), data=resp_all.data)
+summary(mm_resp_control_v_nutrient)
+
+# Summarize by control_or_nutrient * e_coli
+emm_control_v_nutrient=emmeans(mm_resp_control_v_nutrient, specs=pairwise ~ control_or_nutrient*e_coli_plate)
+summary(emm_control_v_nutrient)
+
+
+
+# POSTHOC CONTRASTS
+# contrast                                        estimate       SE  df t.ratio p.value
+#  Control e_coli_plate0 - Control e_coli_plate1   4.24e-04 0.000141 686   3.015  0.0318
+#  Nitrate e_coli_plate0 - Nitrate e_coli_plate1   4.24e-04 0.000141 686   3.015  0.0318
+#  Ammonium e_coli_plate0 - Ammonium e_coli_plate1 4.24e-04 0.000141 686   3.015  0.0318
+
+
+#  Control e_coli_plate0 - Ammonium e_coli_plate1  6.28e-04 0.000217 707   2.895  0.0450
+#  Nitrate e_coli_plate0 - Ammonium e_coli_plate1  5.85e-04 0.000214 691   2.740  0.0689
+
+
+summary(aov_resp_e_coli <- aov(resp_rate_abs ~ e_coli_plate + N_species, data=resp_all.data))
+
+summary(TukeyHSD(aov_resp_e_coli))
+
+
+
+# 20C
+summary(resp_all.data$N_species)
+all_20$e_coli_plate<-as.factor(all_20$e_coli_plate)
+all_20$N_species<-as.factor(all_20$N_species)
+all_20$N_species <- factor(all_20$N_species, levels=c("CNTRL", "N","A"))
+# GRAPH
+sum_20_control_nutrient_e_coli <- summarySE(all_20, measurevar = "resp_rate_abs", groupvars = c("e_coli_plate", "N_species"))
+write.csv(sum_20_control_nutrient_e_coli, "sum_20_control_nutrient_e_coli.csv", row.names=FALSE)
+gg_20_control_nutrient_e_coli<-ggplot(data = sum_20_control_nutrient_e_coli,
+       aes(x = N_species,
+           y = resp_rate_abs, col=e_coli_plate)) +
+   geom_point(size = 4) +
+   theme(
+  axis.text.x = element_text(size = 22),
+   axis.title.x = element_text(size = 12),
+  axis.text.y = element_text(size = 20),
+   axis.title.y = element_text(size = 20)) +
+    theme(legend.position = "right",
+          legend.text= element_text(size=18),
+          legend.background = element_blank())+
+    ylim(0.0035,0.0056) +
+    geom_errorbar(aes(ymin=resp_rate_abs-se, ymax=resp_rate_abs+se), width=0.3, size = 2) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+   # ggtitle ("20C") +
+    labs(x = " ", 
+     y = expression(paste("Metabolic rate (umol oxygen*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+     scale_x_discrete(" ", labels=c(CNTRL="Control", N="Nitrate", A="Ammonium"))+
+    scale_color_manual(" ", labels=c("No E. coli","E. coli"), values=c("gray45", "orange"))
+gg_20_control_nutrient_e_coli
+
+# STATS STATS STATS
+mm_resp_control_v_nutrient <- lmer(resp_rate ~ e_coli_plate + control_or_nutrient + (1|col_num), data=all_20)
+summary(mm_resp_control_v_nutrient)
+
+# Summarize by control_or_nutrient * e_coli
+emm_control_v_nutrient=emmeans(mm_resp_control_v_nutrient, specs=pairwise ~ control_or_nutrient*e_coli_plate)
+summary(emm_control_v_nutrient)
+
+
+# 30C
+summary(resp_all.data$N_species)
+all_30$e_coli_plate<-as.factor(all_30$e_coli_plate)
+all_30$N_species<-as.factor(all_30$N_species)
+all_30$N_species <- factor(all_30$N_species, levels=c("CNTRL", "N","A"))
+# GRAPH
+sum_30_control_nutrient_e_coli <- summarySE(all_30, measurevar = "resp_rate_abs", groupvars = c("e_coli_plate", "N_species"))
+write.csv(sum_30_control_nutrient_e_coli, "sum_30_control_nutrient_e_coli.csv", row.names=FALSE)
+write.csv(sum_e_coli_control_nutrient, "sum_e_coli_control_nutrient.csv", row.names=FALSE)
+gg_30_control_nutrient_e_coli<-ggplot(data = sum_30_control_nutrient_e_coli,
+       aes(x = N_species,
+           y = resp_rate_abs, col=e_coli_plate)) +
+   geom_point(size = 4) +
+   theme(
+  axis.text.x = element_text(size = 22),
+   axis.title.x = element_text(size = 12),
+  axis.text.y = element_text(size = 20),
+   axis.title.y = element_text(size = 20)) +
+    theme(legend.position = "right",
+          legend.text= element_text(size=18),
+          legend.background = element_blank())+
+    ylim(0.0035,0.0056) +
+    geom_errorbar(aes(ymin=resp_rate_abs-se, ymax=resp_rate_abs+se), width=0.3, size = 2) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+   # ggtitle ("30C") +
+    labs(x = " ", 
+     y = expression(paste("Metabolic rate (umol oxygen*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+     scale_x_discrete(" ", labels=c(CNTRL="Control", N="Nitrate", A="Ammonium"))+
+    scale_color_manual(" ", labels=c("No E. coli","E. coli"), values=c("gray45", "orange"))
+gg_30_control_nutrient_e_coli
+
+
+
+# STATS STATS STATS
+mm_resp_control_v_nutrient <- lmer(resp_rate ~ e_coli_plate + control_or_nutrient + (1|col_num), data=all_30)
+summary(mm_resp_control_v_nutrient)
+
+# Summarize by control_or_nutrient * e_coli
+emm_control_v_nutrient=emmeans(mm_resp_control_v_nutrient, specs=pairwise ~ control_or_nutrient*e_coli_plate)
+summary(emm_control_v_nutrient)
+```
+
+
+
+```{r stats for Randi}
+
+#ALL DATA
+
+mm_resp_1 <- lmer(resp_rate ~  N_species_dose + temp + food + sym_state + e_coli_plate + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + N_species_dose*e_coli_plate + temp*food + temp*sym_state + temp*e_coli_plate + food*sym_state + food*e_coli_plate + sym_state*e_coli_plate + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= resp_all.data)
+summary(mm_resp_1)
+
+print(step.model<- step(mm_resp_1))
+
+mm_all_resp_1 <- lmer(resp_rate ~ control_or_nutrient + temp + sym_state + e_coli_plate + (1 | col_num), data= resp_all.data)
+tab_model(mm_all_resp_1 )
+#winning model for everything
+
+emm_all_resp_1=emmeans(mm_all_resp_1, specs=pairwise ~ N_species)
+summary(emm_all_resp_1)
+
+
+#Doing this WITHOUT E. coli, because E. coli changes the story so much and we haven't introduced it yet
+
+mm_resp_1 <- lmer(resp_rate ~  control_or_nutrient + temp + food + sym_state + control_or_nutrient*temp +control_or_nutrient*food + control_or_nutrient*sym_state + temp*food + temp*sym_state + food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= no_e_coli)
+summary(mm_resp_1)
+
+print(step.model<- step(mm_resp_1))
+
+mm_all_resp_1 <- lmer(resp_rate ~ control_or_nutrient + (1 | col_num), data= no_e_coli)
+tab_model(mm_all_resp_1, digits=7)
+#winning model for everything
+
+emm_all_resp_1=emmeans(mm_all_resp_1, specs=pairwise ~ N_species)
+summary(emm_all_resp_1)
+
+#turn off scientific notation
+options(scipen=999)
+
+```
+
+
+
+```{r PAM - Inputting data & making sure everything is organized correctly}
+PAM_all.data <- read.csv("PAM_all_3_18_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+summary(PAM_all.data$N_species)
+PAM_all.data <- na.omit(PAM_all.data)
+
+
+#Setting everything I need as factors for linear model and stats
+PAM_all.data$N_species<-as.factor(PAM_all.data$N_species)
+PAM_all.data$N_species <- factor(PAM_all.data$N_species, levels=c("CNTRL", "N","A"))
+PAM_all.data$N_dose<-as.factor(PAM_all.data$N_dose)
+PAM_all.data$N_species_dose<-as.factor(PAM_all.data$N_species_dose)
+PAM_all.data$temp<-as.factor(PAM_all.data$temp)
+PAM_all.data$food<-as.factor(PAM_all.data$food)
+PAM_all.data$sym_state<-as.character(PAM_all.data$sym_state)
+PAM_all.data$food_sym_state<-as.factor(PAM_all.data$food_sym_state)
+PAM_all.data$control_or_nutrient<-as.factor(PAM_all.data$control_or_nutrient)
+PAM_all.data$control_or_nutrient <- factor(PAM_all.data$control_or_nutrient, levels=c("Control", "Nitrate","Ammonium"))
+summary(PAM_all.data$temp)
+
+hist(PAM_all.data$PAM_delta)
+
+mm_PAM_1 <- lmer(PAM_delta ~  control_or_nutrient + temp + food + sym_state  + control_or_nutrient*temp + control_or_nutrient*food + control_or_nutrient*sym_state  + temp*food + temp*sym_state + food*sym_state +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= PAM_all.data)
+summary(mm_PAM_1)
+print(step.model<- step(mm_PAM_1))
+
+mm_PAM_2 <- lmer(PAM_delta ~  control_or_nutrient + temp + sym_state + temp*sym_state +  (1|col_num) + (1|exp_num) , data= PAM_all.data)
+summary(mm_PAM_2)
+
+tab_model(mm_PAM_2)
+
+```
+
+```{r PAM - Ammonium}
+#uploading the data and fixing it a bit
+pam_all_ammonium.data <- read.csv("PAM_ammonium_only_4_19_23_dead_deleted_random_controls.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+pam_all_ammonium.data <- na.omit(pam_all_ammonium.data)
+#changing some column names
+pam_all_ammonium.data<-subset(pam_all_ammonium.data, select = -c(temp))
+#renaming columns in base R because dplyr is freaking out
+colnames(pam_all_ammonium.data)[colnames(pam_all_ammonium.data) == "sym_state"] ="sym_state_full"
+colnames(pam_all_ammonium.data)[colnames(pam_all_ammonium.data) == "sym_state.1"] ="sym_state"
+colnames(pam_all_ammonium.data)[colnames(pam_all_ammonium.data) == "temp.1"] ="temp"
+pam_all_ammonium.data$N_species_dose<-factor(pam_all_ammonium.data$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+
+# all aposymbiotic
+all_apo_ammonium<-subset(pam_all_ammonium.data, pam_all_ammonium.data$sym_state=="A")
+all_apo_ammonium$temp<-factor(all_apo_ammonium$temp, levels=c("20", "30"))
+# all symbiotic
+all_sym_ammonium<-subset(pam_all_ammonium.data, pam_all_ammonium.data$sym_state=="S")
+all_sym_ammonium$temp<-factor(all_sym_ammonium$temp, levels=c("20", "30"))
+
+# all fed
+all_fed_ammonium<-subset(pam_all_ammonium.data, pam_all_ammonium.data$food=="F")
+# all starved
+all_starved_ammonium<-subset(pam_all_ammonium.data, pam_all_ammonium.data$food=="S")
+# all 20C
+all_20_ammonium<-subset(pam_all_ammonium.data, pam_all_ammonium.data$temp=="20")
+# all 30C
+all_30_ammonium<-subset(pam_all_ammonium.data, pam_all_ammonium.data$temp=="30")
+
+#plotting the change in Fv/Fm for apo and sym corals by dose, only at 20C because we havent introduced temperature stress yet
+#delta graph by dose by sym state
+pam_treatmeans_apovsym <- summarySE(all_20_ammonium, measurevar = "PAM_delta", groupvars = c("sym_state","N_species_dose"))
+pam_treatmeans_apovsym$N_species_dose<-factor(pam_treatmeans_apovsym$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+gg_pam_plot_apovsym <- ggplot() +
+  #geom_jitter(data= pam_all_ammonium.data, aes(x=N_species_dose, y=PAM_delta, color=sym_state), alpha=0.4) +
+    geom_point(data=pam_treatmeans_apovsym, aes(x = N_species_dose, y= PAM_delta, color = sym_state), size=4, alpha=1)+
+    geom_errorbar(data=pam_treatmeans_apovsym, aes(x = N_species_dose, ymax = PAM_delta+se, ymin = PAM_delta-se, col=sym_state), width = .3, size=2) +
+    
+   theme(
+  axis.text.x = element_text(size = 16),
+   axis.title.x = element_text(size = 20),
+  axis.text.y = element_text(size = 20),
+   axis.title.y = element_text(size = 20)) +
+    theme(legend.position = "right",
+          legend.text= element_text(size=18),
+          legend.background = element_blank())+
+    ylim(-.2,0.2) +
+ ylab("Change in Fv/Fm")+
+  ggtitle("PAM ammonium at 20C - change in Fv/Fm Sym vs. Apo")+
+   scale_x_discrete("Dose", labels=c(CNTRL_0="Control", A_5="Ambient", A_7.5="Intermediate", A_10="High"))+
+    scale_color_manual("Sym state", labels=c(A="Aposymbiotic", S="Symbiotic"), values=c("gray35", "sienna")) #gives you the colors for each point on the graph
+gg_pam_plot_apovsym
+
+# generating psym and pdose
+summary(aov_temp<-aov(PAM_delta~ N_species_dose*sym_state, data=all_20_ammonium))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*sym_state))
+  
+
+#now let's break it up by just sym and just apo, and then plot by temp 
+
+#SYM corals
+pam_treatmeans_sym_ammonium <- summarySE(all_sym_ammonium, measurevar = "PAM_delta", groupvars = c("temp","N_species_dose"))
+pam_treatmeans_sym_ammonium$N_species_dose<-factor(pam_treatmeans_sym_ammonium$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+pam_treatmeans_sym_ammonium$temp<-factor(pam_treatmeans_sym_ammonium$temp, levels=c("20", "30"))
+gg_pam_plot_sym_ammonium <- ggplot() +
+ # geom_jitter(data= all_sym_ammonium, aes(x=N_species_dose, y=PAM_delta, color=temp), alpha=0.4) +
+    geom_point(data=pam_treatmeans_sym_ammonium , aes(x = N_species_dose, y= PAM_delta, color = temp), size=4, alpha=1)+
+    geom_errorbar(data=pam_treatmeans_sym_ammonium , aes(x = N_species_dose, ymax = PAM_delta+se, ymin = PAM_delta-se, col=temp), width = .3, size=2) +
+   theme(
+  axis.text.x = element_text(size = 16),
+   axis.title.x = element_text(size = 20),
+  axis.text.y = element_text(size = 20),
+   axis.title.y = element_text(size = 20)) +
+    theme(legend.position = "right",
+          legend.text= element_text(size=18),
+          legend.background = element_blank())+
+    ylim(-.2,0.2) +
+ ylab("Change in Fv/Fm")+
+  ggtitle(" AMMONIUM SYM CORALS - change in Fv/Fm at 20 vs. 30")+
+   scale_x_discrete("Dose", labels=c(CNTRL_0="Control", A_5="Ambient", A_7.5="Intermediate", A_10="High"))+
+    scale_color_manual("Temperature", labels=c("20"="20°C", "30"="30°C"), values=c("dodgerblue3", "darkred")) #gives you the colors for each point on the graph
+gg_pam_plot_sym_ammonium
+
+# generating ptemp and pdose
+summary(aov_temp<-aov(PAM_delta~ N_species_dose*temp, data=all_sym_ammonium))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
+  
+
+
+#apo corals
+pam_treatmeans_apo_ammonium <- summarySE(all_apo_ammonium, measurevar = "PAM_delta", groupvars = c("temp","N_species_dose"))
+pam_treatmeans_apo_ammonium$N_species_dose<-factor(pam_treatmeans_apo_ammonium$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+pam_treatmeans_apo_ammonium$temp<-factor(pam_treatmeans_apo_ammonium$temp, levels=c("20", "30"))
+gg_pam_plot_apo_ammonium <- ggplot() +
+  #geom_point(data= all_apo_ammonium, aes(x=N_species_dose, y=PAM_delta, color=temp), alpha=0.4) +
+    geom_point(data=pam_treatmeans_apo_ammonium , aes(x = N_species_dose, y= PAM_delta, color = temp), size=4, alpha=1)+
+    geom_errorbar(data=pam_treatmeans_apo_ammonium , aes(x = N_species_dose, ymax = PAM_delta+se, ymin = PAM_delta-se, col=temp), width = .3, size=2) +
+   theme(
+  axis.text.x = element_text(size = 16),
+   axis.title.x = element_text(size = 20),
+  axis.text.y = element_text(size = 20),
+   axis.title.y = element_text(size = 20)) +
+    theme(legend.position = "right",
+          legend.text= element_text(size=18),
+          legend.background = element_blank())+
+    ylim(-.1,0.15) +
+ ylab("Change in Fv/Fm")+
+  ggtitle(" AMMONIUM apo CORALS - change in Fv/Fm at 20 vs. 30")+
+   scale_x_discrete("Dose", labels=c(CNTRL_0="Control", A_5="Ambient", A_7.5="Intermediate", A_10="High"))+
+    scale_color_manual("Temperature", labels=c("20"="20°C", "30"="30°C"), values=c("dodgerblue3", "darkred")) #gives you the colors for each point on the graph
+gg_pam_plot_apo_ammonium
+
+# generating ptemp and pdose
+summary(aov_temp<-aov(PAM_delta~ N_species_dose*temp, data=all_apo_ammonium))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
+  
+```
+
+```{r PAM - Nitrate}
+pam_all_nitrate.data <- read.csv("PAM_nitrate_only_4_19_23_dead_deleted_random_controls.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+pam_all_nitrate.data <- na.omit(pam_all_nitrate.data)
+#changing some column names
+pam_all_nitrate.data<-subset(pam_all_nitrate.data, select = -c(temp))
+#renaming columns in base R because dplyr is freaking out
+colnames(pam_all_nitrate.data)[colnames(pam_all_nitrate.data) == "sym_state"] ="sym_state_full"
+colnames(pam_all_nitrate.data)[colnames(pam_all_nitrate.data) == "sym_state.1"] ="sym_state"
+colnames(pam_all_nitrate.data)[colnames(pam_all_nitrate.data) == "temp.1"] ="temp"
+pam_all_nitrate.data$N_species_dose<-factor(pam_all_nitrate.data$N_species_dose, levels=c("CNTRL_0", "N_1.5", "N_5","N_18"))
+
+
+# all aposymbiotic
+all_apo_nitrate<-subset(pam_all_nitrate.data, pam_all_nitrate.data$sym_state=="A")
+all_apo_nitrate$temp<-factor(all_apo_nitrate$temp, levels=c("20", "30"))
+# all symbiotic
+all_sym_nitrate<-subset(pam_all_nitrate.data, pam_all_nitrate.data$sym_state=="S")
+all_sym_nitrate$temp<-factor(all_sym_nitrate$temp, levels=c("20", "30"))
+# all starved
+all_starved_nitrate<-subset(pam_all_nitrate.data, pam_all_nitrate.data$food=="S")
+# all 20C
+all_20_nitrate<-subset(pam_all_nitrate.data, pam_all_nitrate.data$temp=="20")
+all_20_nitrate$N_species_dose<-factor(all_20_nitrate$N_species_dose, levels=c("CNTRL_0", "N_1.5", "N_5","N_18"))
+
+# all 30C
+all_30_nitrate<-subset(pam_all_nitrate.data, pam_all_nitrate.data$temp=="30")
+
+#plotting the change in Fv/Fm for apo and sym corals by dose, only at 20C because we havent introduced temperature stress yet
+#delta graph by dose by sym state
+pam_treatmeans_apovsym <- summarySE(all_20_nitrate, measurevar = "PAM_delta", groupvars = c("sym_state","N_species_dose"))
+pam_treatmeans_apovsym$N_species_dose<-factor(pam_treatmeans_apovsym$N_species_dose, levels=c("CNTRL_0", "N_1.5", "N_5","N_18"))
+gg_pam_plot_apovsym <- ggplot() +
+ # geom_jitter(data= pam_all_nitrate.data, aes(x=N_species_dose, y=PAM_delta, color=sym_state), alpha=0.4) +
+    geom_point(data=pam_treatmeans_apovsym, aes(x = N_species_dose, y= PAM_delta, color = sym_state), size=4, alpha=1)+
+    geom_errorbar(data=pam_treatmeans_apovsym, aes(x = N_species_dose, ymax = PAM_delta+se, ymin = PAM_delta-se, col=sym_state), width = .3, size=2) +
+    
+   theme(
+  axis.text.x = element_text(size = 16),
+   axis.title.x = element_text(size = 20),
+  axis.text.y = element_text(size = 20),
+   axis.title.y = element_text(size = 20)) +
+    theme(legend.position = "right",
+          legend.text= element_text(size=18),
+          legend.background = element_blank())+
+    ylim(-.2,0.2) +
+ ylab("Change in Fv/Fm")+
+  ggtitle("PAM Nitrate at 20C - change in Fv/Fm Sym vs. Apo")+
+   scale_x_discrete("Dose", labels=c(CNTRL_0="Control", N_1.5="Ambient", N_5="Intermediate", N_18="High"))+
+    scale_color_manual("Sym state", labels=c(A="Aposymbiotic", S="Symbiotic"), values=c("gray35", "sienna")) #gives you the colors for each point on the graph
+gg_pam_plot_apovsym
+
+# generating psym and pdose
+summary(aov_temp<-aov(PAM_delta~ N_species_dose*sym_state, data=all_20_nitrate))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*sym_state))
+#RESULTS
+ # contrast              estimate     SE  df t.ratio p.value
+ # CNTRL_0 A - CNTRL_0 S  0.18176 0.0528 206   3.441  0.0159
+ # CNTRL_0 A - N_1.5 S    0.16576 0.0533 206   3.111  0.0435
+ # N_1.5 A - CNTRL_0 S    0.20717 0.0546 206   3.797  0.0047
+ # N_1.5 A - N_1.5 S      0.19117 0.0550 206   3.476  0.0141
+ # N_5 A - CNTRL_0 S      0.24441 0.0574 206   4.256  0.0008
+ # N_5 A - N_1.5 S        0.22841 0.0578 206   3.949  0.0027
+
+summary(aov_temp<-aov(PAM_delta~ control_or_nutrient*sym_state, data=all_20_nitrate))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*sym_state))
+
+
+
+#now let's break it up by just sym and just apo, and then plot by temp 
+
+#SYM corals
+pam_treatmeans_sym_nitrate <- summarySE(all_sym_nitrate, measurevar = "PAM_delta", groupvars = c("temp","N_species_dose"))
+pam_treatmeans_sym_nitrate$N_species_dose<-factor(pam_treatmeans_sym_nitrate$N_species_dose, levels=c("CNTRL_0", "N_1.5", "N_5","N_18"))
+pam_treatmeans_sym_nitrate$temp<-factor(pam_treatmeans_sym_nitrate$temp, levels=c("20", "30"))
+gg_pam_plot_sym_nitrate <- ggplot() +
+  #geom_jitter(data= all_sym_nitrate, aes(x=N_species_dose, y=PAM_delta, color=temp), alpha=0.4) +
+    geom_point(data=pam_treatmeans_sym_nitrate , aes(x = N_species_dose, y= PAM_delta, color = temp), size=4, alpha=1)+
+    geom_errorbar(data=pam_treatmeans_sym_nitrate , aes(x = N_species_dose, ymax = PAM_delta+se, ymin = PAM_delta-se, col=temp), width = .3, size=2) +
+   theme(
+  axis.text.x = element_text(size = 16),
+   axis.title.x = element_text(size = 20),
+  axis.text.y = element_text(size = 20),
+   axis.title.y = element_text(size = 20)) +
+    theme(legend.position = "right",
+          legend.text= element_text(size=18),
+          legend.background = element_blank())+
+    ylim(-.2,0.2) +
+ ylab("Change in Fv/Fm")+
+  ggtitle(" nitrate SYM CORALS - change in Fv/Fm at 20 vs. 30")+
+ scale_x_discrete("Dose", labels=c(CNTRL_0="Control", N_1.5="Ambient", N_5="Intermediate", N_18="High"))+    scale_color_manual("Temperature", labels=c("20"="20°C", "30"="30°C"), values=c("dodgerblue3", "darkred")) #gives you the colors for each point on the graph
+gg_pam_plot_sym_nitrate
+
+# generating ptemp and pdose
+summary(aov_temp<-aov(PAM_delta~ N_species_dose*temp, data=all_sym_nitrate))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
+  
+
+
+#apo corals
+pam_treatmeans_apo_nitrate <- summarySE(all_apo_nitrate, measurevar = "PAM_delta", groupvars = c("temp","N_species_dose"))
+pam_treatmeans_apo_nitrate$N_species_dose<-factor(pam_treatmeans_apo_nitrate$N_species_dose, levels=levels=c("CNTRL_0", "N_1.5", "N_5","N_18"))
+pam_treatmeans_apo_nitrate$temp<-factor(pam_treatmeans_apo_nitrate$temp, levels=c("20", "30"))
+gg_pam_plot_apo_nitrate <- ggplot() +
+  #geom_jitter(data= all_apo_nitrate, aes(x=N_species_dose, y=PAM_delta, color=temp), alpha=0.4) +
+    geom_point(data=pam_treatmeans_apo_nitrate , aes(x = N_species_dose, y= PAM_delta, color = temp), size=4, alpha=1)+
+    geom_errorbar(data=pam_treatmeans_apo_nitrate , aes(x = N_species_dose, ymax = PAM_delta+se, ymin = PAM_delta-se, col=temp), width = .3, size=2) +
+   theme(
+  axis.text.x = element_text(size = 16),
+   axis.title.x = element_text(size = 20),
+  axis.text.y = element_text(size = 20),
+   axis.title.y = element_text(size = 20)) +
+    theme(legend.position = "right",
+          legend.text= element_text(size=18),
+          legend.background = element_blank())+
+    ylim(-.1,0.15) +
+ ylab("Change in Fv/Fm")+
+  ggtitle(" nitrate apo CORALS - change in Fv/Fm at 20 vs. 30")+
+ scale_x_discrete("Dose", labels=c(CNTRL_0="Control", N_1.5="Ambient", N_5="Intermediate", N_18="High"))+    scale_color_manual("Temperature", labels=c("20"="20°C", "30"="30°C"), values=c("dodgerblue3", "darkred")) #gives you the colors for each point on the graph
+gg_pam_plot_apo_nitrate
+
+# generating ptemp and pdose
+summary(aov_temp<-aov(PAM_delta~ N_species_dose*temp, data=all_apo_nitrate))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
+
+
+summary(aov_temp<-aov(PAM_delta~ food, data=pam_all_nitrate.data))
+Anova(aov_temp, type="III")
+summary(emmeans(aov_temp, specs=pairwise ~ N_species_dose*temp))
+```
+
+```{r plotting Fv/Fm by red channel value}
+nitrate_all_data <- read.csv("NITRATE_all_data_PCA_formatted_3_8_23.csv", header = TRUE)
+
+ammonium_all_data <- read.csv("AMMONIUM_all_data_PCA_formatted_3_8_23.csv", header = TRUE)
+
+```
+
+
+```{r}
+gg_genet_treatment <-ggplot(data = nitrate_all_data,
+       aes(x = treat_ID,
+           y = col_num, col= treat_ID)) + 
+    geom_point() + #you want points
+    ggtitle ("Test") + #title for the plot
+   theme(legend.position="none")+ #this turns off the legend
+    labs(x = " ", 
+         y = expression(paste(" ")))
+gg_genet_treatment
+```
+
