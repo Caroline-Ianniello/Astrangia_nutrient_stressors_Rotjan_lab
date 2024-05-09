@@ -1,7 +1,11 @@
 library(rstanarm)
+#install.packages("brms")
+library(brms)
 library(tidyverse)
-# setwd("/Users/chentahung/Desktop/MSSP/MA675-StatisticsPracticum-1/Lab/ConsultingProjects/Urban-pollution-effect-Corals")
-source('C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/MSSP/respiration_bayes/Rstan-MixEff-Lasso.R')
+setwd("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/MSSP/")
+setwd(dirname(getwd()))#for some reason you have to add this OMG DEMONS
+source("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/MSSP/src/main/modeling/Rstan-MixEff-Lasso.R")
+getwd()
 
 # Documentation -----------------------------------------------------------
 
@@ -76,7 +80,7 @@ source('C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_
 
 # load data ---------------------------------------------------------------
 
-resp_model <- read_csv('MSSP/data/Respiration_all_combinations_columns.csv')
+resp_model <- read_csv('C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/MSSP/data/Respiration_all_combinations_columns.csv')
 
 # temperature will be seen as a numeric column after reloading the data
 resp_model$temp <- factor(resp_model$temp, levels = c(20, 30))
@@ -87,7 +91,6 @@ ammonium <- resp_model[resp_model$pollution == 'Ammonium',]
 
 
 # MCMC cores --------------------------------------------------------------
-
 set.MC.cores(4)
 
 # Customized CV -----------------------------------------------------------

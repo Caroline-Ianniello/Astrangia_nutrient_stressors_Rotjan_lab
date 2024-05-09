@@ -1,4 +1,5 @@
-
+setwd("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/MSSP/")
+setwd(dirname(getwd())) #need to add this!
 source('MSSP/src/main/model-evaluation/ModelSelect.r')
 
 # find_best_tune
@@ -13,8 +14,8 @@ source('MSSP/src/main/model-evaluation/ModelSelect.r')
 
 # load MSE_array object ---------------------------------------------------
 
-nitrate_pam_delta_MSE_arr <- load('MSSP/data/MSE-Arrays/nitrate_pam_delta_MSE_arr.RDS')
-ammonium_pam_delta_MSE_arr <- load('MSSP/data/MSE-Arrays/ammonium_pam_delta_MSE_arr.RDS')
+nitrate_pam_delta_MSE_arr <- load('MSSP/data/Cross-Validation-Results/MSE-Arrays/nitrate_pam_delta_MSE_arr.RDS')
+ammonium_pam_delta_MSE_arr <- load('MSSP/data/Cross-Validation-Results/MSE-Arrays/ammonium_pam_delta_MSE_arr.RDS')
 
 # average MSE for each lambda ---------------------------------------------
 

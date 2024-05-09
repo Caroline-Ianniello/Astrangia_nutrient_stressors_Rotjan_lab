@@ -1,15 +1,14 @@
 
 # Library -----------------------------------------------------------------
-#install.packages("pacman")
-library(pacman)
+
 pacman::p_load(tidyverse, data.table)
 
 
 # Load Data ---------------------------------------------------------------
 setwd("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/MSSP/")
-PAM <- read_csv('data/raw/PAM_all_dead_deleted_all_controls_7_21_23_2.0.csv')
+rgb <- read_csv('data/raw/RGB_NITRATEandAMMONIUM_Recomputted_12_18_23_dead_deleted_4_29_24.csv')
 
-PAM <- as.data.table(PAM)
+rgb <- as.data.table(rgb)
 
 
 # data understanding ------------------------------------------------------
@@ -18,7 +17,7 @@ PAM <- as.data.table(PAM)
 #  [1] "date_coll"           "date_frag"           "col_num...3"         "frag_letter"         "col_frag_num"        "tile_num"           
 #  [7] "tile_position"       "sym_state...8"       "exp_num"             "exp_subrun"          "stand_beetag"        "peg_beetag"         
 # [13] "exp_1_beetag"        "exp_run_full"        "beetag_exprun"       "col_num...16"        "jar_unique_ID"       "temp...18"          
-# [19] "PAM_avg_day1"        "PAM_avg_day11"       "PAM_delta"           "pam_percent_change"  "log_PAM_delta"       "treat_ID_full"      
+# [19] "rgb_avg_day1"        "rgb_avg_day11"       "rgb_delta"           "rgb_percent_change"  "log_rgb_delta"       "treat_ID_full"      
 # [25] "N_species"           "N_dose"              "N_species_dose"      "control_or_nutrient" "temp...29"           "food"               
 # [31] "sym_state...31"      "food_sym_state"  
 
@@ -57,10 +56,10 @@ PAM <- as.data.table(PAM)
 
 # Data Subset -------------------------------------------------------------
 
-# I select the columns that are all related to PAM in current stage.
+# I select the columns that are all related to rgb in current stage.
 
-pam_s <- PAM[,.(col_num  = col_num,
-                treat_ID_full, PAM_avg_day1, PAM_avg_day11, PAM_delta, pam_percent_change, log_PAM_delta)]
+rgb_s <- rgb[,.(col_num  = col_num,
+                treat_ID_full, red_day1, red_day11, red_delta, red_percent_change)]
 
 # We separate the treat_ID_full back to each combination component.
 
@@ -78,20 +77,20 @@ split_extract_ID <- function(vec, n){
   return(out)
 }
 
-pollution <- ifelse(split_extract_ID(pam_s$treat_ID_full, 1) == 'N', 'Nitrate', 'Ammonium')
-dose <- factor(split_extract_ID(pam_s$treat_ID_full, 2), ordered = T, levels = c('0', '1.5', '5', '7.5', '10', '18'))
-temp <- factor(split_extract_ID(pam_s$treat_ID_full, 3), ordered = T, levels = c('20', '30'))
-feed <- ifelse(split_extract_ID(pam_s$treat_ID_full, 4) == 'F', 'Fed', 'Starved')
-symbiont <- ifelse(split_extract_ID(pam_s$treat_ID_full, 5) == 'S', 'Symbiotic', 'Aposymbiotic')
+pollution <- ifelse(split_extract_ID(rgb_s$treat_ID_full, 1) == 'N', 'Nitrate', 'Ammonium')
+dose <- factor(split_extract_ID(rgb_s$treat_ID_full, 2), ordered = T, levels = c('0', '1.5', '5', '7.5', '10', '18'))
+temp <- factor(split_extract_ID(rgb_s$treat_ID_full, 3), ordered = T, levels = c('20', '30'))
+feed <- ifelse(split_extract_ID(rgb_s$treat_ID_full, 4) == 'F', 'Fed', 'Starved')
+symbiont <- ifelse(split_extract_ID(rgb_s$treat_ID_full, 5) == 'S', 'Symbiotic', 'Aposymbiotic')
 
 # lapply(list(pollution,dose, temp, feed, symbiont), function(x) sum(is.na(x))) Check missing
 
-pam_s[, `:=`(pollution = pollution,
+rgb_s[, `:=`(pollution = pollution,
              dose = dose,
              temp = temp, 
              feed = feed, 
              symbiont = symbiont,
-             pam_status = ifelse(PAM_delta > 0, 'increase', 'decrease'))]
+             rgb_status = ifelse(red_delta > 0, 'bleached', 'browned'))]
 
 # rm(list = c('pollution', 'dose', 'feed', 'temp', 'symbiont'))
 
@@ -101,8 +100,8 @@ pam_s[, `:=`(pollution = pollution,
 # So we were told that there are only four kinds of dose, but in fact we found 6 types in data.
 # from other code we know: CNTRL_0="Control", A_5="Ambient", A_7.5="Intermediate", A_10="High")
 
-nrow(pam_s[dose %in% c('0', '5', '7.5', '10'),]) # 705
-length(table(pam_s[dose %in% c('0', '5', '7.5', '10'), treat_ID_full])) # 48
+nrow(rgb_s[dose %in% c('0', '5', '7.5', '10'),]) # 705
+length(table(rgb_s[dose %in% c('0', '5', '7.5', '10'), treat_ID_full])) # 48
 
 # At this step, we decided to keep all the values for further analysis
 
@@ -119,7 +118,7 @@ removeOutliers <- function(data){
 }
 
 # Add outliers Label (Nov 1st update)
-pam_s[, PercOutliersCheck := removeOutliers(pam_s$pam_percent_change)[['Check']]]
+rgb_s[, PercOutliersCheck := removeOutliers(rgb_s$rgb_percent_change)[['Check']]]
 
 # Adjsut Dose Levels 
 
@@ -135,7 +134,7 @@ pam_s[, PercOutliersCheck := removeOutliers(pam_s$pam_percent_change)[['Check']]
 ## 7.5 (medium)
 ## 10 (high)
 
-pam_s[, dose_level := fcase(pollution == 'Nitrate' & dose == '0' , 'control-0',
+rgb_s[, dose_level := fcase(pollution == 'Nitrate' & dose == '0' , 'control-0',
                             pollution == 'Nitrate' & dose == '1.5' , 'Low',
                             pollution == 'Nitrate' & dose == '5' , 'Medium',
                             pollution == 'Nitrate' & dose == '18' , 'High',
@@ -146,16 +145,16 @@ pam_s[, dose_level := fcase(pollution == 'Nitrate' & dose == '0' , 'control-0',
                             default = NA_character_)]
 
 # Create new treatment ID:
-pam_s[, new_treat_ID_full := str_c(pollution, dose_level, temp, feed, symbiont, sep = "_")]
+rgb_s[, new_treat_ID_full := str_c(pollution, dose_level, temp, feed, symbiont, sep = "_")]
 
-write_csv(pam_s, 'C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/MSSP/data/pam_s.csv')
+write_csv(rgb_s, 'C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/MSSP/data/rgb_s.csv')
 
 
 # data manipulation -------------------------------------------------------
 
 
-pam_s <- read_csv('C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/MSSP/data/pam_s.csv')
-pam_s <- as.data.table(pam_s)
+rgb_s <- read_csv('C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/MSSP/data/rgb_s.csv')
+rgb_s <- as.data.table(rgb_s)
 
 twoComb <- combn(c('dose_level', 'temp', 'feed', 'symbiont'), 2)
 threeComb <- combn(c('dose_level', 'temp', 'feed', 'symbiont'), 3)
@@ -174,12 +173,12 @@ create_columns <- function(df, combinations){
   }
 }
 
-create_columns(pam_s, twoComb)
-create_columns(pam_s, threeComb)
-create_columns(pam_s, fourComb)
+create_columns(rgb_s, twoComb)
+create_columns(rgb_s, threeComb)
+create_columns(rgb_s, fourComb)
 
-nitrate <- pam_s[pollution == 'Nitrate',]
-ammonium <- pam_s[pollution == 'Ammonium']
+nitrate <- rgb_s[pollution == 'Nitrate',]
+ammonium <- rgb_s[pollution == 'Ammonium']
 
-write_csv(pam_s, 'C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/MSSP/data/PAM_all_combinations_columns.csv')
+write_csv(rgb_s, 'C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/MSSP/data/rgb_all_combinations_columns.csv')
 

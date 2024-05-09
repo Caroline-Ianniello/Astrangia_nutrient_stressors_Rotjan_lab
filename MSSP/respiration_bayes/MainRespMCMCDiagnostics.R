@@ -28,6 +28,7 @@ plot_dens_overlay(nit_resp_fit, params = nit_resp_var_name[1:9])
 plot_acf(nit_resp_fit, lags = 150, params = nit_resp_var_name[8])
 
 # ammonium
+dev.off()
 
 ammo_resp_fit <- Ammonium_Resp_lasso$BestRefit
 

@@ -66,42 +66,41 @@ source('MSSP/src/main/modeling/Rstan-MixEff-Lasso.R')
 
 # load data ---------------------------------------------------------------
 
-pam_model <- read_csv('MSSP/data/PAM_all_combinations_columns.csv')
+rgb_model <- read_csv('MSSP/data/rgb_all_combinations_columns.csv')
 
-pam_model$temp <- as.character(pam_model$temp)
+rgb_model$temp <- as.character(rgb_model$temp)
 
-nitrate <- pam_model[pam_model$pollution == 'Nitrate',]
-ammonium <- pam_model[pam_model$pollution == 'Ammonium',]
+nitrate <- rgb_model[rgb_model$pollution == 'Nitrate',]
+ammonium <- rgb_model[rgb_model$pollution == 'Ammonium',]
 
 # Customized CV -----------------------------------------------------------
 
-
- nitrate_pam_delta_MSE_arr <- customizedRandomizedSearchCV(data = nitrate, 
-                                                           formula = as.formula(paste0('PAM_delta~',
-                                                                                       paste(c(c('feed', 'dose_level', 'temp', 'symbiont'),colnames(nitrate)[18:ncol(nitrate)]), collapse = '+'), 
-                                                                                       '+(1|col_num)')),
-                                                           fold_number = 5, stratified_target = 'col_num',
-                                                           MCMC_parms = list(chains = 4, iter = 2000, refresh = 0, QR = TRUE, sparse = FALSE),
-                                                           randomseed = 2023,
-                                                           lambda_dist = rexp, n = 5, rate = 0.8)
+nitrate_RGB_delta_MSE_arr <- customizedRandomizedSearchCV(data = nitrate, 
+                                  formula = as.formula(paste0('red_delta~',
+                                                               paste(c(c('feed', 'dose_level', 'temp', 'symbiont'),colnames(nitrate)[18:ncol(nitrate)]), collapse = '+'), 
+                                                               '+(1|col_num)')),
+                                  fold_number = 5, stratified_target = 'col_num',
+                                  MCMC_parms = list(chains = 4, iter = 2000, refresh = 0),
+                                  randomseed = 2023,
+                                  lambda_dist = rexp, n = 5, rate = 0.8)
 
 # integrate from 0 to 1 for lambda ~ Exp(0.8) ≈ 0.55
 # hist(rexp(1000, 0.8))
 
-ammonium_pam_delta_MSE_arr <- customizedRandomizedSearchCV(data = ammonium, 
-                                  formula = as.formula(paste0('PAM_delta~',
+ammonium_RGB_delta_MSE_arr <- customizedRandomizedSearchCV(data = ammonium, 
+                                  formula = as.formula(paste0('red_delta~',
                                                                paste(c(c('feed', 'dose_level', 'temp', 'symbiont'),colnames(nitrate)[18:ncol(nitrate)]), collapse = '+'), 
                                                                '+(1|col_num)')),
                                   fold_number = 5, stratified_target = 'col_num',
-                                  MCMC_parms = list(chains = 4, iter = 2000, refresh = 0, QR = TRUE, sparse = FALSE),
+                                  MCMC_parms = list(chains = 4, iter = 2000, refresh = 0),
                                   randomseed = 2023,
                                   lambda_dist = rexp, n = 5, rate = 0.8)
 
 
 ## Store results
 
-save(nitrate_pam_delta_MSE_arr, file = 'MSSP/data/Cross-Validation-Results/MSE-Arrays/nitrate_pam_delta_MSE_arr.RDS')
-save(ammonium_pam_delta_MSE_arr, file = 'MSSP/data/Cross-Validation-Results/MSE-Arrays/ammonium_pam_delta_MSE_arr.RDS')
+save(nitrate_rgb_delta_MSE_arr, file = 'MSSP/data/Cross-Validation-Results/MSE-Arrays/nitrate_rgb_delta_MSE_arr.RDS')
+save(ammonium_rgb_delta_MSE_arr, file = 'MSSP/data/Cross-Validation-Results/MSE-Arrays/ammonium_rgb_delta_MSE_arr.RDS')
 
 
 
@@ -122,14 +121,14 @@ save(ammonium_pam_delta_MSE_arr, file = 'MSSP/data/Cross-Validation-Results/MSE-
 
 # old ver ----------------------------------------------------------------
 # 
-# pam_model <- read_csv('MSSP/data/PAM_all_combinations_columns.csv')
+# rgb_model <- read_csv('MSSP/data/rgb_all_combinations_columns.csv')
 # 
-# nitrate <- pam_model[pam_model$pollution == 'Nitrate',]
-# ammonium <- pam_model[pam_model$pollution == 'Ammonium',]
+# nitrate <- rgb_model[rgb_model$pollution == 'Nitrate',]
+# ammonium <- rgb_model[rgb_model$pollution == 'Ammonium',]
 # 
-# nitrate_pam_delta_fit <- randomizedSearchCV(
+# nitrate_rgb_delta_fit <- randomizedSearchCV(
 #                                   data = nitrate, 
-#                                   formula = as.formula(paste0('PAM_delta~',
+#                                   formula = as.formula(paste0('rgb_delta~',
 #                                                                paste(c(c('feed', 'dose_level', 'temp', 'symbiont'),colnames(nitrate)[18:ncol(nitrate)]), collapse = '+'), 
 #                                                                '+(1|col_num_3)')),
 #                                   k_fold = 5, 
@@ -139,11 +138,11 @@ save(ammonium_pam_delta_MSE_arr, file = 'MSSP/data/Cross-Validation-Results/MSE-
 #                                   n = 5, min = 0, max = 5)
 # 
 # # change the direction to a folder outside the local git folder, fit file is too large to commit and push to the remote
-# # save('nitrate_pam_delta_fit', file = 'MSSP/data/model/nitrate_pam_delta_fit.RDS')
+# # save('nitrate_rgb_delta_fit', file = 'MSSP/data/model/nitrate_rgb_delta_fit.RDS')
 # 
-# ammonium_pam_delta_fit <- randomizedSearchCV(
+# ammonium_rgb_delta_fit <- randomizedSearchCV(
 #                                   data = nitrate, 
-#                                   formula = as.formula(paste0('PAM_delta~',
+#                                   formula = as.formula(paste0('rgb_delta~',
 #                                                                paste(c(c('feed', 'dose_level', 'temp', 'symbiont'),colnames(nitrate)[18:ncol(nitrate)]), collapse = '+'), 
 #                                                                '+(1|col_num_3)')),
 #                                   k_fold = 5, 
@@ -153,4 +152,4 @@ save(ammonium_pam_delta_MSE_arr, file = 'MSSP/data/Cross-Validation-Results/MSE-
 #                                   n = 5, min = 0, max = 5)
 # 
 # # change the direction to a folder outside the local git folder, fit file is too large to commit and push to the remote
-# # save('ammonium_pam_delta_fit', file = 'MSSP/data/model/ammonium_pam_delta_fit.RDS')
+# # save('ammonium_rgb_delta_fit', file = 'MSSP/data/model/ammonium_rgb_delta_fit.RDS')

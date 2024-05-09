@@ -1,6 +1,8 @@
 library(rstanarm)
 library(tidyverse)
 # setwd("/Users/chentahung/Desktop/MSSP/MA675-StatisticsPracticum-1/Lab/ConsultingProjects/Urban-pollution-effect-Corals")
+setwd("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/MSSP/")
+setwd(dirname(getwd())) #need to add this!
 source('MSSP/src/main/modeling/Rstan-MixEff-Lasso.R')
 
 # Documentation -----------------------------------------------------------
@@ -77,8 +79,8 @@ ammonium <- pam_model[pam_model$pollution == 'Ammonium',]
 nitrate_pam_percchange_MSE_arr <- customizedRandomizedSearchCV(data = nitrate, 
                                   formula = as.formula(paste0('pam_percent_change~',
                                                                paste(c(c('feed', 'dose_level', 'temp', 'symbiont'),colnames(nitrate)[18:ncol(nitrate)]), collapse = '+'), 
-                                                               '+(1|col_num_3)')),
-                                  fold_number = 5, stratified_target = 'col_num_3',
+                                                               '+(1|col_num)')),
+                                  fold_number = 5, stratified_target = 'col_num',
                                   MCMC_parms = list(chains = 4, iter = 2000, refresh = 0),
                                   randomseed = 2023,
                                   lambda_dist = rexp, n = 5, rate = 0.8)
@@ -89,8 +91,8 @@ nitrate_pam_percchange_MSE_arr <- customizedRandomizedSearchCV(data = nitrate,
 ammonium_pam_percchange_MSE_arr <- customizedRandomizedSearchCV(data = ammonium, 
                                   formula = as.formula(paste0('pam_percent_change~',
                                                                paste(c(c('feed', 'dose_level', 'temp', 'symbiont'),colnames(nitrate)[18:ncol(nitrate)]), collapse = '+'), 
-                                                               '+(1|col_num_3)')),
-                                  fold_number = 5, stratified_target = 'col_num_3',
+                                                               '+(1|col_num)')),
+                                  fold_number = 5, stratified_target = 'col_num',
                                   MCMC_parms = list(chains = 4, iter = 2000, refresh = 0),
                                   randomseed = 2023,
                                   lambda_dist = rexp, n = 5, rate = 0.8)
