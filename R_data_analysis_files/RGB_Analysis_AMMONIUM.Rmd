@@ -1,5 +1,5 @@
 ---
-title: "rgb data AMMONIUM: last updated 12/9/22 C. Fleming"
+title: "rgb data AMMONIUM: last updated 5/16/2024 C. Fleming"
 output: html_notebook
 ---
 
@@ -7,6 +7,12 @@ output: html_notebook
 
 
 ```{r Loading all necessary packages}
+setwd("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/")
+setwd(dirname(getwd())) #need to add this!
+library("knitr")
+require("knitr")
+opts_knit$set(root.dir = "C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/")
+# library("knitr")
 # library("knitr")
 # require("knitr")
 # opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox")
@@ -54,7 +60,7 @@ options(max.print=1000000)
 
 
 ```{r Inputting data & making sure everything is organized correctly}
-rgb_all_ammonium.data <- read.csv("Master_RGB_Spreadsheet_AMMONIUM_Condensed_Red_1_12_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+rgb_all_ammonium.data <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/RGB_AMMONIUM_Recomputted_dead_deleted_5_16_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 rgb_all_ammonium.data <- na.omit(rgb_all_ammonium.data)
 
 # #checking for outliers
@@ -80,13 +86,12 @@ rgb_all_ammonium.data <- na.omit(rgb_all_ammonium.data)
 # #ALL DONE!
 
 #Setting everything I need as factors for linear model and stats
-rgb_all_ammonium.data$N_species<-as.factor(rgb_all_ammonium.data$N_species)
-rgb_all_ammonium.data$N_dose<-as.factor(rgb_all_ammonium.data$N_dose)
-rgb_all_ammonium.data$N_species_dose<-as.factor(rgb_all_ammonium.data$N_species_dose)
+rgb_all_ammonium.data$N_species<-as.factor(rgb_all_ammonium.data$n_species)
+rgb_all_ammonium.data$N_dose<-as.factor(rgb_all_ammonium.data$n_dose)
+rgb_all_ammonium.data$N_species_dose<-as.factor(rgb_all_ammonium.data$n_species_dose)
 rgb_all_ammonium.data$temp<-as.factor(rgb_all_ammonium.data$temp)
 rgb_all_ammonium.data$food<-as.factor(rgb_all_ammonium.data$food)
 rgb_all_ammonium.data$sym_state<-as.character(rgb_all_ammonium.data$sym_state)
-rgb_all_ammonium.data$food_sym_state<-as.factor(rgb_all_ammonium.data$food_sym_state)
 #We want the math to treat colony number as a factor
 rgb_all_ammonium.data$col_num<-as.factor(rgb_all_ammonium.data$col_num)
 
@@ -155,9 +160,49 @@ all_starved<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$food=="S")
 all_20<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$temp=="20")
 # all 30C
 all_30<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$temp=="30")
+# all 20C FED
+all_20_fed<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$temp=="20" & rgb_all_ammonium.data$food=="F")
+# all 30C FED
+all_30_fed<-subset(rgb_all_ammonium.data, rgb_all_ammonium.data$temp=="30" & rgb_all_ammonium.data$food=="F")
 
 #without controls
 no_controls <- subset(rgb_all_ammonium.data, rgb_all_ammonium.data$N_dose!=0)
+```
+
+
+# Astrangia conference
+
+
+```{r percent change Astrangia conference -- basic comparisons}
+#All fed at 20C, comparing between doses and sym states
+all_20_fed$sym_state<- as.factor(all_20_fed$sym_state)
+all_20_fed_model <- lmer(red_percent_change ~  N_species_dose + sym_state +  N_species_dose*sym_state +  (1|col_num), data= all_20_fed)
+summary(all_20_fed_model)
+#nothing sig
+
+
+#All fed 20 vs. 30C, comparing between temps, doses, and sym states
+all_fed$sym_state<- as.factor(all_fed$sym_state)
+all_fed_model <- lmer(red_percent_change ~  N_species_dose + sym_state + temp + N_species_dose*temp + sym_state*temp + N_species_dose*sym_state +  (1|col_num), data= all_fed)
+summary(all_fed_model)
+#nothing sig
+
+all_fed_model_vis <- summarySE(all_fed , measurevar = "red_percent_change", groupvars = c("temp","sym_state","N_species_dose"))
+# Visualize
+gg_sym_state_temp_ammonium<-ggplot(data = all_fed_model_vis,
+       aes(x = N_species_dose,
+           y = red_percent_change, col=temp, shape=sym_state)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=red_percent_change-se, ymax=red_percent_change+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Ammonium rgb - % Change Fv/Fm") +
+    labs(x = "ammonium dose", 
+         y = expression(paste("% Change Fv/Fm")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("Symbiotic state", labels=c(CNTRL_0="Control", A_10="10uM", A_5="5uM", A_7.5="7.5uM"))+
+    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
+gg_sym_state_temp_ammonium
+
 ```
 
 #DELTA models

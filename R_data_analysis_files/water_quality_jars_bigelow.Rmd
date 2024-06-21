@@ -1,0 +1,162 @@
+---
+title: "Water quality of jars - data from Bigelow labs"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r add packages}
+library("lme4")
+#install.packages("lmerTest")
+library("lmerTest")
+#install.packages("emmeans")
+library("emmeans")
+#install.packages("pbkrtest")
+library("pbkrtest")
+#reshape melts our datasets in the way we want
+library("reshape2")
+library("dplyr")
+library("plyr")
+library("tidyverse")
+library("Rmisc")
+library("ggplot2")
+#multiple response variables 
+#check model with performance package
+  #model tools R markdown
+  #check for colinearity
+  #r squared figures
+#install.packages("performance")
+#install.packages(c("rlang", "ggplot2", "performance", "dplyr", "ggrepel", "see"), dependencies = TRUE)
+library("performance")
+#install.packages("see")
+library("see")
+#install.packages("ggrepel")
+library("ggrepel")
+#install.packages("sjPlot") #for visualizing linear models
+library(sjPlot)
+library(car)
+#gg effects
+
+#increase the number of results it will show
+options(max.print=1000000)
+```
+
+
+```{r upload data }
+#upload data
+water_qual_bigelow_all <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/bigelow_water_quality_all_6_21_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+water_qual_bigelow_all$treatment_ID<-as.factor(water_qual_bigelow_all$treatment_ID)
+water_qual_bigelow_all$N_species_dose_temp<-as.factor(water_qual_bigelow_all$N_species_dose_temp)
+
+water_qual_bigelow_all$temp<-as.factor(water_qual_bigelow_all$temp)
+
+```
+
+```{r}
+#T test on fed versus starved (please god don't let this be sig)
+t.test(NO3_uM ~ food, data= water_qual_bigelow_all, paired=F) # THANK GOD ITS NOT SIG FOR NITRATE
+t.test(NH4_uM ~ food, data= water_qual_bigelow_all, paired=F) # THEY ARE DIFFERENT FOR AMMONIUM WOMP WOMP
+
+
+#T test on 20 v 30 (id be shocked if this wasnt signficiant)
+t.test(NO3_uM ~ temp, data= water_qual_bigelow_all, paired=F) # THANK GOD ITS NOT SIG FOR NITRATE
+t.test(NH4_uM ~ temp, data= water_qual_bigelow_all, paired=F) # THEY ARE SIGNIFICANTLY DIFFERENT
+
+
+#T test on NO3_um vs. NO3_INTENDED, these are paired
+t.test(water_qual_bigelow_all$NO3_uM, water_qual_bigelow_all$NO3_INTENDED, data= water_qual_bigelow_all, paired=T)  
+# SIGNIFICANTLY DIFFERENT
+t.test(water_qual_bigelow_all$NH4_uM, water_qual_bigelow_all$NH4_INTENDED, data= water_qual_bigelow_all, paired=T)
+#SIGNIFICANTLY DIFFERENT
+```
+#Histograms and letting the data bin itself
+```{r}
+
+## Nitrate histogram
+gg_NO3<-ggplot(water_qual_bigelow_all, aes( x= NO3_uM ) ) + 
+            geom_histogram( bins=3 )
+range(water_qual_bigelow_all$NO3_uM)
+gg_NO3_data <- data.frame(ggplot_build(gg_NO3)$data[[1]])
+
+#Bin the data based on the cut function in R
+#Specify the number of breaks to use to create bins of equal width that range from the minimum value to the maximum value of the points column
+water_qual_bigelow_all <- water_qual_bigelow_all %>% 
+  mutate(NO3_bin= cut(NO3_uM, breaks=3)) %>% 
+  mutate(NH4_bin= cut(NH4_uM, breaks=3))
+levels(water_qual_bigelow_all$NO3_bin) #"(0.704,7.23]" "(7.23,13.7]"  "(13.7,20.2]" 
+levels(water_qual_bigelow_all$NH4_bin) #"(0.904,12.7]" "(12.7,24.5]"  "(24.5,36.3]" 
+
+
+count(water_qual_bigelow_all$NH4_bin)
+
+
+bin_equal = function(x, nbin = 5) {
+  breaks = quantile(x, probs = seq(0, 1, length.out = nbin + 1), na.rm = TRUE)
+  return(cut(x, breaks = breaks, labels = 1:nbin, include.lowest = TRUE))
+}
+
+bin_equal(rnorm(20), nbin = 3)
+```
+
+
+#Visualizations
+```{r visualizations - nitrate}
+
+#lets try those tidy skills
+library(dplyr)
+water_qual_graph <- water_qual_bigelow_all %>% 
+  dplyr::select("treatment_ID","NO3_INTENDED", "NO3_uM", "temp") %>% 
+pivot_longer(-c(treatment_ID, temp), names_to = "variable", values_to = "value")
+
+
+gg_intended_v_actual_nit <- ggplot(water_qual_graph, aes(treatment_ID, value, colour = variable, shape=temp)) + 
+  scale_color_manual(values=c("black","dodgerblue"), labels=c("Intended dose NITRATE", "Measured dose NITRATE")) +
+  scale_shape_discrete("Temperature", labels=c("20°C","30°C"))+
+  geom_point(size=3) +
+  labs(color="Condition") +
+  ylab("Nitrate level (uM)")+
+  xlab("Treatment ID")+
+  theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1)) + #this makes the x axis labels up and down instead of side to side to prevent overlapping
+  ylab("Nitrate level (uM)")+
+  xlab("Treatment ID")+
+  ggtitle("Nitrate Levels -- Intended vs. measured")
+gg_intended_v_actual_nit
+
+```
+
+```{r visualizations - Ammonium}
+#lets try those tidy skills
+water_qual_graph <- water_qual_bigelow_all %>% 
+  dplyr::select("treatment_ID","NH4_INTENDED", "NH4_uM", "temp") %>% 
+pivot_longer(-c(treatment_ID, temp), names_to = "variable", values_to = "value")
+
+gg_intended_v_actual_amm <- ggplot(water_qual_graph, aes(treatment_ID, value, colour = variable, shape=temp)) + 
+  scale_color_manual(values=c("black","green2"), labels=c("Intended dose AMMONIUM", "Measured dose AMMONIUM")) +
+  scale_shape_discrete("Temperature", labels=c("20°C","30°C"))+
+  geom_point(size=3) +
+  labs(color="Condition") +
+  ylab("Ammonium level (uM)")+
+  xlab("Treatment ID")+
+  theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1)) + #this makes the x axis labels up and down instead of side to side to prevent overlapping
+  ylab("Ammonium level (uM)")+
+  xlab("Treatment ID")+
+  ggtitle("Ammonium Levels -- Intended vs. measured")
+gg_intended_v_actual_amm
+```
+
+#Summarize by treatment
+```{r}
+#summarySE gives the mean
+summary_waterqual_nitrate <- summarySE(water_qual_bigelow_all, measurevar = c("NO3_uM"), groupvars = c("treatment_ID"), na.rm=TRUE)
+
+summary_waterqual_ammonium <- summarySE(water_qual_bigelow_all, measurevar = c("NH4_uM"), groupvars = c("treatment_ID"), na.rm=TRUE)
+
+summary_waterqual <- left_join(summary_waterqual_nitrate, summary_waterqual_ammonium, by=join_by(treatment_ID))
+
+#looks good, now let's export it
+
+write.csv(summary_waterqual, "C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/summary_waterqual.csv")
+?summarySE
+
+```
+

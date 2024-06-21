@@ -5,6 +5,11 @@ output: html_notebook
 #NITRATE ONLY
 
 ```{r Loading all necessary packages}
+setwd("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/")
+setwd(dirname(getwd())) #need to add this!
+library("knitr")
+require("knitr")
+opts_knit$set(root.dir = "C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/")
 # library("knitr")
 # require("knitr")
 # opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox")
@@ -52,7 +57,7 @@ options(max.print=1000000)
 
 
 ```{r Inputting data & making sure everything is organized correctly}
-pam_all_nitrate.data <- read.csv("PAM_nitrate_only_4_19_23_dead_deleted_random_controls.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+pam_all_nitrate.data <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/PAM_NITRATE_all_dead_deleted_all_controls_5.16.24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 
 pam_all_nitrate.data <- na.omit(pam_all_nitrate.data)
 
@@ -163,12 +168,63 @@ all_starved<-subset(pam_all_nitrate.data, pam_all_nitrate.data$food=="S")
 all_20<-subset(pam_all_nitrate.data, pam_all_nitrate.data$temp=="20")
 # all 30C
 all_30<-subset(pam_all_nitrate.data, pam_all_nitrate.data$temp=="30")
+# all 20C FED
+all_20_fed<-subset(pam_all_nitrate.data, pam_all_nitrate.data$temp=="20" & pam_all_nitrate.data$food=="F")
+# all 30C FED
+all_30_fed<-subset(pam_all_nitrate.data, pam_all_nitrate.data$temp=="30" & pam_all_nitrate.data$food=="F")
 
 #without controls
 no_controls <- subset(pam_all_nitrate.data, pam_all_nitrate.data$N_dose!=0)
 ```
 
+# Astrangia conference
 
+```{r DELTA Astrangia conference -- basic comparisons}
+#All fed at 20C, comparing between doses and sym states
+all_20_fed$sym_state<- as.factor(all_20_fed$sym_state)
+all_20_fed_model <- lmer(PAM_delta ~  N_species_dose + sym_state +  N_species_dose*sym_state +  (1|col_num), data= all_20_fed)
+summary(all_20_fed_model)
+# NOTHING SIG
+
+#All fed 20 vs. 30C, comparing between temps, doses, and sym states
+all_fed$sym_state<- as.factor(all_fed$sym_state)
+all_fed_model <- lmer(PAM_delta ~  N_species_dose + sym_state + temp + N_species_dose*temp + sym_state*temp + N_species_dose*sym_state +  (1|col_num), data= all_fed)
+summary(all_fed_model)
+#DOSE DEPENDENCY -- symbiotic corals that experience the two highest doses (5, 18) experience significant decrease in PAM over 10 days
+
+```
+
+```{r percent change Astrangia conference -- basic comparisons}
+#All fed at 20C, comparing between doses and sym states
+all_20_fed$sym_state<- as.factor(all_20_fed$sym_state)
+all_20_fed_model <- lmer(log_pam_percent_change ~  N_species_dose + sym_state +  N_species_dose*sym_state +  (1|col_num), data= all_20_fed)
+summary(all_20_fed_model)
+#nothing sig
+
+#All fed 20 vs. 30C, comparing between temps, doses, and sym states
+all_fed$sym_state<- as.factor(all_fed$sym_state)
+all_fed_model <- lmer(log_pam_percent_change ~  N_species_dose + sym_state + temp + N_species_dose*temp + sym_state*temp + N_species_dose*sym_state +  (1|col_num), data= all_fed)
+summary(all_fed_model)
+#nothing sig
+
+all_fed_model_vis <- summarySE(all_fed , measurevar = "pam_percent_change", groupvars = c("temp","sym_state","N_species_dose"))
+all_fed_model_vis$temp <- as.factor(all_fed_model_vis$temp)
+# Visualize
+gg_sym_state_temp_nitrate<-ggplot(data = all_fed_model_vis,
+       aes(x = N_species_dose,
+           y = pam_percent_change, col=temp, shape=sym_state)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Nitrate PAM - % Change Fv/Fm") +
+    labs(x = "Nitrate dose", 
+         y = expression(paste("% Change Fv/Fm")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("Symbiotic state", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
+gg_sym_state_temp_nitrate
+
+```
 #DELTA visuals (no transformation)
 
 ```{r delta visuals}

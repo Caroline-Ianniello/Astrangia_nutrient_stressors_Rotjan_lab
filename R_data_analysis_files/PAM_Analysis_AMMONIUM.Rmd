@@ -1,5 +1,5 @@
 ---
-title: "PAM data AMMONIUM: last updated 12/9/22 C. Fleming"
+title: "PAM data AMMONIUM: last updated 5/16/24 C. Fleming"
 output: html_notebook
 editor_options: 
   chunk_output_type: inline
@@ -7,9 +7,11 @@ editor_options:
 
 # AMMONIUM ONLY
 ```{r Loading all necessary packages}
-# library("knitr")
-# require("knitr")
-# opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox")
+setwd("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/")
+setwd(dirname(getwd())) #need to add this!
+library("knitr")
+require("knitr")
+opts_knit$set(root.dir = "C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/")
 # setwd("C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox")
 # getwd()
 #install.packages("dplyr")
@@ -59,9 +61,9 @@ options(max.print=1000000)
 
 
 ```{r Inputting data & making sure everything is organized correctly}
-pam_all_ammonium.data <- read.csv("PAM_ammonium_only_4_19_23_dead_deleted_random_controls.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+pam_all_ammonium.data <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/PAM_AMMONIUM_all_dead_deleted_all_controls_5_16_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 
-pam_all_ammonium.data <- na.omit(pam_all_ammonium.data)
+#pam_all_ammonium.data <- na.omit(pam_all_ammonium.data)
 
 
 #changing some column names
@@ -81,7 +83,6 @@ pam_all_ammonium.data$sym_state<-as.character(pam_all_ammonium.data$sym_state)
 pam_all_ammonium.data$food_sym_state<-as.factor(pam_all_ammonium.data$food_sym_state)
 pam_all_ammonium.data$N_species_dose <- factor(pam_all_ammonium.data$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
 pam_all_ammonium.data$control_or_nutrient<-as.factor(pam_all_ammonium.data$control_or_nutrient)
-pam_all_ammonium.data$log_pam_percent_change<-as.numeric(pam_all_ammonium.data$log_pam_percent_change)
 summary(pam_all_ammonium.data$temp)
 pam_all_ammonium.data$pam_percent_change<-as.numeric(pam_all_ammonium.data$pam_percent_change)
 summary(pam_all_ammonium.data$temp)
@@ -91,15 +92,17 @@ hist(pam_all_ammonium.data$PAM_delta)
 qqnorm(pam_all_ammonium.data$PAM_delta)
 #looks fine, lets proceed
 
-#lets check for normality in log_pam_percent_change
-hist(pam_all_ammonium.data$log_pam_percent_change)
-qqnorm(pam_all_ammonium.data$log_pam_percent_change, main = NULL)
+#lets check for normality in pam_percent_change
+hist(pam_all_ammonium.data$pam_percent_change)
+qqnorm(pam_all_ammonium.data$pam_percent_change, main = NULL)
 # UGGO! Need to natural log
-pam_all_ammonium.data$log_log_pam_percent_change <- log(abs(pam_all_ammonium.data$log_pam_percent_change))
+pam_all_ammonium.data$log_pam_percent_change <- log(abs(pam_all_ammonium.data$pam_percent_change))
+pam_all_ammonium.data$log_pam_percent_change<-as.numeric(pam_all_ammonium.data$log_pam_percent_change)
 #change the one with negative infinity to 0
 pam_all_ammonium.data[pam_all_ammonium.data$log_log_pam_percent_change=="-Inf", "log_log_pam_percent_change"] <- 0 #yay that worked! That was messing up all of our linear models
 #now lets take a look at the logged data
-hist(pam_all_ammonium.data$log_log_pam_percent_change)
+hist(pam_all_ammonium.data$log_pam_percent_change)
+#looks great
 
 hist(pam_all_ammonium.data$PAM_avg_day1) # eh
 qqnorm(pam_all_ammonium.data$PAM_avg_day1, main = NULL)
@@ -168,10 +171,10 @@ all_sym<-subset(pam_all_ammonium.data, pam_all_ammonium.data$sym_state=="S")
 all_fed<-subset(pam_all_ammonium.data, pam_all_ammonium.data$food=="F")
 # all starved
 all_starved<-subset(pam_all_ammonium.data, pam_all_ammonium.data$food=="S")
-# all 20C
-all_20<-subset(pam_all_ammonium.data, pam_all_ammonium.data$temp=="20")
-# all 30C
-all_30<-subset(pam_all_ammonium.data, pam_all_ammonium.data$temp=="30")
+# all 20C FED
+all_20_fed<-subset(pam_all_ammonium.data, pam_all_ammonium.data$temp=="20" & pam_all_ammonium.data$food=="F")
+# all 30C FED
+all_30_fed<-subset(pam_all_ammonium.data, pam_all_ammonium.data$temp=="30" & pam_all_ammonium.data$food=="F")
 
 #without controls
 no_controls <- subset(pam_all_ammonium.data, pam_all_ammonium.data$N_dose!=0)
@@ -212,7 +215,60 @@ gg_pam_all_treats
 
 ```
 
+
+# Astrangia conference
+
+```{r DELTA Astrangia conference -- basic comparisons}
+#All fed at 20C, comparing between doses and sym states
+all_20_fed$sym_state<- as.factor(all_20_fed$sym_state)
+all_20_fed_model <- lmer(PAM_delta ~  N_species_dose + sym_state +  N_species_dose*sym_state +  (1|col_num), data= all_20_fed)
+summary(all_20_fed_model)
+#symbiotic corals at the highest doses of ammonium experienced an decrease in PAM over the 12 days
+#the combination of the highest doses of ammonium and symbiotic corals causes an increase in PAM over the 10 days
+
+#All fed 20 vs. 30C, comparing between temps, doses, and sym states
+all_fed$sym_state<- as.factor(all_fed$sym_state)
+all_fed_model <- lmer(PAM_delta ~  N_species_dose + sym_state + temp + N_species_dose*temp + sym_state*temp + N_species_dose*sym_state +  (1|col_num), data= all_fed)
+summary(all_fed_model)
+#symbiotic corals STILL experienced significant decrease in PAM over the course of the 12 days
+#DOSE DEPENDENCY -- corals that experience the two highest doses (7.5, 10) at 30C experience significant decrease in PAM over 10 days
+
+```
+
+```{r percent change Astrangia conference -- basic comparisons}
+#All fed at 20C, comparing between doses and sym states
+all_20_fed$sym_state<- as.factor(all_20_fed$sym_state)
+all_20_fed_model <- lmer(log_pam_percent_change ~  N_species_dose + sym_state +  N_species_dose*sym_state +  (1|col_num), data= all_20_fed)
+summary(all_20_fed_model)
+#the combination of the highest doses of ammonium and symbiotic corals causes an decrease in PAM over the 10 days
+
+#All fed 20 vs. 30C, comparing between temps, doses, and sym states
+all_fed$sym_state<- as.factor(all_fed$sym_state)
+all_fed_model <- lmer(log_pam_percent_change ~  N_species_dose + sym_state + temp + N_species_dose*temp + sym_state*temp + N_species_dose*sym_state +  (1|col_num), data= all_fed)
+summary(all_fed_model)
+#the combination of the highest doses of ammonium and symbiotic corals causes an decrease in PAM over the 10 days
+#no effect of temp or sym state
+
+all_fed_model_vis <- summarySE(all_fed , measurevar = "pam_percent_change", groupvars = c("temp","sym_state","N_species_dose"))
+# Visualize
+gg_sym_state_temp_ammonium<-ggplot(data = all_fed_model_vis,
+       aes(x = N_species_dose,
+           y = pam_percent_change, col=temp, shape=sym_state)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=pam_percent_change-se, ymax=pam_percent_change+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Ammonium PAM - % Change Fv/Fm") +
+    labs(x = "ammonium dose", 
+         y = expression(paste("% Change Fv/Fm")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("Symbiotic state", labels=c(CNTRL_0="Control", N_1.5="1.5uM", N_5="5uM", N_18="18uM"))+
+    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
+gg_sym_state_temp_ammonium
+
+```
+
 #DELTA models
+
 ```{r lmer delta model selection 7.5.23}
 
 full.model <- lmer(PAM_delta ~  N_species_dose + temp + food + sym_state + + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state  + food*sym_state +  (1|col_num) + (1|exp_num) , data= pam_all_ammonium.data)
