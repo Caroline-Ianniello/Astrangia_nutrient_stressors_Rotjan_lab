@@ -57,44 +57,158 @@ options(max.print = 10000)
 
 
 ```{r Set working directory and upload data - nitrate DATA ONLY}
-resp_all.data <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/RESP_ALL_cleaned_dead_and_broken_outlierG28Y65_deleted_SA_CORR_observed_N_A_6_21_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+# resp_preprocess.data <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/RESP_ALL_cleaned_dead_and_broken_outlierG28Y65_deleted_SA_CORR_observed_N_A_6_21_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+# 
+# 
+# #Create a NEW column for nitrate with new categories
+# 
+# resp_preprocess.data <- resp_preprocess.data %>%
+#   mutate(NO3_category = case_when(
+#    NO3_mean_observed < 6  ~ "Low" , #need two equal signs
+#      NO3_mean_observed >= 6 ~ "Elevated" 
+#    )
+# )
+# 
+# 
+# resp_preprocess.data <- resp_preprocess.data %>%
+#   filter(abs_resp_rate_SA_corr<0.7)
+# 
+# #any single datapoint that was over 4 times disparate of mean or median from rest of treatment was discarded
+# #Did all pre-processing and double checked dead were deleted 6.22.24
 
 
-#Create a NEW column for nitrate with new categories
+resp_all.data <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/resp_combined_NO3categorized_outlier_removed_6_24_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 
-resp_all.data <- resp_all.data  %>%
-  mutate(NO3_category = case_when(
-   NO3_mean_observed <=6  ~ "Low" , #need two equal signs
-     NO3_mean_observed > 6 & NO3_mean_observed <=10 ~ "Medium",
-    NO3_mean_observed > 10 ~ "High" 
-   )
-)
 
 count(resp_all.data$NO3_category)
-#76 high observations
-#65 medium observations
+#140 high observations
 #580 low observations
+
+
+
+```
+
+```{r Generating subsets to work with}
+
+resp_all.data$NO3_category <- factor(resp_all.data$NO3_category, levels=c("Low", "Elevated"))
+resp_all.data$sym_state<- as.factor(resp_all.data$sym_state)
+resp_all.data$food<- as.factor(resp_all.data$food)
+resp_all.data$temp<- as.factor(resp_all.data$temp)
+#SUBSET - No E. coli
+resp_NOEC <- resp_all.data %>%
+  filter(e_coli_plate==0)
+#SUBSET - E. coli
+resp_EC <- resp_all.data %>%
+  filter(e_coli_plate==1)
+
+
+#SUBSET - NO E. coli 20°C
+resp_NOEC_20 <- resp_all.data %>%
+  filter(e_coli_plate==0) %>%
+  filter(temp==20)
+#SUBSET - NO E. coli 30°C
+resp_NOEC_30 <- resp_all.data %>%
+  filter(e_coli_plate==0)%>%
+  filter(temp==30)
+
+#SUBSET - E. coli 20°C
+resp_EC_20 <- resp_all.data %>%
+  filter(e_coli_plate==1) %>%
+  filter(temp==20)
+#SUBSET - E. coli 30°C
+resp_EC_30 <- resp_all.data %>%
+  filter(e_coli_plate==1)%>%
+  filter(temp==30)
+
 
 
 ```
 
 
+```{r T tests}
+#selected t tests
+
+# NO E COLI
+#T test low vs. high, no EC
+t.test(abs_resp_rate_SA_corr ~ NO3_category, data= resp_NOEC)
+#No overall difference in low vs. elevated nitate in respiration WITHOUT E. coli
+
+t.test(abs_resp_rate_SA_corr ~ NO3_category, data= resp_NOEC_20)
+#The above trend persists at 20C
+
+t.test(abs_resp_rate_SA_corr ~ NO3_category, data= resp_NOEC_30)
+#The above trend persists at 30C as well 
+
+#Take home-- no differences in resp rate under no E. coli
+
+##########
+# E COLI
+#T test low vs. high, no EC
+t.test(abs_resp_rate_SA_corr ~ NO3_category, data= resp_EC)
+#Corals under elevated nitrate respire MORE
+
+t.test(abs_resp_rate_SA_corr ~ NO3_category, data= resp_EC_20)
+#The above trend persists at 20C
+
+t.test(abs_resp_rate_SA_corr ~ NO3_category, data= resp_EC_30)
+#The above trend BREAKS DOWN at 30C!
+
+# Take home -- Corals under E. coli treatment exhibit increased respiration at 20C, but this trend breaks down at 30C -- perhaps they are unable to mount the appropriate metabolic immune response
+
+
+# SYM STATE -- sym corals respire less than apo at 30C -- parisitsm!?!
+t.test(abs_resp_rate_SA_corr ~ sym_state, data= resp_NOEC)
+#not significantly different
+t.test(abs_resp_rate_SA_corr ~ sym_state, data= resp_EC)
+#SIGNIFICANTLY DIFFERENT -- symbiotic corals respired LESS than apo
+t.test(abs_resp_rate_SA_corr ~ sym_state, data= resp_EC_20)
+#not significantly different
+t.test(abs_resp_rate_SA_corr ~ sym_state, data= resp_EC_30)
+#SIGNIFICANTLY DIFFERENT -- symbiotic corals respired LESS than apo SPECIFICALLY AT 30C!
+
+# FEEDING --Nothing really going on
+t.test(abs_resp_rate_SA_corr ~ food, data= resp_NOEC)
+#not significantly different
+t.test(abs_resp_rate_SA_corr ~ food, data= resp_EC)
+#not significantly different
+t.test(abs_resp_rate_SA_corr ~ food, data= resp_EC_20)
+#not significantly different
+t.test(abs_resp_rate_SA_corr ~ food, data= resp_EC_30)
+#not significantly different
+
+```
+
+```{r ANOVAs to match graphs}
+resp_EC$log_resp_rate <- log(resp_EC$abs_resp_rate_SA_corr)
+hist(resp_EC$log_resp_rate)
+
+#Now an ANOVA on sym state, temp, and NO3_category 
+anova_EC <- aov(log_resp_rate ~ sym_state*temp*NO3_category, data=resp_EC)
+summary(anova_EC)
+TukeyHSD(anova_EC)
+
+#without E. coli now
+resp_NOEC$log_resp_rate <- log(resp_NOEC$abs_resp_rate_SA_corr)
+hist(resp_NOEC$log_resp_rate)
+
+#Now an ANOVA on sym state, temp, and NO3_category 
+anova_NOEC <- aov(log_resp_rate ~ sym_state*temp*NO3_category, data=resp_NOEC)
+summary(anova_NOEC)
+TukeyHSD(anova_NOEC)
+```
+
+
 #For Manuscript
 ```{r}
-
-# # ENTIRE DATASET
-# Resp rate by sym state by dose
-# Summarize by sym state so we can visualize
-resp_all.data$NO3_category <- factor(resp_all.data$NO3_category, levels=c("Low","Medium",))
-resp_all.data$sym_state<- as.factor(resp_all.data$sym_state)
-sum_sym_state_nitrate <- summarySE(resp_all.data, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "NO3_category"))
+#E. coli
+sum_sym_temp_nitrate_EC <- summarySE(resp_EC, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "temp", "NO3_category"))
 # Visualize
-gg_sym_state_nitrate<-ggplot(data = sum_sym_state_nitrate,
+gg_sum_sym_temp_nitrate_EC <-ggplot(data = sum_sym_temp_nitrate_EC,
        aes(x = NO3_category,
-           y = abs_resp_rate_SA_corr, col=sym_state)) +
-    geom_point() +
-    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1) +
-    ggtitle ("nitrate - Sym state by Dose") +
+           y = abs_resp_rate_SA_corr, col=temp, shape=sym_state)) +
+    geom_point(size=4) +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.25, linewidth=0.8) +
+    ggtitle ("E. Coli Dosed Corals - Respiration Rate by Sym State and Temp") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 10),
@@ -102,14 +216,73 @@ gg_sym_state_nitrate<-ggplot(data = sum_sym_state_nitrate,
           panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 12)) +
-     ylim(0.05, 0.16) +
+    ylim(0.05, 0.17) +
    ##scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "nitrate Dose", 
+    labs(x = "Nitrate Dose", 
+         y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+       # theme(legend.position="none")+
+  scale_shape_discrete("Symbiotic state", labels=c("Aposymbiotic","Symbiotic")) +
+    scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "darkred"))
+
+gg_sum_sym_temp_nitrate_EC
+
+#NO E. coli
+sum_sym_temp_nitrate_NOEC <- summarySE(resp_NOEC, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "temp", "NO3_category"))
+# Visualize
+gg_sum_sym_temp_nitrate_NOEC <-ggplot(data = sum_sym_temp_nitrate_NOEC,
+       aes(x = NO3_category,
+           y = abs_resp_rate_SA_corr, col=temp, shape=sym_state)) +
+    geom_point(size=4) +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.25, linewidth=0.8) +
+    ggtitle ("NO E. coli Corals - Respiration Rate by Sym State and Temp") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 10),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    ylim(0.05, 0.17) +
+   ##scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
+    labs(x = "Nitrate Dose", 
+         y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+       # theme(legend.position="none")+
+  scale_shape_discrete("Symbiotic state", labels=c("Aposymbiotic","Symbiotic")) +
+    scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "darkred"))
+
+gg_sum_sym_temp_nitrate_NOEC
+```
+
+
+```{r for manuscript ARCHIVES}
+resp_NOEC <- resp_all.data %>%
+  filter(e_coli_plate==0) 
+sum_sym_state_nitrate_NOEC <- summarySE(resp_NOEC, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "NO3_category"))
+# Visualize
+gg_sym_state_nitrate_NOEC <-ggplot(data = sum_sym_state_nitrate_NOEC,
+       aes(x = NO3_category,
+           y = abs_resp_rate_SA_corr, col=sym_state)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1) +
+    ggtitle ("Nitrate - Sym state by Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 10),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    ylim(0.05, 0.25) +
+   ##scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
+    labs(x = "Nitrate Dose", 
          y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
        # theme(legend.position="none")+
   scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))
-gg_sym_state_nitrate
+gg_sym_state_nitrate_NOEC
+
 
 #lets t test low vs high
 hist(log(resp_all.data$abs_resp_rate_SA_corr))
@@ -133,7 +306,7 @@ gg_nitrate_NOEC_20C <-ggplot(data = sum_nitrate_NOEC_20C,
            y = abs_resp_rate_SA_corr, col=sym_state)) +
     geom_point() +
     geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1) +
-    ggtitle ("nitrate NO E. Coli 20C - Sym state by Dose") +
+    ggtitle ("Nitrate NO E. Coli 20C - Sym state by Dose") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 10),
@@ -142,10 +315,10 @@ gg_nitrate_NOEC_20C <-ggplot(data = sum_nitrate_NOEC_20C,
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 12)) +
    ##scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "nitrate Dose", 
+    labs(x = "Nitrate Dose", 
          y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
-  ylim(0.05, 0.145) +
+  ylim(0.05, 0.25) +
        # theme(legend.position="none")+
   scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))
 gg_nitrate_NOEC_20C
@@ -153,6 +326,7 @@ gg_nitrate_NOEC_20C
 # # E COLI AT 20C
 resp_EC_20C <- resp_all.data %>%
   filter(e_coli_plate==1 & temp==20)
+resp_EC_20C$NO3_category <- factor(resp_EC_20C$NO3_category, levels=c("Low","High"))
 resp_EC_20C$sym_state<- as.factor(resp_EC_20C$sym_state)
 sum_nitrate_EC_20C<- summarySE(resp_EC_20C, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "NO3_category"))
 # Visualize
@@ -161,7 +335,7 @@ gg_nitrate_EC_20C <-ggplot(data = sum_nitrate_EC_20C,
            y = abs_resp_rate_SA_corr, col=sym_state)) +
     geom_point() +
     geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1) +
-    ggtitle ("nitrate E. Coli 20C - Sym state by Dose") +
+    ggtitle ("Nitrate E. Coli 20C - Sym state by Dose") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 10),
@@ -170,10 +344,10 @@ gg_nitrate_EC_20C <-ggplot(data = sum_nitrate_EC_20C,
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 12)) +
    #scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "nitrate Dose", 
+    labs(x = "Nitrate Dose", 
          y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
-   ylim(0.05, 0.35) +
+   ylim(0.05, 0.25) +
        # theme(legend.position="none")+
   scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))
 gg_nitrate_EC_20C
@@ -189,7 +363,7 @@ gg_nitrate_NOEC_30C <-ggplot(data = sum_nitrate_NOEC_30C,
            y = abs_resp_rate_SA_corr, col=sym_state)) +
     geom_point() +
     geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1) +
-    ggtitle ("nitrate NO E. Coli 30C - Sym state by Dose") +
+    ggtitle ("Nitrate NO E. Coli 30C - Sym state by Dose") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 10),
@@ -198,10 +372,10 @@ gg_nitrate_NOEC_30C <-ggplot(data = sum_nitrate_NOEC_30C,
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 12)) +
    #scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "nitrate Dose", 
+    labs(x = "Nitrate Dose", 
          y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
- ylim(0.05, 0.145) +
+ ylim(0.05, 0.25) +
        # theme(legend.position="none")+
   scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))
 gg_nitrate_NOEC_30C
@@ -217,7 +391,7 @@ gg_nitrate_EC_30C <-ggplot(data = sum_nitrate_EC_30C,
            y = abs_resp_rate_SA_corr, col=sym_state)) +
     geom_point() +
     geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1) +
-    ggtitle ("nitrate E. Coli 30C - Sym state by Dose") +
+    ggtitle ("Nitrate E. Coli 30C - Sym state by Dose") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 10),
@@ -226,10 +400,10 @@ gg_nitrate_EC_30C <-ggplot(data = sum_nitrate_EC_30C,
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 12)) +
    #scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "nitrate Dose", 
+    labs(x = "Nitrate Dose", 
          y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
-    ylim(0.05, 0.2) +
+    ylim(0.05, 0.25) +
        # theme(legend.position="none")+
   scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))
 gg_nitrate_EC_30C
@@ -247,7 +421,7 @@ gg_nitrate_NOEC <-ggplot(data = sum_nitrate_NOEC,
            y = abs_resp_rate_SA_corr, col=temp)) +
     geom_point() +
     geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1) +
-    ggtitle ("nitrate NO E. Coli - Temperature by Dose") +
+    ggtitle ("Nitrate NO E. Coli - Temperature by Dose") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 10),
@@ -256,11 +430,11 @@ gg_nitrate_NOEC <-ggplot(data = sum_nitrate_NOEC,
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 12)) +
    #scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "nitrate Dose", 
+    labs(x = "Nitrate Dose", 
          y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
        # theme(legend.position="none")+
-      ylim(0.05, 0.145) +
+     ylim(0.05, 0.25) +
   scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "red3"))
 gg_nitrate_NOEC 
 
@@ -277,7 +451,7 @@ gg_nitrate_EC <-ggplot(data = sum_nitrate_EC,
            y = abs_resp_rate_SA_corr, col=temp)) +
     geom_point() +
     geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1) +
-    ggtitle ("nitrate E. Coli - Temperature by Dose") +
+    ggtitle ("Nitrate E. Coli - Temperature by Dose") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 10),
@@ -286,11 +460,11 @@ gg_nitrate_EC <-ggplot(data = sum_nitrate_EC,
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 12)) +
    #scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "nitrate Dose", 
+    labs(x = "Nitrate Dose", 
          y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
        # theme(legend.position="none")+
-      ylim(0.05, 0.3) +
+      ylim(0.05, 0.25) +
   scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "red3"))
 gg_nitrate_EC 
 
@@ -304,7 +478,7 @@ gg_nitrate_NOEC_20C_food <-ggplot(data = sum_nitrate_NOEC_20C_food,
            y = abs_resp_rate_SA_corr, col=sym_state, shape=food)) +
     geom_point(size=5, position=position_dodge(width=0.5)) +
     geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1, position=position_dodge(width=0.5)) +
-    ggtitle ("nitrate NO E. Coli 20C - Sym state by Dose") +
+    ggtitle ("Nitrate NO E. Coli 20C - Sym state by Dose") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 10),
@@ -313,10 +487,10 @@ gg_nitrate_NOEC_20C_food <-ggplot(data = sum_nitrate_NOEC_20C_food,
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 12)) +
    #scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "nitrate Dose", 
+    labs(x = "Nitrate Dose", 
          y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
-   ylim(0.04, 0.165) +
+    ylim(0.05, 0.3) +
        # theme(legend.position="none")+
   scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))+
 scale_shape_discrete(labels=c("Fed","Starved"),name="Nutritional State")
@@ -330,7 +504,7 @@ gg_nitrate_EC_20C_food <-ggplot(data = sum_nitrate_EC_20C_food,
            y = abs_resp_rate_SA_corr, col=sym_state, shape=food)) +
    geom_point(size=5, position=position_dodge(width=0.5)) +
     geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1, position=position_dodge(width=0.5)) +
-    ggtitle ("nitrate E. Coli 20C - Sym state by Dose") +
+    ggtitle ("Nitrate E. Coli 20C - Sym state by Dose") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 10),
@@ -339,24 +513,24 @@ gg_nitrate_EC_20C_food <-ggplot(data = sum_nitrate_EC_20C_food,
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 12)) +
    #scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "nitrate Dose", 
+    labs(x = "Nitrate Dose", 
          y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
- ylim(0.04, 0.165) +
+ ylim(0.05, 0.3) +
        # theme(legend.position="none")+
   scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))+
 scale_shape_discrete(labels=c("Fed","Starved"),name="Nutritional State")
 gg_nitrate_EC_20C_food
 
 # # NO E COLI AT 30C
-sum_nitrate_NOEC_30C_food<- summarySE(resp_NOEC_30C, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "NO3_category","food"))
+sum_nitrate_NOEC_30C_food<- summarySE(resp_NOEC_30C, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "NO3_category","food"), na.rm=T)
 # Visualize
 gg_nitrate_NOEC_30C_food <-ggplot(data = sum_nitrate_NOEC_30C_food,
        aes(x = NO3_category,
            y = abs_resp_rate_SA_corr, col=sym_state, shape=food)) +
    geom_point(size=5, position=position_dodge(width=0.5)) +
     geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1, position=position_dodge(width=0.5)) +
-    ggtitle ("nitrate NO E. Coli 30C - Sym state by Dose") +
+    ggtitle ("Nitrate NO E. Coli 30C - Sym state by Dose") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 10),
@@ -365,10 +539,10 @@ gg_nitrate_NOEC_30C_food <-ggplot(data = sum_nitrate_NOEC_30C_food,
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 12)) +
    #scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "nitrate Dose", 
+    labs(x = "Nitrate Dose", 
          y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
- ylim(0.04, 0.165) +
+  ylim(0.05, 0.3) +
        # theme(legend.position="none")+
   scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))+
 scale_shape_discrete(labels=c("Fed","Starved"),name="Nutritional State")
@@ -382,7 +556,7 @@ gg_nitrate_EC_30C_food <-ggplot(data = sum_nitrate_EC_30C_food,
            y = abs_resp_rate_SA_corr, col=sym_state, shape=food)) +
     geom_point(size=5, position=position_dodge(width=0.5)) +
     geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1, position=position_dodge(width=0.5)) +
-    ggtitle ("nitrate E. Coli 30C - Sym state by Dose") +
+    ggtitle ("Nitrate E. Coli 30C - Sym state by Dose") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 10),
@@ -391,14 +565,15 @@ gg_nitrate_EC_30C_food <-ggplot(data = sum_nitrate_EC_30C_food,
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 12)) +
    #scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "nitrate Dose", 
+    labs(x = "Nitrate Dose", 
          y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
- ylim(0.04, 0.165) +
+  ylim(0.05, 0.3) +
        # theme(legend.position="none")+
   scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))+
 scale_shape_discrete(labels=c("Fed","Starved"),name="Nutritional State")
 gg_nitrate_EC_30C_food
+
 
 # # By temperature
 sum_nitrate_NOEC_food<- summarySE(resp_NOEC, measurevar = "abs_resp_rate_SA_corr", groupvars = c("NO3_category", "temp", "food"))
@@ -408,7 +583,7 @@ gg_nitrate_NOEC_food <-ggplot(data = sum_nitrate_NOEC_food,
            y = abs_resp_rate_SA_corr, col=temp, shape=food)) +
     geom_point(size=5, position=position_dodge(width=0.5)) +
     geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1, position=position_dodge(width=0.5)) +
-    ggtitle ("nitrate NO E. Coli - Temperature by Dose") +
+    ggtitle ("Nitrate NO E. Coli - Temperature by Dose") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 10),
@@ -417,12 +592,12 @@ gg_nitrate_NOEC_food <-ggplot(data = sum_nitrate_NOEC_food,
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 12)) +
    #scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "nitrate Dose", 
+    labs(x = "Nitrate Dose", 
          y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
   scale_shape_discrete(labels=c("Fed","Starved"),name="Nutritional State") +
        # theme(legend.position="none")+
-   ylim(0.04, 0.165) +
+  ylim(0.05, 0.3) +
   scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "red3"))
 gg_nitrate_NOEC_food
 
@@ -434,7 +609,7 @@ gg_nitrate_EC <-ggplot(data = sum_nitrate_EC_food,
            y = abs_resp_rate_SA_corr, col=temp, shape=food)) +
     geom_point(size=5, position=position_dodge(width=0.5)) +
     geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1, position=position_dodge(width=0.5)) +
-    ggtitle ("nitrate E. Coli - Temperature by Dose") +
+    ggtitle ("Nitrate E. Coli - Temperature by Dose") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 10),
@@ -443,11 +618,11 @@ gg_nitrate_EC <-ggplot(data = sum_nitrate_EC_food,
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 12)) +
    #scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "nitrate Dose", 
+    labs(x = "Nitrate Dose", 
          y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
        # theme(legend.position="none")+
-      ylim(0.04, 0.165) +
+  ylim(0.05, 0.3) +
   scale_shape_discrete(labels=c("Fed","Starved"),name="Nutritional State") +
   scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "red3"))
 gg_nitrate_EC 
