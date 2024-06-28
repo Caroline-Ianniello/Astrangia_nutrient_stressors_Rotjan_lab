@@ -64,200 +64,80 @@ options(max.print=1000000)
 
 ```{r Inputting data & making sure everything is organized correctly}
 #opts_knit$set(root.dir = "C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/")
-getwd()
-pes_all.data <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/PES_all_06_12_24_dead_NAs.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+pes_all.data <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/PES_all_06_26_24_dead_NAs.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 #pes_data_WIDE <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/PES_all_06_12_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 
-#long data to deal with PES repeated measures
+#ALL DONE PRE PROCESSING, UPLOADING REFORMATTED DATA WITH NEW NITRATE CATEGORIES
+# #long data to deal with PES repeated measures
+# pes_all.data <- pes_all.data %>%
+#   pivot_longer(
+#     cols = starts_with("PES_day"),
+#     names_to = "PES_day",
+#     values_to = "PES_value"
+#   )
+# 
+# #change PES_day to either 2, 6, or 10
+# pes_all.data <- pes_all.data %>% mutate(PES_day = case_when(
+#     PES_day=="PES_day2" ~ 2 , #need two equal signs
+#     PES_day=="PES_day6" ~ 6 , #need two equal signs
+#     PES_day=="PES_day10" ~ 10)) #need two equal signs
+# 
+# write.csv(pes_all.data, "C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/pes_all.data.csv")
+
+#Create a NEW column for nitrate with new categories
 pes_all.data <- pes_all.data %>%
-  pivot_longer(
-    cols = starts_with("PES_day"),
-    names_to = "PES_day",
-    values_to = "PES_value"
-  )
-
-#change PES_day to either 2, 6, or 10
-pes_all.data <- pes_all.data %>% mutate(PES_day = case_when(
-    PES_day=="PES_day2" ~ 2 , #need two equal signs
-    PES_day=="PES_day6" ~ 6 , #need two equal signs
-    PES_day=="PES_day10" ~ 10)) #need two equal signs
-
-```
-
-#AMMONIUM FIRST
-```{r Subsetting just Ammonium}
-pes_AMMONIUM.data <- pes_all.data %>%
-  filter(N_species=="A")
-
-#pes_AMMONIUM_WIDE <- pes_data_WIDE %>%
- # filter(N_species=="A")
-
-```
-
-
-```{r Visualizations of PES}
-hist(pes_AMMONIUM.data$PES_value)
-pes_AMMONIUM.data_gg <-pes_AMMONIUM.data
-
-#graph with PES day on x axis and PES score on y colored by treatment
-
-
-#make a new column that is dose, temp, and food concatenated
-pes_AMMONIUM.data_gg$temp_dose_food <- paste(pes_AMMONIUM.data_gg$temp, "_", pes_AMMONIUM.data_gg$N_dose,"_", pes_AMMONIUM.data_gg$food)
-pes_AMMONIUM.data_gg$temp_dose_food<- as.factor(pes_AMMONIUM.data_gg$temp_dose_food)
-pes_AMMONIUM.data_gg <- pes_AMMONIUM.data_gg %>%
-  mutate(temp=as.factor(temp)) %>%
-  mutate(PES_day=as.factor(PES_day))
-
-#sum by treatment
-sum_ammonium_2<- summarySE(pes_AMMONIUM.data_gg, measurevar = "PES_value", groupvars = c("temp_dose_food", "PES_day", "sym_state"))
-gg_ammonium_PES <-ggplot(data = sum_ammonium_2,
-       aes(x = PES_day,
-           y = PES_value, col=temp_dose_food, shape=sym_state)) +
-     geom_point(size=5, position=position_dodge(width=1.2)) +
-   geom_errorbar(aes(ymin=PES_value-se, ymax=PES_value+se), width=0.6, size = 1, position=position_dodge(width=1.2)) +
-    ggtitle ("Ammonium Polyp Exension Score- Average by sym state and temp") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 10),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-
-    labs(x = "Day of experiment", 
-         y = expression(paste("Average Polyp Exension Score")), 
-         caption = "data represent mean +/- SEM" ) +
-   # ylim(0.05, 0.8) +
-       # theme(legend.position="none")+
-  scale_shape_discrete("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"))
-gg_ammonium_PES
-
-
-# Visualize
-sum_ammonium_sym_temp <- summarySE(pes_AMMONIUM.data, measurevar = "PES_value", groupvars = c("sym_state", "temp", "PES_day"), na.rm=TRUE)
-sum_ammonium_sym_temp <- sum_ammonium_sym_temp %>%
-  mutate(temp=as.factor(temp)) %>%
-  mutate(PES_day=as.factor(PES_day))
-gg_ammonium_PES_sym_temp <-ggplot(data = sum_ammonium_sym_temp,
-       aes(x = PES_day,
-           y = PES_value, col=sym_state, shape=temp)) +
-     geom_point(size=5, position=position_dodge(width=0.5)) +
-   geom_errorbar(aes(ymin=PES_value-se, ymax=PES_value+se), width=0.6, size = 1, position=position_dodge(width=0.5)) +
-    ggtitle ("Ammonium Polyp Exension Score- Average by sym state and temp") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 10),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-    labs(x = "Day of experiment", 
-         y = expression(paste("Average Polyp Exension Score")), 
-         caption = "data represent mean +/- SEM" ) +
-   # ylim(0.05, 0.8) +
-       # theme(legend.position="none")+
-   scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))+
-scale_shape_discrete(labels=c("20°C","30°C"),name="Temperature")
-gg_ammonium_PES_sym_temp
-
-#maybe group by temp and sym state and then re-plot?
-
-pes_AMMONIUM.data_gg$temp_sym <- paste(pes_AMMONIUM.data_gg$temp, "_", pes_AMMONIUM.data_gg$sym_state)
-pes_AMMONIUM.data_gg$temp_sym <- as.factor(pes_AMMONIUM.data_gg$temp_sym)
-#sum by treatment
-sum_ammonium_3<- summarySE(pes_AMMONIUM.data_gg, measurevar = "PES_value", groupvars = c("temp_sym", "PES_day"), na.rm=T)
-
-gg_ammonium_PES_3 <-ggplot(data = sum_ammonium_3,
-       aes(x = PES_day,
-           y = PES_value, col=temp_sym, group=temp_sym)) +
-     geom_point(size=5, position=position_dodge(width=0.5)) +
-  geom_line(linewidth=1, position=position_dodge(width=0.5), linetype="dotted")+
-   geom_errorbar(aes(ymin=PES_value-se, ymax=PES_value+se), width=0.6, size = 1, position=position_dodge(width=0.5)) +
-    ggtitle ("Ammonium Polyp Exension Score- Average by sym state and temp") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 10),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-    labs(x = "Day of experiment", 
-         y = expression(paste("Average Polyp Exension Score")), 
-         caption = "data represent mean +/- SEM" ) +
-   # ylim(0.05, 0.8) +
-       # theme(legend.position="none")+
-   scale_color_manual("Treatment", labels=c("Aposymbiotic 20°C","Symbiotic 20°C", "Aposymbiotic 30°C","Symbiotic 30°C"), values=c("#9E9187", "#D97018", "gray2" ,"#804310"))
-gg_ammonium_PES_3
-
-
-#BY EXPERIMENT
-sum_ammonium_4<- summarySE(pes_AMMONIUM.data_gg, measurevar = "PES_value", groupvars = c("temp_sym", "PES_day", "exp_num"), na.rm=T)
-sum_ammonium_4$exp_num <- as.factor(sum_ammonium_4$exp_num)
-gg_ammonium_PES_4 <-ggplot(data = sum_ammonium_4,
-       aes(x = PES_day,
-           y = PES_value, col=temp_sym, group=temp_sym, shape=exp_num)) +
-     geom_point(size=5, position=position_dodge(width=0.5)) +
-  geom_line(linewidth=1, position=position_dodge(width=0.5), linetype="dotted")+
-   geom_errorbar(aes(ymin=PES_value-se, ymax=PES_value+se), width=0.6, size = 1, position=position_dodge(width=0.5)) +
-    ggtitle ("Ammonium Polyp Exension Score- Average by sym state and temp") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 10),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-    labs(x = "Day of experiment", 
-         y = expression(paste("Average Polyp Exension Score")), 
-         caption = "data represent mean +/- SEM" ) +
-   # ylim(0.05, 0.8) +
-       # theme(legend.position="none")+
-   scale_color_manual("Treatment", labels=c("Aposymbiotic 20°C","Symbiotic 20°C", "Aposymbiotic 30°C","Symbiotic 30°C"), values=c("#9E9187", "#D97018", "gray2" ,"#804310"))
-gg_ammonium_PES_4
-
+mutate(NO3_category = case_when(
+NO3_mean_observed < 6  ~ "Low" , #need two equal signs
+NO3_mean_observed >= 6 ~ "Elevated" 
+ )
+)
+ 
 
 ```
 
 
 
-```{r}
-# Repeat measures GLM anova -- Poisson dist with a log link
 
-pes_AMMONIUM.data$sym_state <-  as.factor(pes_AMMONIUM.data$sym_state)
-pes_AMMONIUM.data$food <-  as.factor(pes_AMMONIUM.data$food)
-pes_AMMONIUM.data$temp <-  as.factor(pes_AMMONIUM.data$temp)
-model_full <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp + food + N_dose*sym_state + N_dose*temp + N_dose*food + sym_state*temp + sym_state*food + temp*food + (1|beetag_exprun), family=poisson, data=pes_AMMONIUM.data)
+
+```{r GLMER}
+# Repeat measures GLMER -- Poisson dist with a log link
+
+pes_all.data$sym_state <-  as.factor(pes_all.data$sym_state)
+pes_all.data$food <-  as.factor(pes_all.data$food)
+pes_all.data$temp <-  as.factor(pes_all.data$temp)
+pes_all.data$NO3_category <-  as.factor(pes_all.data$NO3_category)
+model_full <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + sym_state*food + temp*food + (1|beetag_exprun), family=poisson, data=pes_all.data)
 summary(model_full)
 #Starved had significantly LOWER PES scores than fed (makes sense)
+#corals at 20C had less activity
 #syms at 30 degrees had an overall higher PES score
 emmeans(model_full, specs=pairwise ~ sym_state*temp)
 #sym corals at 30 had higher PES than Apo at 30 (emmeans tukey p= 0.0441)
 #Apos at 30 had higher PES than Apo at 20 (emmeans tukey = 0.0183)
 
-model_2 <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp + food + N_dose*sym_state + N_dose*temp + N_dose*food + sym_state*temp + sym_state*food + (1|beetag_exprun), family=poisson, data=pes_AMMONIUM.data)
+model_2 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + sym_state*food + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
-model_3 <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp + food + N_dose*sym_state + N_dose*temp + N_dose*food + sym_state*temp + (1|beetag_exprun), family=poisson, data=pes_AMMONIUM.data)
+model_3 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
-model_4 <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp + food + N_dose*sym_state + N_dose*temp + N_dose*food  + (1|beetag_exprun), family=poisson, data=pes_AMMONIUM.data)
+model_4 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food  + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
-model_5 <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp + food + N_dose*sym_state + N_dose*temp  + (1|beetag_exprun), family=poisson, data=pes_AMMONIUM.data)
+model_5 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp  + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
-model_6 <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp + food + N_dose*sym_state + (1|beetag_exprun), family=poisson, data=pes_AMMONIUM.data)
+model_6 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
-model_7 <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp + food + (1|beetag_exprun), family=poisson, data=pes_AMMONIUM.data)
+model_7 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + (1|beetag_exprun), family=poisson, data=pes_all.data)
 summary(model)
 emmeans(model_7, specs=pairwise ~ sym_state*temp*food)
 
-model_8 <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp  + (1|beetag_exprun), family=poisson, data=pes_AMMONIUM.data)
+model_8 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp  + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
-model_9 <- glmer(PES_value ~ PES_day + N_dose + sym_state + (1|beetag_exprun), family=poisson, data=pes_AMMONIUM.data)
+model_9 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
-model_10 <- glmer(PES_value ~ PES_day + N_dose + (1|beetag_exprun), family=poisson, data=pes_AMMONIUM.data)
+model_10 <- glmer(PES_value ~ PES_day + NO3_category + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
-model_11 <- glmer(PES_value ~ PES_day + (1|beetag_exprun), family=poisson, data=pes_AMMONIUM.data)
+model_11 <- glmer(PES_value ~ PES_day + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
-model_12 <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp + food + sym_state*temp + (1|beetag_exprun), family=poisson, data=pes_AMMONIUM.data)
+model_12 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + sym_state*temp + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
 
 
@@ -271,62 +151,25 @@ anova(model_3, model_7, model_full) #but they are no different to each other
 
 ```
 
-#NOW NITRATE
-```{r Subsetting just Nitrate}
-pes_NITRATE.data <- pes_all.data %>%
-  filter(N_species=="N")
-
-#pes_NITRATE_WIDE <- pes_data_WIDE %>%
- # filter(N_species=="N")
-
-nitrate_test <- na.omit(pes_NITRATE.data)
-```
-
-
 ```{r Visualizations of PES}
-hist(pes_NITRATE.data$PES_value)
+hist(pes_all.data$PES_value)
 
-# Visualize
-sum_nitrate_sym_temp <- summarySE(pes_NITRATE.data, measurevar = "PES_value", groupvars = c("sym_state", "temp", "PES_day"), na.rm=TRUE)
-sum_nitrate_sym_temp <- sum_nitrate_sym_temp %>%
-  mutate(temp=as.factor(temp)) %>%
-  mutate(PES_day=as.factor(PES_day))
-gg_nitrate_PES_sym_temp <-ggplot(data = sum_nitrate_sym_temp,
+#Group by temp and sym state and then re-plot?
+pes_all.data_gg <- pes_all.data
+pes_all.data_gg$temp_sym <- paste(pes_all.data_gg$temp, "_", pes_all.data_gg$sym_state)
+pes_all.data_gg$temp_sym <- as.factor(pes_all.data_gg$temp_sym)
+pes_all.data_gg$PES_day <- as.integer(pes_all.data_gg$PES_DAY)
+
+
+#sum by TEMPERATURE AND SYM STATE
+sum_nitrate_4<- summarySE(pes_all.data_gg, measurevar = "PES_value", groupvars = c("temp_sym", "PES_day", "NO3_category"), na.rm=T)
+gg_nitrate_PES_4 <-ggplot(data = sum_nitrate_4,
        aes(x = PES_day,
-           y = PES_value, col=sym_state, shape=temp)) +
-     geom_point(size=5, position=position_dodge(width=0.5)) +
-   geom_errorbar(aes(ymin=PES_value-se, ymax=PES_value+se), width=0.6, size = 1, position=position_dodge(width=0.5)) +
-    ggtitle ("Nitrate Polyp Exension Score- Average by sym state and temp") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 10),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-    labs(x = "Day of experiment", 
-         y = expression(paste("Average Polyp Exension Score")), 
-         caption = "data represent mean +/- SEM" ) +
-   # ylim(0.05, 0.8) +
-       # theme(legend.position="none")+
-   scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))+
-scale_shape_discrete(labels=c("20°C","30°C"),name="Temperature")
-gg_nitrate_PES_sym_temp
-
-#maybe group by temp and sym state and then re-plot?
-pes_NITRATE.data_gg <- pes_NITRATE.data
-pes_NITRATE.data_gg$temp_sym <- paste(pes_NITRATE.data_gg$temp, "_", pes_NITRATE.data_gg$sym_state)
-pes_NITRATE.data_gg$temp_sym <- as.factor(pes_NITRATE.data_gg$temp_sym)
-#sum by treatment
-sum_nitrate_3<- summarySE(pes_NITRATE.data_gg, measurevar = "PES_value", groupvars = c("temp_sym", "PES_day"), na.rm=T)
-
-gg_nitrate_PES_3 <-ggplot(data = sum_nitrate_3,
-       aes(x = PES_day,
-           y = PES_value, col=temp_sym, group=temp_sym)) +
+           y = PES_value, col=temp_sym, shape=NO3_category, group=interaction(NO3_category, temp_sym))) +
      geom_point(size=5, position=position_dodge(width=0.5)) +
   geom_line(linewidth=1, position=position_dodge(width=0.5), linetype="dotted")+
    geom_errorbar(aes(ymin=PES_value-se, ymax=PES_value+se), width=0.6, size = 1, position=position_dodge(width=0.5)) +
-    ggtitle ("Nitrate Polyp Exension Score- Average by sym state and temp") +
+    ggtitle ("Polyp Exension Score- Average by symbiotic state, temperature, and nitrate level") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 10),
@@ -337,10 +180,11 @@ gg_nitrate_PES_3 <-ggplot(data = sum_nitrate_3,
     labs(x = "Day of experiment", 
          y = expression(paste("Average Polyp Exension Score")), 
          caption = "data represent mean +/- SEM" ) +
-   # ylim(0.05, 0.8) +
        # theme(legend.position="none")+
-   scale_color_manual("Treatment", labels=c("Aposymbiotic 20°C","Symbiotic 20°C", "Aposymbiotic 30°C","Symbiotic 30°C"), values=c("#9E9187", "#D97018", "gray2" ,"#804310"))
-gg_nitrate_PES_3
+   scale_color_manual("Treatment", labels=c("Aposymbiotic 20°C","Symbiotic 20°C", "Aposymbiotic 30°C","Symbiotic 30°C"), values=c("#9E9187", "#D97018", "gray2" ,"#804310")) +
+  scale_shape_manual("Nitrate Level", values=c(8,15)) +
+  scale_x_continuous(breaks=seq(0,10,by=1))
+gg_nitrate_PES_4
 
 
 ```
@@ -349,41 +193,41 @@ gg_nitrate_PES_3
 ```{r}
 # Repeat measures GLM anova -- Poisson dist with a log link
 
-pes_NITRATE.data$sym_state <-  as.factor(pes_NITRATE.data$sym_state)
-pes_NITRATE.data$food <-  as.factor(pes_NITRATE.data$food)
-pes_NITRATE.data$temp <-  as.factor(pes_NITRATE.data$temp)
-pes_NITRATE.data$N_dose <-  as.numeric(pes_NITRATE.data$N_dose)
+pes_all.data$sym_state <-  as.factor(pes_all.data$sym_state)
+pes_all.data$food <-  as.factor(pes_all.data$food)
+pes_all.data$temp <-  as.factor(pes_all.data$temp)
+pes_all.data$NO3_category <-  as.numeric(pes_all.data$NO3_category)
 
-model_full <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp + food + N_dose*sym_state + N_dose*temp + N_dose*food + sym_state*temp + sym_state*food + temp*food + (1|beetag_exprun), family=poisson, data=pes_NITRATE.data)
+model_full <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + sym_state*food + temp*food + (1|beetag_exprun), family=poisson, data=pes_all.data)
 summary(model_full)
 #Starved had significantly LOWER PES scores than fed (makes sense)
 #30 degrees had an lower PES (20 was higher)
 emmeans(model_full, specs=pairwise ~ sym_state*temp) #the interaction of sym state and temp goes away in nitrate 
 
-model_2 <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp + food + N_dose*sym_state + N_dose*temp + N_dose*food + sym_state*temp + sym_state*food + (1|beetag_exprun), family=poisson, data=pes_NITRATE.data)
+model_2 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + sym_state*food + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
-model_3 <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp + food + N_dose*sym_state + N_dose*temp + N_dose*food + sym_state*temp + (1|beetag_exprun), family=poisson, data=pes_NITRATE.data)
+model_3 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
-model_4 <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp + food + N_dose*sym_state + N_dose*temp + N_dose*food  + (1|beetag_exprun), family=poisson, data=pes_NITRATE.data)
+model_4 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food  + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
-model_5 <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp + food + N_dose*sym_state + N_dose*temp  + (1|beetag_exprun), family=poisson, data=pes_NITRATE.data)
+model_5 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp  + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
-model_6 <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp + food + N_dose*sym_state + (1|beetag_exprun), family=poisson, data=pes_NITRATE.data)
+model_6 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
-model_7 <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp + food + (1|beetag_exprun), family=poisson, data=pes_NITRATE.data)
+model_7 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + (1|beetag_exprun), family=poisson, data=pes_all.data)
 summary(model_7)
 emmeans(model_full, specs=pairwise ~ sym_state*temp)
 
-model_8 <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp  + (1|beetag_exprun), family=poisson, data=pes_NITRATE.data)
+model_8 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp  + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
-model_9 <- glmer(PES_value ~ PES_day + N_dose + sym_state + (1|beetag_exprun), family=poisson, data=pes_NITRATE.data)
+model_9 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
 
-model_10 <- glmer(PES_value ~ PES_day + N_dose + (1|beetag_exprun), family=poisson, data=pes_NITRATE.data)
+model_10 <- glmer(PES_value ~ PES_day + NO3_category + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
-model_11 <- glmer(PES_value ~ PES_day + (1|beetag_exprun), family=poisson, data=pes_NITRATE.data)
+model_11 <- glmer(PES_value ~ PES_day + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
-model_12 <- glmer(PES_value ~ PES_day + N_dose + sym_state + temp + food + sym_state*temp + (1|beetag_exprun), family=poisson, data=pes_NITRATE.data)
+model_12 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + sym_state*temp + (1|beetag_exprun), family=poisson, data=pes_all.data)
 
 
 

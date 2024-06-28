@@ -82,7 +82,7 @@ RGB_all.data<- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University
 
 count(RGB_all.data$NO3_category)
 #188 elevated observations
-#738 low observations
+#741 low observations
 
 
 

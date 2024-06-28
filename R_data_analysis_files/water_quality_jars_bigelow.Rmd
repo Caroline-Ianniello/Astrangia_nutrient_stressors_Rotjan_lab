@@ -116,6 +116,7 @@ gg_intended_v_actual_nit <- ggplot(water_qual_graph, aes(treatment_ID, value, co
   labs(color="Condition") +
   ylab("Nitrate level (uM)")+
   xlab("Treatment ID")+
+   ylim(0, 26) +
   theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1)) + #this makes the x axis labels up and down instead of side to side to prevent overlapping
   ylab("Nitrate level (uM)")+
   xlab("Treatment ID")+
@@ -137,6 +138,7 @@ gg_intended_v_actual_amm <- ggplot(water_qual_graph, aes(treatment_ID, value, co
   labs(color="Condition") +
   ylab("Ammonium level (uM)")+
   xlab("Treatment ID")+
+  ylim(0, 37) +
   theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1)) + #this makes the x axis labels up and down instead of side to side to prevent overlapping
   ylab("Ammonium level (uM)")+
   xlab("Treatment ID")+
