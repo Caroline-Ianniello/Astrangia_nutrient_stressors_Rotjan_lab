@@ -53,13 +53,31 @@ options(max.print = 10000)
 
 
 ```{r}
-narragansett_water_qual.data <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/Narragansett_water_qual_2019_2021.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+narragansett_water_qual.data <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/Narragansett_water_qual_2014_2022_QCed_8_22_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 
 #I think we just want upper, and stations:
 #2 which is Conimicut point
 #5 Which is the GSO dock
 #8 which is Jamestown
 # Also categorize by season
+
+#Add months
+narragansett_water_qual.data <- narragansett_water_qual.data  %>% mutate(sample_month = case_when(
+   month== 1 ~ "January",
+   month==2 ~ "February",
+   month==3 ~ "March",
+   month==4 ~ "April",
+   month==5 ~ "May",
+   month==6 ~  "June",
+   month==7 ~  "July",
+   month==8 ~  "August",
+   month==9 ~  "September",
+   month==10 ~ "October",
+   month==11 ~ "November",
+   month==12 ~ "December"
+)
+)
+
 
 #Add season
 narragansett_water_qual.data <- narragansett_water_qual.data  %>% mutate(season = case_when(
@@ -71,15 +89,17 @@ narragansett_water_qual.data <- narragansett_water_qual.data  %>% mutate(season 
 )
 
 #Filter
-narragansett_water_qual.data$station_num <- as.numeric(narragansett_water_qual.data$station_num)
+narragansett_water_qual.data$station <- as.numeric(narragansett_water_qual.data$station)
+
 narragansett_water_qual.data <- narragansett_water_qual.data %>%
-  filter(station_num == 2 | station_num == 5 | station_num == 8 )
+  filter(station == 2 | station == 8 ) %>%
+  filter(year >= 2018) %>%
+  filter(depth=="surface")
 
 #Recategorize by season
 narragansett_water_qual.data <- narragansett_water_qual.data  %>% mutate(location = case_when(
-    station_num==2  ~ "Conimicut Point" , #need two equal signs
-      station_num==5  ~ "GSO Dock" , 
-    station_num==8  ~ "Jamestown" 
+    station==2  ~ "Conimicut Point" , #need two equal signs
+    station==8  ~ "Jamestown" 
   )
 )
 
@@ -92,17 +112,20 @@ narragansett_water_qual.data$season <- factor(narragansett_water_qual.data$seaso
 narragansett_water_qual.data$location <- factor(narragansett_water_qual.data$location, levels=c("Conimicut Point","GSO Dock","Jamestown"))
 
 narragansett_water_qual.data<-narragansett_water_qual.data %>% 
-  mutate(sample_year=as.factor(sample_year)) %>%
-  mutate(sample_month=factor(sample_month, levels=c("January","February","March","April","May","June","July","August","September","October","November","December")))
+  mutate(sample_year=as.factor(year)) %>%
+  mutate(sample_month=factor(month, levels=c("January","February","March","April","May","June","July","August","September","October","November","December")))
+
+narragansett_water_qual.data$nitrate.uml <- as.numeric(narragansett_water_qual.data$nitrate.uml)
+hist(narragansett_water_qual.data$nitrate.uml)
 
 # NITRATE
 #Summarize by location, nitrate, season
-sum_wq_narra_nitrate <- summarySE(narragansett_water_qual.data, measurevar = c("nitrate"), groupvars = c("location", "season"))
+sum_wq_narra_nitrate <- summarySE(narragansett_water_qual.data, measurevar = c("nitrate.uml"), groupvars = c("location", "season"))
 gg_sum_wq_narra_nitrate <-ggplot(data = sum_wq_narra_nitrate ,
        aes(x = season,
-           y = nitrate, col=location)) +
+           y = nitrate.uml, col=location)) +
     geom_point(size=4) +
-    geom_errorbar(aes(ymin=nitrate-se, ymax=nitrate+se), width=0.25, linewidth=0.8) +
+    geom_errorbar(aes(ymin=nitrate.uml-se, ymax=nitrate.uml+se), width=0.25, linewidth=0.8) +
     ggtitle ("Nitrate Averages Across Years in Narragansett Bay, 2019-2021") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
@@ -118,18 +141,20 @@ gg_sum_wq_narra_nitrate <-ggplot(data = sum_wq_narra_nitrate ,
          caption = "data represent mean +/- SEM" ) 
        # theme(legend.position="none")+
     #scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "darkred"))
-
 gg_sum_wq_narra_nitrate
 
 #By month
-sum_month_year_wq_narra_nitrate <- summarySE(narragansett_water_qual.data, measurevar = c("nitrate"), groupvars = c("location", "sample_month","sample_year"), na.rm=T)
+sum_month_year_wq_narra_nitrate <- summarySE(narragansett_water_qual.data, measurevar = c("nitrate.uml"), groupvars = c("location", "month","year"), na.rm=T)
+sum_month_year_wq_narra_nitrate$year <- as.factor(sum_month_year_wq_narra_nitrate$year)
+sum_month_year_wq_narra_nitrate$month <-as.factor(sum_month_year_wq_narra_nitrate$month)
+
 gg_sum_month_year_wq_narra_nitrate <-ggplot(data = sum_month_year_wq_narra_nitrate ,
-       aes(x = sample_month,
-           y = nitrate, col=location, shape=sample_year, group=interaction(sample_year,location))) +
+       aes(x = month,
+           y = nitrate.uml, col=year, shape=location, group=interaction(year,location))) +
     geom_point(size=3) +
- geom_line(linetype="dotted")+
-    geom_errorbar(aes(ymin=nitrate-se, ymax=nitrate+se), width=0.25, linewidth=0.8) +
-    ggtitle ("Nitrate Averages Across Years in Narragansett Bay, 2019-2021") +
+ geom_line(linetype="dotted", size=.7)+
+    geom_errorbar(aes(ymin=nitrate.uml-se, ymax=nitrate.uml+se), width=0.25, linewidth=0.8) +
+    ggtitle ("Surface Nitrate Averages Across Years in Narragansett Bay, 2018-2022") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 10),
@@ -137,28 +162,29 @@ gg_sum_month_year_wq_narra_nitrate <-ggplot(data = sum_month_year_wq_narra_nitra
           panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 10)) +
-    ylim(0, 26) +
-   ##scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "Season", 
+    ylim(0, 20) +
+   scale_x_discrete(labels=c("January","February","March","April", "May","June","July","August","September","October","November","December"))+
+    labs(x = "Month", 
          y = expression(paste("Nitrate uM")), 
-         caption = "data represent mean +/- SEM" ) +
-           scale_color_manual("Location", values=c("#EC407A", "#43A047", "#00BCD4")) +
-scale_shape_discrete("Year")
+         caption = "data represent mean +/- SEM" ) 
+         #  scale_color_manual("Location", values=c("#EC407A", "#43A047", "#00BCD4")) 
+#scale_shape_discrete("Year", values=c(1,2,3,4,5,6,7,8))
 gg_sum_month_year_wq_narra_nitrate
 
 ```
 
-```{r}
-#By month
-sum_month_year_wq_narra_ammonia <- summarySE(narragansett_water_qual.data, measurevar = c("ammonia"), groupvars = c("location", "sample_month","sample_year"), na.rm=T)
-sum_month_year_wq_narra_ammonia <- summarySE(narragansett_water_qual.data, measurevar = c("ammonia"), groupvars = c("location", "sample_month","sample_year"), na.rm=T)
-gg_sum_month_year_wq_narra_ammonia <-ggplot(data = sum_month_year_wq_narra_ammonia ,
-       aes(x = sample_month,
-           y = ammonia, col=location, shape=sample_year, group=interaction(sample_year,location))) +
+```{r TEMPERATURE}
+sum_month_year_wq_narra_temp <- summarySE(narragansett_water_qual.data, measurevar = c("temperature.celsius"), groupvars = c("location", "month","year"), na.rm=T)
+sum_month_year_wq_narra_temp$year <- as.factor(sum_month_year_wq_narra_temp$year)
+sum_month_year_wq_narra_temp$month <-as.factor(sum_month_year_wq_narra_temp$month)
+
+gg_sum_month_year_wq_narra_temp <-ggplot(data = sum_month_year_wq_narra_temp ,
+       aes(x = month,
+           y = temperature.celsius, col=year, shape=location, group=interaction(year,location))) +
     geom_point(size=3) +
- geom_line(linetype="dotted")+
-    geom_errorbar(aes(ymin=ammonia-se, ymax=ammonia+se), width=0.25, linewidth=0.8) +
-    ggtitle ("Ammonia Averages Across Years in Narragansett Bay, 2019-2021") +
+ geom_line(linetype="  dotted")+
+    geom_errorbar(aes(ymin=temperature.celsius-se, ymax=temperature.celsius+se), width=0.25, linewidth=0.8) +
+    ggtitle ("Surface Temperature Averages Across Years in Narragansett Bay, 2018-2022") +
     theme(legend.position = "right",
           legend.title = element_text(size=12),
           axis.title = element_text(size = 10),
@@ -166,15 +192,14 @@ gg_sum_month_year_wq_narra_ammonia <-ggplot(data = sum_month_year_wq_narra_ammon
           panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 10)) +
- ylim(0, 37) +
-   ##scale_x_discrete("ammonia Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "Season", 
-         y = expression(paste("Ammonia uM")), 
-         caption = "data represent mean +/- SEM" ) +
-       # theme(legend.position="none")+
-    scale_color_manual("Location", values=c("#EC407A", "#43A047", "#00BCD4")) +
-scale_shape_discrete("Year")
-gg_sum_month_year_wq_narra_ammonia
+  #  ylim(0, 20) +
+   scale_x_discrete(labels=c("January","February","March","April", "May","June","July","August","September","October","November","December"))+
+    labs(x = "Month", 
+         y = expression(paste("Temperature °C")), 
+         caption = "data represent mean +/- SEM" ) 
+         #  scale_color_manual("Location", values=c("#EC407A", "#43A047", "#00BCD4")) 
+#scale_shape_discrete("Year", values=c(1,2,3,4,5,6,7,8))
+gg_sum_month_year_wq_narra_temp
 ```
 
 

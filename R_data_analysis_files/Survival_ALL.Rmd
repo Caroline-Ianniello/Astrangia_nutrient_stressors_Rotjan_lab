@@ -70,10 +70,19 @@ options(max.print=1000000)
 
 
 ```{r upload data}
-survival_all.data <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/Survival_06_12_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+survival_all.data <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/Survival_06_26_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+
+# #Create a NEW column for nitrate with new categories
+
+survival_all.data <- survival_all.data %>%
+   mutate(NO3_category = case_when(
+    NO3_mean_observed < 6  ~ "Low" , #need two equal signs
+      NO3_mean_observed >= 6 ~ "Elevated" 
+    )
+ )
+
 
 ```
-
 
 ```{r Pivot long to get each row have a survival for each coral}
 
@@ -100,98 +109,129 @@ survival_all.data <- survival_all.data %>% mutate(Day = case_when(
     Day=="survival_day11" ~ 11 , 
     Day=="survival_day12" ~ 12))
 
-```
+#Treatment
+survival_all.data$treatment <- paste(survival_all.data$NO3_category, survival_all.data$temp, survival_all.data$sym_state, survival_all.data$food,sep="_")
 
-```{r Create ammonium and nitrate subsets}
-survival_AMMONIUM.data<- survival_all.data %>%
-  filter(N_species=="A")
-
-survival_NITRATE.data<- survival_all.data %>%
-  filter(N_species=="N")
+#make treatment a factor
+survival_all.data$treatment<-as.factor(survival_all.data$treatment)
+levels(survival_all.data$treatment)
 
 ```
 
-```{r Ammonium Survival Model}
+```{r Survival Model}
 #make things the right type
-survival_AMMONIUM.data$temp <- as.factor(survival_AMMONIUM.data$temp)
-survival_AMMONIUM.data$N_dose <- as.numeric(survival_AMMONIUM.data$N_dose)
-survival_AMMONIUM.data$food <- as.factor(survival_AMMONIUM.data$food)
-survival_AMMONIUM.data$sym_state <- as.factor(survival_AMMONIUM.data$sym_state)
+survival_all.data$temp <- as.factor(survival_all.data$temp)
+survival_all.data$NO3_category <- as.factor(survival_all.data$NO3_category)
+survival_all.data$food <- as.factor(survival_all.data$food)
+survival_all.data$sym_state <- as.factor(survival_all.data$sym_state)
 
 # Create a survival model to assess mortality over time by treatment with modeling data
 
-km_fit <- survfit(Surv(Day, Death) ~ N_dose + sym_state + temp + food, data = survival_AMMONIUM.data)
+km_fit <- survfit(Surv(Day, Death) ~ NO3_category + sym_state + temp + food, data = survival_all.data)
 summary(km_fit)
 
-plot(km_fit, xlab = "Time", ylab = "Survival Probability", main = "Kaplan-Meier Survival Curve")
+#plot(km_fit, xlab = "Time", ylab = "Survival Probability", main = "Kaplan-Meier Survival Curve")
 
-
-treat.mod_ammonium <- coxph(Surv(Day, Death) ~ N_dose + sym_state + temp + food, data=survival_AMMONIUM.data, control = coxph.control(iter.max = 1000))
+treat.mod <- coxph(Surv(Day, Death) ~ NO3_category + sym_state + temp + food, data=survival_all.data, control = coxph.control(iter.max = 1000))
 # Summarize the model 
-summary(treat.mod_ammonium)
-#Nothing mattered! Though all the corals that died were Ammonium at high dose and 30C....hmmm.... (its only one coral so unforch we can't do stats on it)
+summary(treat.mod)
 
-#Now lets do a binomial regression JUST on day 5
-survival_all.data_WIDE <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/Survival_06_12_24_for_logistic.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
-survival_AMMONIUM.data_WIDE<- survival_all.data_WIDE %>%
-  filter(N_species=="A")
+treat.mod_all <- coxph(Surv(Day, Death) ~ NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + sym_state*food, data=survival_all.data)
+# Summarize the model 
+summary(treat.mod_all)
+survival_all.data$treatment <- as.factor(survival_all.data$treatment)
+levels_treatID <- data.frame(levels(survival_all.data$treatment))
 
-survival_AMMONIUM.data_WIDE$temp <- as.factor(survival_AMMONIUM.data_WIDE$temp)
-survival_AMMONIUM.data_WIDE$N_dose <- as.numeric(survival_AMMONIUM.data_WIDE$N_dose)
-survival_AMMONIUM.data_WIDE$food <- as.factor(survival_AMMONIUM.data_WIDE$food)
-survival_AMMONIUM.data_WIDE$sym_state <- as.factor(survival_AMMONIUM.data_WIDE$sym_state)
-binoimal_ammonium_survival_GLM <- glmer(survival_day12 ~ N_dose + sym_state + temp + food + (1|beetag_exprun), family=binomial(link='logit'), data=survival_AMMONIUM.data_WIDE) #not havin it, theres only one death
 
 
 ```
 
-# Ammonium death table 
-```{r}
-ammonium_deaths <- survival_AMMONIUM.data %>%
-  filter(Death==1)
+```{r Visualizations}
 
-ammonium_death_table <- data.frame(count(ammonium_deaths$treat_ID))
+#reorder factor labels first
 
-```
+# function to make some FANCY labels
 
-```{r Nitrate Survival Model}
-treat.mod_nitrate <- coxph(Surv(Day, Death) ~ N_dose + sym_state + temp + food + N_dose*sym_state + N_dose*temp + N_dose*food + sym_state*temp + sym_state*food, data=survival_NITRATE.data)
-# Summarize the model 
-summary(treat.mod_nitrate)
-#N dose is significant -- higher doses more likely to die
-#N dose x temperature -- more likely to die at 20 than 30! Woah
-
-survival_NITRATE.data$treat_ID <- as.factor(survival_NITRATE.data$treat_ID)
-levels_treatID <- data.frame(levels(survival_NITRATE.data$treat_ID))
-
-nitrate_survfit <- survfit(Surv(Day, Death) ~ treat_ID, data = survival_NITRATE.data)
-summary(nitrate_survfit)
+label_treatments <- function(labels0){
+  
+  L_label_pieces <- str_split(labels0,pattern = "_")
+  
+  labels1 <- map_chr(L_label_pieces,function(v_label_piece){
+    
+    v_label_piece[2] <- paste0(v_label_piece[2],"°C")
+    v_label_piece[3] <- switch(v_label_piece[3],A = "Apo",S = "Sym")
+    v_label_piece[4] <- switch(v_label_piece[4],F = "Fed",S = "Starved")
+    
+    return(paste(v_label_piece,collapse = " "))
+    
+  })
+  
+  return(labels1)
+}
 
 # Plot kaplan meier survival function with ggplot
-ggsurvplot(nitrate_survfit, # survival function
+
+all_survfit <- survfit(Surv(Day, Death) ~ treatment, data = survival_all.data)
+summary(all_survfit)
+
+library(RColorBrewer)
+display.brewer.all()
+library(viridis)
+
+ggsurvplot(all_survfit, # survival function
                 conf.int = FALSE, # remove confidence intervals
                 pval = FALSE, # do not include p value on plot
                 surv.scale = "default", # or %
-                legend_labs= c("N_0_20_F_A", "N_0_20_F_S", "N_0_20_S_A", "N_0_20_S_S", "N_0_30_F_A", "N_0_30_F_S", "N_0_30_S_A", "N_0_30_S_S", "N_1.5_20_F_A", "N_1.5_20_F_S", "N_1.5_20_S_A", "N_1.5_20_S_S", "N_1.5_30_F_A", "N_1.5_30_F_S", "N_1.5_30_S_A", "N_1.5_30_S_S", "N_18_20_F_A", "N_18_20_F_S", "N_18_20_S_A", "N_18_20_S_S", "N_18_30_F_A", "N_18_30_F_S", "N_18_30_S_A", "N_18_30_S_S", "N_5_20_F_A", "N_5_20_F_S", "N_5_20_S_A", "N_5_20_S_S", "N_5_30_F_A", "N_5_30_F_S", "N_5_30_S_A", "N_5_30_S_S"), 
-                legend = c(0.75, 0.5), font.legend = 10, legend.title ="", # legend parameters 
-                xlab = "Day", xlim = c(0, 23), break.x.by = 2, font.x = 14, # x axis parameters
+                legend.labs= c("Elevated 20°C Apo Fed", "Elevated 20°C Apo Starved", "Elevated 20°C Sym Fed", "Elevated 20°C Sym Starved", "Elevated 30°C Apo Fed", "Elevated 30°C Apo Starved", "Elevated 30°C Sym Fed", "Elevated 30°C Sym Starved","Low 20°C Apo Fed", "Low 20°C Apo Starved", "Low 20°C Sym Fed", "Low 20°C Sym Starved", "Low 30°C Apo Fed", "Low 30°C Apo Starved", "Low 30°C Sym Fed", "Low 30°C Sym Starved"), 
+                legend = c(0.2, 0.48), font.legend = 12, legend.title ="Treatment", # legend parameters 
+                xlab = "Day", xlim = c(0, 12), break.x.by = 1, font.x = 14, # x axis parameters
                 ylim = c(0.4,1), font.y= 14, # y axis parameters
                 font.tickslab = 14,
-                censor.size = 6,
+                censor.size = 8,
                 ggtheme = theme_classic2(),
-                title = "Nitrate Survival")
-         #       palette = c("#131513","#F53100", "#FF8B47","#C39809","#F6CB3C",
-                      #      "#0B8454", "#7BB12F","#3F88C5","#A33461"))
+                title = "Astrangia Survival",
+           palette = c(
+"#A526C5",
+"#2429B7",
+"#2171D4",
+"#28CDE6",
+"#39EFBB",
+"#9F6C56",
+"#AE3125",
+"#CA2256",
+"#E223AE",
+"#D133EC",
+"#268B67",
+"#25A542",
+"#41C023",
+"#93DE20",
+"#E9E52E",
+"#FBBF18"))
 
 
 ```
 
-# Nitrate table 
 ```{r}
-nitrate_deaths <- survival_NITRATE.data %>%
+all_deaths <- survival_all.data %>%
+  filter(Death==1)
+
+all_death_table <- data.frame(count(all_deaths$treatment))
+
+all_deaths_day12 <- survival_all.data %>%
   filter(Death==1 & Day==12)
 
-nitrate_death_table <- data.frame(count(nitrate_deaths$treat_ID))
+all_death_table_day12 <- data.frame(count(all_deaths_day12$treatment))
+
+
+#Now lets do a binomial regression JUST on day 5
+survival_all.data_WIDE <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/Survival_06_12_24_for_logistic.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+survival_all.data_WIDE<- survival_all.data_WIDE %>%
+  filter(N_species=="A")
+
+survival_all.data_WIDE$temp <- as.factor(survival_all.data_WIDE$temp)
+survival_all.data_WIDE$NO3_category <- as.numeric(survival_all.data_WIDE$NO3_category)
+survival_all.data_WIDE$food <- as.factor(survival_all.data_WIDE$food)
+survival_all.data_WIDE$sym_state <- as.factor(survival_all.data_WIDE$sym_state)
+binoimal_survival_GLM <- glmer(survival_day12 ~ NO3_category + sym_state + temp + food + (1|beetag_exprun), family=binomial(link='logit'), data=survival_all.data_WIDE) #not havin it, theres only one death
 
 ```
-

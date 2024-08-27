@@ -84,16 +84,16 @@ count(resp_all.data$NO3_category)
 #140 high observations
 #580 low observations
 
-
+resp_all.data$NO3_category <- factor(resp_all.data$NO3_category, levels=c("Low", "Elevated"))
+resp_all.data$sym_state<- as.factor(resp_all.data$sym_state)
+resp_all.data$food<- as.factor(resp_all.data$food)
+resp_all.data$temp<- as.factor(resp_all.data$temp)
 
 ```
 
 ```{r Generating subsets to work with}
 
-resp_all.data$NO3_category <- factor(resp_all.data$NO3_category, levels=c("Low", "Elevated"))
-resp_all.data$sym_state<- as.factor(resp_all.data$sym_state)
-resp_all.data$food<- as.factor(resp_all.data$food)
-resp_all.data$temp<- as.factor(resp_all.data$temp)
+
 #SUBSET - No E. coli
 resp_NOEC <- resp_all.data %>%
   filter(e_coli_plate==0)
@@ -199,6 +199,67 @@ TukeyHSD(anova_NOEC)
 
 
 #For Manuscript
+
+```{r}
+#create a new column "NO3_category_e_coli"
+resp_all.data$NO3_category_e_coli <- paste(resp_all.data$NO3_category, resp_all.data$e_coli_plate, sep="_")
+
+#Summarize all treatments by SYM STATE and temp
+sum_all_treatments <- summarySE(resp_all.data, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "temp", "NO3_category_e_coli"))
+# Visualize
+gg_all_treatments <-ggplot(data = sum_all_treatments,
+       aes(x = NO3_category_e_coli,
+           y = abs_resp_rate_SA_corr, col=temp, shape=sym_state)) +
+    geom_point(size=4) +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.25, linewidth=0.8) +
+    ggtitle ("Respiration Rate By Treatment") +
+    theme(legend.position = "right",
+           legend.text = element_text(size=13),
+          legend.title = element_text(size=15),
+          axis.title = element_text(size = 14),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    ylim(0.05, 0.17) +
+  scale_x_discrete("Treatment", labels=c("Elevated No E. coli","Elevated + E. coli","Low No E. coli","Low + E. coli"))+
+    labs(x = "Treatment", 
+         y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+       # theme(legend.position="none")+
+  scale_shape_discrete("Symbiotic state", labels=c("Aposymbiotic","Symbiotic")) +
+    scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "darkred"))
+gg_all_treatments
+
+#Summarize all treatments by FOOD and temp
+sum_all_treatments <- summarySE(resp_all.data, measurevar = "abs_resp_rate_SA_corr", groupvars = c("food", "temp", "NO3_category_e_coli"))
+# Visualize
+gg_all_treatments <-ggplot(data = sum_all_treatments,
+       aes(x = NO3_category_e_coli,
+           y = abs_resp_rate_SA_corr, col=temp, shape=food)) +
+    geom_point(size=4) +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.25, linewidth=0.8) +
+    ggtitle ("Respiration Rate By Treatment, Temp, and Food") +
+    theme(legend.position = "right",
+           legend.text = element_text(size=13),
+          legend.title = element_text(size=15),
+          axis.title = element_text(size = 14),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    ylim(0.05, 0.17) +
+  scale_x_discrete("Treatment", labels=c("Elevated No E. coli","Elevated + E. coli","Low No E. coli","Low + E. coli"))+
+    labs(x = "Treatment", 
+         y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+       # theme(legend.position="none")+
+  scale_shape_manual("Feeding treatment", labels=c("Fed","Starved"), values=c(18,8)) +
+    scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "darkred"))
+gg_all_treatments
+```
+
+
 ```{r}
 #E. coli
 sum_sym_temp_nitrate_EC <- summarySE(resp_EC, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "temp", "NO3_category"))

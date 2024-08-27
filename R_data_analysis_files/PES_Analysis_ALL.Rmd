@@ -2,12 +2,16 @@
 title: "Polyp Extension Score"
 author: "CFI"
 date: "2024-06-12"
-output: html_document
-editor_options: 
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
   chunk_output_type: console
+  highlight: breezedark
 ---
 
-```{r Loading all necessary packages}
+
+```{r Loading all necessary packages }
 setwd("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/")
 setwd(dirname(getwd())) #need to add this!
 library("knitr")
@@ -32,6 +36,7 @@ library("plyr")
 library("tidyverse")
 library("Rmisc")
 library("ggplot2")
+library("glmmTMB")
 #multiple response variables 
 #check model with performance package
   #model tools R markdown
@@ -55,12 +60,16 @@ library(ggpubr)
 library("ggpmisc")
 library(devtools)
 source_gist("524eade46135f6348140") #for the stat_smooth_func()
-
+#install.packages("DHARMA")
+library(DHARMa)
+#install.packages("ordinal")
+library(ordinal)
+#install.packages("cowplot")
+library(cowplot)
 
 #increase the number of results it will show
 options(max.print=1000000)
 ```
-
 
 ```{r Inputting data & making sure everything is organized correctly}
 #opts_knit$set(root.dir = "C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/")
@@ -91,65 +100,170 @@ NO3_mean_observed < 6  ~ "Low" , #need two equal signs
 NO3_mean_observed >= 6 ~ "Elevated" 
  )
 )
- 
+
+hist(pes_all.data$PES_value)
+
+pes_all.data$treatment <- paste(pes_all.data$NO3_category,pes_all.data$temp, pes_all.data$food, pes_all.data$sym_state, sep="_")
+
+pes_all.data$PES_value <- as.factor(pes_all.data$PES_value)
+pes_all.data$PES_day <- as.numeric(pes_all.data$PES_day)
+pes_all.data$NO3_category <- as.factor(pes_all.data$NO3_category)
+pes_all.data$sym_state <- as.factor(pes_all.data$sym_state)
+pes_all.data$temp <- as.factor(pes_all.data$temp)
+pes_all.data$food <- as.factor(pes_all.data$food)
+
+
+```
+
+```{r}
+
+#Checking that there is pretty good variation in scores -- it looks like there is
+PES_stacked = pes_all.data %>%
+  group_by(PES_value, PES_day, treatment) %>%
+  dplyr::summarise(frequency = n()) 
+
+#Plot it
+ggplot(PES_stacked, aes(y = frequency, x = PES_day, fill = as.factor(PES_value))) + 
+  geom_bar(stat = "identity", position = "fill") +
+  facet_grid(. ~ treatment) + 
+  scale_fill_brewer(palette = "Blues", direction=1) +
+  labs(fill = "Behavioural Score") +
+  theme_cowplot()
+```
+
+
+#We can proceed with an ordinal regression
+
+```{r}
+
+#using the ordinal package
+clmm_PES_1 <- clmm(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*food + NO3_category*temp + sym_state*temp + sym_state*food + food*temp +  (1|beetag_exprun), data = pes_all.data)
+
 
 ```
 
 
+```{r generate a custom function to step AIC the clmm models - RUN ON THE SCC }
+#THE FOLLOWING CODE IS COMPUTATIONALLY INTENSIVE AND WAS RUN FOR 12 hours with 1 core on the SCC
+
+# setwd("~/")
+# library("tidyverse")
+# library(ordinal)
+# 
+# pes_all.data <- read.csv("PES_all_06_26_24_dead_NAs.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+# 
+# 
+# #Create a NEW column for nitrate with new categories
+# pes_all.data <- pes_all.data %>%
+#   mutate(NO3_category = case_when(
+#     NO3_mean_observed < 6  ~ "Low" , #need two equal signs
+#     NO3_mean_observed >= 6 ~ "Elevated" 
+#   )
+#   )
+# 
+# pes_all.data$PES_value <- as.factor(pes_all.data$PES_value)
+# pes_all.data$PES_day <- as.numeric(pes_all.data$PES_day)
+# pes_all.data$NO3_category <- as.factor(pes_all.data$NO3_category)
+# pes_all.data$sym_state <- as.factor(pes_all.data$sym_state)
+# pes_all.data$temp <- as.factor(pes_all.data$temp)
+# pes_all.data$food <- as.factor(pes_all.data$food)
+# 
+# #################
+# 
+# step_clmm_custom <- function(data) {
+#   library(ordinal)
+#   
+#   # Define the full formula terms
+#   full_formula <- PES_value ~ PES_day + NO3_category + sym_state + temp + food +
+#     NO3_category*sym_state + NO3_category*food + NO3_category*temp +
+#     sym_state*temp + sym_state*food + food*temp
+#   
+#   full_terms <- attr(terms(full_formula), "term.labels")
+#   
+#   # Prepare for model selection
+#   best_aic <- Inf
+#   best_model <- NULL
+#   model_results <- data.frame(Formula = character(), AIC = numeric(), stringsAsFactors = FALSE)
+#   
+#   # Loop over all combinations of the predictors and interactions
+#   for (i in seq_along(full_terms)) {
+#     comb <- combn(full_terms, i, simplify = FALSE)
+#     for (j in seq_along(comb)) {
+#       # Create the formula for the current combination
+#       current_formula <- as.formula(paste("PES_value ~", paste(comb[[j]], collapse = " + "), "+ (1|beetag_exprun)"))
+#       print(current_formula)
+#       
+#       # Fit the model
+#       current_model <- clmm(current_formula, data = data)
+#       
+#       # Compute the AIC
+#       current_aic <- AIC(current_model)
+#       
+#       # Store the formula and AIC
+#       model_results <- rbind(model_results, data.frame(Formula = deparse(current_formula), AIC = current_aic))
+#       
+#       # Update the best model if the current one is better
+#       if (current_aic < best_aic) {
+#         best_aic <- current_aic
+#         best_model <- current_model
+#       }
+#     }
+#   }
+#   
+#   # Return the best model, its AIC, and all AICs
+#   list(best_model = best_model, best_aic = best_aic, model_results = model_results)
+# }
+# 
+# # Run the stepwise selection
+# result <- step_clmm_custom(pes_all.data)
+# 
+# # Extract the best model, its AIC, and the AICs of all models
+# best_model <- result$best_model
+# best_aic <- result$best_aic
+# model_aic_df <- result$model_results
+# 
+# # View the dataframe of all model formulas and their AICs
+# saveRDS(best_model, "best_model.RDS")
+# write.csv(best_aic, "best_aic.csv")
+# write.csv(model_aic_df, "all_aic.csv")
+```
 
 
+```{r Model selection}
+# REMINDER OF FULL MODEL
+library(ordinal)
+clmm_PES_KITCHEN_SINK <- clmm(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*food + NO3_category*temp + sym_state*temp + sym_state*food + food*temp +  (1|beetag_exprun), data = pes_all.data)
 
-```{r GLMER}
-# Repeat measures GLMER -- Poisson dist with a log link
+#All these formulas had an AIC of 8809.427
+clmm_PES_1 <- clmm(PES_value ~ PES_day + food + sym_state*temp +  (1|beetag_exprun), data = pes_all.data)
 
-pes_all.data$sym_state <-  as.factor(pes_all.data$sym_state)
-pes_all.data$food <-  as.factor(pes_all.data$food)
-pes_all.data$temp <-  as.factor(pes_all.data$temp)
-pes_all.data$NO3_category <-  as.factor(pes_all.data$NO3_category)
-model_full <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + sym_state*food + temp*food + (1|beetag_exprun), family=poisson, data=pes_all.data)
-summary(model_full)
-#Starved had significantly LOWER PES scores than fed (makes sense)
-#corals at 20C had less activity
-#syms at 30 degrees had an overall higher PES score
-emmeans(model_full, specs=pairwise ~ sym_state*temp)
-#sym corals at 30 had higher PES than Apo at 30 (emmeans tukey p= 0.0441)
-#Apos at 30 had higher PES than Apo at 20 (emmeans tukey = 0.0183)
+clmm_PES_2 <- clmm(PES_value ~ PES_day + temp + food + sym_state*temp +  (1|beetag_exprun), data = pes_all.data)
 
-model_2 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + sym_state*food + (1|beetag_exprun), family=poisson, data=pes_all.data)
+clmm_PES_3 <- clmm(PES_value ~ PES_day + sym_state + food + sym_state*temp +  (1|beetag_exprun), data = pes_all.data)
 
-model_3 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + (1|beetag_exprun), family=poisson, data=pes_all.data)
-
-model_4 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food  + (1|beetag_exprun), family=poisson, data=pes_all.data)
-
-model_5 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp  + (1|beetag_exprun), family=poisson, data=pes_all.data)
-
-model_6 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + (1|beetag_exprun), family=poisson, data=pes_all.data)
-
-model_7 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + (1|beetag_exprun), family=poisson, data=pes_all.data)
-summary(model)
-emmeans(model_7, specs=pairwise ~ sym_state*temp*food)
-
-model_8 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp  + (1|beetag_exprun), family=poisson, data=pes_all.data)
-
-model_9 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + (1|beetag_exprun), family=poisson, data=pes_all.data)
-
-model_10 <- glmer(PES_value ~ PES_day + NO3_category + (1|beetag_exprun), family=poisson, data=pes_all.data)
-
-model_11 <- glmer(PES_value ~ PES_day + (1|beetag_exprun), family=poisson, data=pes_all.data)
-
-model_12 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + sym_state*temp + (1|beetag_exprun), family=poisson, data=pes_all.data)
+clmm_PES_4 <- clmm(PES_value ~ PES_day + sym_state + food + temp + sym_state*temp +  (1|beetag_exprun), data = pes_all.data)
 
 
+# WE SHOULD GO WITH MODEL 1, WHICH IS THE SIMPLEST MODEL (parsimony) 
 
-AIC(model_full,  model_2, model_3, model_4, model_5, model_6, model_7, model_8, model_9, model_10, model_11, model_12)
-
-#model 7 is the winner
-anova(model_3, model_7, model_full) #but they are no different to each other
+summary(clmm_PES_1)
 
 
+#PES DAY p= <0.001
+#FOOD STARVED p= <0.001
+#SYM STATE SYM p= 0.904
+#TEMP 30 p=0.00149
+#SYM STATE SYM * TEMP 30 p=0.059
 
+
+emmeans(clmm_PES_1, specs=pairwise ~sym_state*temp)
+#A temp20 - A temp30   0.4077 0.128 Inf   3.177  0.0081
+# S temp20 - A temp30   0.3921 0.129 Inf   3.039  0.0127
+#A temp30 - S temp30  -0.3264 0.127 Inf  -2.574  0.0493
 
 ```
+
+
 
 ```{r Visualizations of PES}
 hist(pes_all.data$PES_value)
@@ -158,14 +272,16 @@ hist(pes_all.data$PES_value)
 pes_all.data_gg <- pes_all.data
 pes_all.data_gg$temp_sym <- paste(pes_all.data_gg$temp, "_", pes_all.data_gg$sym_state)
 pes_all.data_gg$temp_sym <- as.factor(pes_all.data_gg$temp_sym)
-pes_all.data_gg$PES_day <- as.integer(pes_all.data_gg$PES_DAY)
+#pes_all.data_gg$PES_day <- as.integer(pes_all.data_gg$PES_DAY)
 
+#make a new column for Nitrate level and sym state
+pes_all.data_gg$NO3_category_sym_state <- paste(pes_all.data_gg$NO3_category, pes_all.data_gg$sym_state, sep="_")
 
 #sum by TEMPERATURE AND SYM STATE
-sum_nitrate_4<- summarySE(pes_all.data_gg, measurevar = "PES_value", groupvars = c("temp_sym", "PES_day", "NO3_category"), na.rm=T)
+sum_nitrate_4<- summarySE(pes_all.data_gg, measurevar = "PES_value", groupvars = c("NO3_category_sym_state", "PES_day", "temp"), na.rm=T)
 gg_nitrate_PES_4 <-ggplot(data = sum_nitrate_4,
        aes(x = PES_day,
-           y = PES_value, col=temp_sym, shape=NO3_category, group=interaction(NO3_category, temp_sym))) +
+           y = PES_value, col=temp, shape=NO3_category_sym_state, group=interaction(NO3_category_sym_state, temp))) +
      geom_point(size=5, position=position_dodge(width=0.5)) +
   geom_line(linewidth=1, position=position_dodge(width=0.5), linetype="dotted")+
    geom_errorbar(aes(ymin=PES_value-se, ymax=PES_value+se), width=0.6, size = 1, position=position_dodge(width=0.5)) +
@@ -181,14 +297,13 @@ gg_nitrate_PES_4 <-ggplot(data = sum_nitrate_4,
          y = expression(paste("Average Polyp Exension Score")), 
          caption = "data represent mean +/- SEM" ) +
        # theme(legend.position="none")+
-   scale_color_manual("Treatment", labels=c("Aposymbiotic 20°C","Symbiotic 20°C", "Aposymbiotic 30°C","Symbiotic 30°C"), values=c("#9E9187", "#D97018", "gray2" ,"#804310")) +
-  scale_shape_manual("Nitrate Level", values=c(8,15)) +
+   scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "darkred")) +
+  scale_shape_manual("Treatment", labels=c("Elevated Apo", "Elevated Sym","Low Apo","Low Sym"), values=c(15,19,0,1)) +
   scale_x_continuous(breaks=seq(0,10,by=1))
 gg_nitrate_PES_4
 
 
 ```
-
 
 ```{r}
 # Repeat measures GLM anova -- Poisson dist with a log link
@@ -198,36 +313,36 @@ pes_all.data$food <-  as.factor(pes_all.data$food)
 pes_all.data$temp <-  as.factor(pes_all.data$temp)
 pes_all.data$NO3_category <-  as.numeric(pes_all.data$NO3_category)
 
-model_full <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + sym_state*food + temp*food + (1|beetag_exprun), family=poisson, data=pes_all.data)
+model_full <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + sym_state*food + temp*food + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
 summary(model_full)
 #Starved had significantly LOWER PES scores than fed (makes sense)
 #30 degrees had an lower PES (20 was higher)
 emmeans(model_full, specs=pairwise ~ sym_state*temp) #the interaction of sym state and temp goes away in nitrate 
 
-model_2 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + sym_state*food + (1|beetag_exprun), family=poisson, data=pes_all.data)
+model_2 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + sym_state*food + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
 
-model_3 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + (1|beetag_exprun), family=poisson, data=pes_all.data)
+model_3 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
 
-model_4 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food  + (1|beetag_exprun), family=poisson, data=pes_all.data)
+model_4 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food  + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
 
-model_5 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp  + (1|beetag_exprun), family=poisson, data=pes_all.data)
+model_5 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp  + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
 
-model_6 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + (1|beetag_exprun), family=poisson, data=pes_all.data)
+model_6 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
 
-model_7 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + (1|beetag_exprun), family=poisson, data=pes_all.data)
+model_7 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp + food + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
 summary(model_7)
 emmeans(model_full, specs=pairwise ~ sym_state*temp)
 
-model_8 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp  + (1|beetag_exprun), family=poisson, data=pes_all.data)
+model_8 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp  + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
 
-model_9 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + (1|beetag_exprun), family=poisson, data=pes_all.data)
+model_9 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
 
 
-model_10 <- glmer(PES_value ~ PES_day + NO3_category + (1|beetag_exprun), family=poisson, data=pes_all.data)
+model_10 <- glmmTMB(PES_value ~ PES_day + NO3_category + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
 
-model_11 <- glmer(PES_value ~ PES_day + (1|beetag_exprun), family=poisson, data=pes_all.data)
+model_11 <- glmmTMB(PES_value ~ PES_day + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
 
-model_12 <- glmer(PES_value ~ PES_day + NO3_category + sym_state + temp + food + sym_state*temp + (1|beetag_exprun), family=poisson, data=pes_all.data)
+model_12 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp + food + sym_state*temp + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
 
 
 

@@ -89,6 +89,7 @@ count(RGB_all.data$NO3_category)
 
 
 ```
+
 ```{r Difference between RGB and survival - SORTED}
 # #add survival data to see what observations are missing
 # survival_all.data<- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/Survival_06_26_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
@@ -207,5 +208,31 @@ gg_sum_sym_temp_nitrate_RGB <-ggplot(data = sum_sym_temp_nitrate_RGB ,
 
 gg_sum_sym_temp_nitrate_RGB 
 
+# FOOD INSTEAD OF SYM STATE
+sum_food_temp_nitrate_RGB <- summarySE(RGB_all.data, measurevar = "red_delta", groupvars = c("food", "temp", "NO3_category"))
+# Visualize
+gg_sum_food_temp_nitrate_RGB <-ggplot(data = sum_food_temp_nitrate_RGB ,
+       aes(x = NO3_category,
+           y = red_delta, col=temp, shape=food)) +
+    geom_point(size=4) +
+    geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.25, linewidth=0.8) +
+    ggtitle ("Delta Red Channel Value by food State and Temp") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 10),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    ylim(-10, 8) +
+   ##scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
+    labs(x = "Nitrate Dose", 
+         y = expression(paste("Delta Red Channel value")), 
+         caption = "data represent mean +/- SEM" ) +
+       # theme(legend.position="none")+
+  scale_shape_manual("Feeding status", labels=c("Fed","Starved"), values=c(18,8)) +
+    scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "darkred"))
+
+gg_sum_food_temp_nitrate_RGB 
 ```
 

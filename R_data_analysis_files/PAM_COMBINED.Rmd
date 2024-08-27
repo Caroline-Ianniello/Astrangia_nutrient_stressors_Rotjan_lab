@@ -56,7 +56,7 @@ options(max.print = 10000)
 ```
 
 
-```{r Set working directory and upload data - nitrate DATA ONLY}
+```{r Set working directory and upload data}
  
 # #Create a NEW column for nitrate with new categories
 # 
@@ -83,7 +83,10 @@ count(PAM_all.data$NO3_category)
 #188 elevated observations
 #741 low observations
 
-
+PAM_all.data$NO3_category <- factor(PAM_all.data$NO3_category, levels=c("Low", "Elevated"))
+PAM_all.data$sym_state<- as.factor(PAM_all.data$sym_state)
+PAM_all.data$food<- as.factor(PAM_all.data$food)
+PAM_all.data$temp<- as.factor(PAM_all.data$temp)
 
 ```
 
@@ -111,10 +114,7 @@ count(PAM_all.data$NO3_category)
 
 ```{r Generating subsets to work with}
 
-PAM_all.data$NO3_category <- factor(PAM_all.data$NO3_category, levels=c("Low", "Elevated"))
-PAM_all.data$sym_state<- as.factor(PAM_all.data$sym_state)
-PAM_all.data$food<- as.factor(PAM_all.data$food)
-PAM_all.data$temp<- as.factor(PAM_all.data$temp)
+
 #SUBSET - 20C
 PAM_20 <- PAM_all.data %>%
   filter(temp==20)
@@ -167,53 +167,92 @@ t.test(PAM_delta ~ temp, data= PAM_all.data)
 ```
 
 ```{r ANOVAs to match graphs}
-hist(PAM_all.data$PAM_delta) #nice and normal
+hist(PAM_all.data$PAM_avg_day11) #nice and normal
 
 #Now an ANOVA on sym state, temp, and NO3_category 
-anova_PAM <- aov(PAM_delta ~ sym_state*temp*NO3_category, data=PAM_all.data)
-summary(anova_PAM )
+anova_PAM_delta <- aov(PAM_delta ~ sym_state*temp*NO3_category, data=PAM_all.data)
+summary(anova_PAM_delta )
 #ptemp = 0.0146
 TukeyHSD(anova_PAM )
 
+hist(PAM_all.data$PAM_avg_day11) #eh not great kinda skewed but let's go with it
+anova_PAM_avg_day11 <- aov(PAM_avg_day11~ sym_state*temp*NO3_category, data=PAM_all.data)
+summary(anova_PAM_avg_day11 )
+#ptemp = 0.0146
+TukeyHSD(anova_PAM )
 
 ```
 
 
 #For Manuscript
-```{r PAM Delta visuals}
-sum_sym_temp_nitrate_PAM <- summarySE(PAM_all.data, measurevar = "PAM_delta", groupvars = c("sym_state", "temp", "NO3_category"))
+
+# PAM delta 
+
+
+```{r}
+
+#Summarize all treatments by SYM STATE and temp
+sum_sym_temp <- summarySE(PAM_all.data, measurevar = "PAM_delta", groupvars = c("sym_state", "temp", "NO3_category"))
 # Visualize
-gg_sum_sym_temp_nitrate_PAM <-ggplot(data = sum_sym_temp_nitrate_PAM ,
+gg_sym_temp <-ggplot(data = sum_sym_temp,
        aes(x = NO3_category,
            y = PAM_delta, col=temp, shape=sym_state)) +
     geom_point(size=4) +
     geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.25, linewidth=0.8) +
-    ggtitle ("Delta Photosynthetic Efficiency Value by Sym State and Temp") +
+    ggtitle ("PAM Delta By Treatment, Temp, and Sym State") +
     theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 10),
+           legend.text = element_text(size=13),
+          legend.title = element_text(size=15),
+          axis.title = element_text(size = 14),
           legend.background = element_blank(),
           panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
           axis.text = element_text(size = 12)) +
-    ylim(-.2, .1) +
-   ##scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "Nitrate Dose", 
+    ylim(-0.18,0.15) +
+  scale_x_discrete("Treatment", labels=c("Elevated","Low "))+
+    labs(x = "Treatment", 
          y = expression(paste("Delta Fv/Fm")), 
          caption = "data represent mean +/- SEM" ) +
        # theme(legend.position="none")+
   scale_shape_discrete("Symbiotic state", labels=c("Aposymbiotic","Symbiotic")) +
     scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "darkred"))
+gg_sym_temp
 
-gg_sum_sym_temp_nitrate_PAM 
-
+#Summarize all treatments by FOOD and temp
+sum_food_temp <- summarySE(PAM_all.data, measurevar = "PAM_delta", groupvars = c("food", "temp", "NO3_category"))
+# Visualize
+gg_food_temp <-ggplot(data = sum_food_temp,
+       aes(x = NO3_category,
+           y = PAM_delta, col=temp, shape=food)) +
+    geom_point(size=4) +
+    geom_errorbar(aes(ymin=PAM_delta-se, ymax=PAM_delta+se), width=0.25, linewidth=0.8) +
+    ggtitle ("PAM Delta By Treatment, Temp, and Food") +
+    theme(legend.position = "right",
+           legend.text = element_text(size=13),
+          legend.title = element_text(size=15),
+          axis.title = element_text(size = 14),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+       ylim(-0.18,0.15) +
+  scale_x_discrete("Treatment", labels=c("Elevated","Low"))+
+    labs(x = "Treatment", 
+         y = expression(paste("Delta Fv/Fm")), 
+         caption = "data represent mean +/- SEM" ) +
+       # theme(legend.position="none")+
+  scale_shape_manual("Feeding treatment", labels=c("Fed","Starved"), values=c(18,8)) +
+    scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "darkred"))
+gg_food_temp
 ```
 
 
+
+
 ```{r PAM Day 11 visuals}
-sum_sym_temp_nitrate_PAM <- summarySE(PAM_all.data, measurevar = "PAM_avg_day11", groupvars = c("sym_state", "temp", "NO3_category"))
+sum_sym_temp_nitrate_PAM_day11 <- summarySE(PAM_all.data, measurevar = "PAM_avg_day11", groupvars = c("sym_state", "temp", "NO3_category"))
 # Visualize
-gg_sum_sym_temp_nitrate_PAM <-ggplot(data = sum_sym_temp_nitrate_PAM ,
+gg_sum_sym_temp_nitrate_PAM_day11<-ggplot(data = sum_sym_temp_nitrate_PAM_day11 ,
        aes(x = NO3_category,
            y = PAM_avg_day11, col=temp, shape=sym_state)) +
     geom_point(size=4) +
@@ -234,7 +273,7 @@ gg_sum_sym_temp_nitrate_PAM <-ggplot(data = sum_sym_temp_nitrate_PAM ,
   scale_shape_discrete("Symbiotic state", labels=c("Aposymbiotic","Symbiotic")) +
     scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "darkred"))
 
-gg_sum_sym_temp_nitrate_PAM 
+gg_sum_sym_temp_nitrate_PAM_day11
 
 ```
 
