@@ -53,7 +53,7 @@ options(max.print = 10000)
 
 
 ```{r}
-narragansett_water_qual.data <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/Narragansett_water_qual_2014_2022_QCed_8_22_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+narragansett_water_qual.data <- read.csv("/Users/carolineianniello/Astrangia Ecotox/Data/Narragansett_water_qual_2014_2022_QCed_8_22_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 
 #I think we just want upper, and stations:
 #2 which is Conimicut point
@@ -202,4 +202,11 @@ gg_sum_month_year_wq_narra_temp <-ggplot(data = sum_month_year_wq_narra_temp ,
 gg_sum_month_year_wq_narra_temp
 ```
 
+```{r}
+#Mean summertime temperature 
+
+narragansett_water_qual.data_SUMMER <- narragansett_water_qual.data %>%
+  filter(season=="Summer")
+summer_summary_temp  <- summarySE(narragansett_water_qual.data_SUMMER, measurevar = c("temperature.celsius"), na.rm=T)
+```
 
