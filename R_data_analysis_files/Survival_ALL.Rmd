@@ -8,14 +8,7 @@ editor_options:
 ---
 
 ```{r Loading all necessary packages}
-setwd("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/")
-setwd(dirname(getwd())) #need to add this!
-library("knitr")
-require("knitr")
-opts_knit$set(root.dir = "C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/")
-setwd("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/")
-setwd(dirname(getwd())) 
-getwd()
+
 #install.packages("dplyr")
 #compare with and without predictor
 library("lme4")
@@ -70,7 +63,7 @@ options(max.print=1000000)
 
 
 ```{r upload data}
-survival_all.data <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/Survival_06_26_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+survival_all.data <- read.csv("/Users/carolineianniello/Astrangia Ecotox/Data/Survival_06_26_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 
 # #Create a NEW column for nitrate with new categories
 
@@ -81,7 +74,19 @@ survival_all.data <- survival_all.data %>%
     )
  )
 
+#make a table of deaths at end of experiment
+#number alive v number dead in each treatment
+#Treatment
+survival_all.data$treatment <- paste(survival_all.data$NO3_category, survival_all.data$temp, survival_all.data$sym_state, survival_all.data$food,sep="_")
 
+survival_all.data_fortable <- survival_all.data %>%
+  group_by(treatment,  survival_day12)%>%
+  tally()
+
+
+total_n <- survival_all.data %>%
+  group_by(treatment)%>%
+  tally()
 ```
 
 ```{r Pivot long to get each row have a survival for each coral}
@@ -182,7 +187,7 @@ ggsurvplot(all_survfit, # survival function
                 conf.int = FALSE, # remove confidence intervals
                 pval = FALSE, # do not include p value on plot
                 surv.scale = "default", # or %
-                legend.labs= c("Elevated 20°C Apo Fed", "Elevated 20°C Apo Starved", "Elevated 20°C Sym Fed", "Elevated 20°C Sym Starved", "Elevated 30°C Apo Fed", "Elevated 30°C Apo Starved", "Elevated 30°C Sym Fed", "Elevated 30°C Sym Starved","Low 20°C Apo Fed", "Low 20°C Apo Starved", "Low 20°C Sym Fed", "Low 20°C Sym Starved", "Low 30°C Apo Fed", "Low 30°C Apo Starved", "Low 30°C Sym Fed", "Low 30°C Sym Starved"), 
+                legend.labs= c("Elevated 20°C Apo Fed, n=30", "Elevated 20°C Apo Starved n=15", "Elevated 20°C Sym Fed, n=30" , "Elevated 20°C Sym Starved, n=15", "Elevated 30°C Apo Fed, n=15", "Elevated 30°C Apo Starved, n=43", "Elevated 30°C Sym Fed, n=15", "Elevated 30°C Sym Starved, n=45","Low 20°C Apo Fed, n=90", "Low 20°C Apo Starved, n=105", "Low 20°C Sym Fed, n=90", "Low 20°C Sym Starved, n=105", "Low 30°C Apo Fed, n=107", "Low 30°C Apo Starved, n=75", "Low 30°C Sym Fed, n=106", "Low 30°C Sym Starved, n=74"), 
                 legend = c(0.2, 0.48), font.legend = 12, legend.title ="Treatment", # legend parameters 
                 xlab = "Day", xlim = c(0, 12), break.x.by = 1, font.x = 14, # x axis parameters
                 ylim = c(0.4,1), font.y= 14, # y axis parameters

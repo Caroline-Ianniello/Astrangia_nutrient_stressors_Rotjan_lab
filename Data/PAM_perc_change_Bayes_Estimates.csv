@@ -1,0 +1,17 @@
+﻿variable,coef,lower_95QI,upper_95QI,sign
+(Intercept),0.480613308,-0.135723302,1.094103151,0 in 95% Quantile Interval
+dose_levelElevated,-0.019861559,-1.266617097,1.209273036,0 in 95% Quantile Interval
+temp30,-0.395547329,-1.171147498,0.358907759,0 in 95% Quantile Interval
+feedStarved,0.20299258,-0.569685453,1.013762008,0 in 95% Quantile Interval
+symbiontSymbiotic,0.342549838,-0.504645861,1.190736266,0 in 95% Quantile Interval
+dose_levelElevated:temp30,0.26017309,-1.629049811,2.170108481,0 in 95% Quantile Interval
+dose_levelElevated:feedStarved,-0.318021161,-2.283524893,1.558012025,0 in 95% Quantile Interval
+dose_levelElevated:symbiontSymbiotic,-0.821760001,-2.569752966,0.84834267,0 in 95% Quantile Interval
+temp30:feedStarved,0.029347184,-1.093466716,1.146712055,0 in 95% Quantile Interval
+temp30:symbiontSymbiotic,0.289356671,-0.758589446,1.362707425,0 in 95% Quantile Interval
+feedStarved:symbiontSymbiotic,-1.314927137,-2.447380759,-0.225138046,0 not in 95% Quantile Interval
+dose_levelElevated:temp30:feedStarved,-0.046014968,-2.545308371,2.513305617,0 in 95% Quantile Interval
+dose_levelElevated:temp30:symbiontSymbiotic,0.515098937,-1.979682935,3.13082443,0 in 95% Quantile Interval
+dose_levelElevated:feedStarved:symbiontSymbiotic,1.124544479,-1.607271612,3.997294875,0 in 95% Quantile Interval
+temp30:feedStarved:symbiontSymbiotic,1.119785763,-0.411123038,2.675679367,0 in 95% Quantile Interval
+dose_levelElevated:temp30:feedStarved:symbiontSymbiotic,-1.599350735,-5.309353877,1.741925428,0 in 95% Quantile Interval

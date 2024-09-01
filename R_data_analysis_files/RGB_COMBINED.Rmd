@@ -204,7 +204,7 @@ gg_sum_sym_temp_nitrate_RGB <-ggplot(data = sum_sym_temp_nitrate_RGB ,
          caption = "data represent mean +/- SEM" ) +
        # theme(legend.position="none")+
   scale_shape_discrete("Symbiotic state", labels=c("Aposymbiotic","Symbiotic")) +
-    scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "darkred"))
+    scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred"))
 
 gg_sum_sym_temp_nitrate_RGB 
 
@@ -231,7 +231,7 @@ gg_sum_food_temp_nitrate_RGB <-ggplot(data = sum_food_temp_nitrate_RGB ,
          caption = "data represent mean +/- SEM" ) +
        # theme(legend.position="none")+
   scale_shape_manual("Feeding status", labels=c("Fed","Starved"), values=c(18,8)) +
-    scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "darkred"))
+    scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred"))
 
 gg_sum_food_temp_nitrate_RGB 
 ```

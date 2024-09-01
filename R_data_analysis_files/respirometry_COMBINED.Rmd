@@ -105,7 +105,7 @@ resp_EC <- resp_all.data %>%
 resp_NOEC_20 <- resp_all.data %>%
   filter(e_coli_plate==0) %>%
   filter(temp==20)
-#SUBSET - NO E. coli 30°C
+#SUBSET - NO E. coli 29°C
 resp_NOEC_30 <- resp_all.data %>%
   filter(e_coli_plate==0)%>%
   filter(temp==30)
@@ -114,7 +114,7 @@ resp_NOEC_30 <- resp_all.data %>%
 resp_EC_20 <- resp_all.data %>%
   filter(e_coli_plate==1) %>%
   filter(temp==20)
-#SUBSET - E. coli 30°C
+#SUBSET - E. coli 29°C
 resp_EC_30 <- resp_all.data %>%
   filter(e_coli_plate==1)%>%
   filter(temp==30)
@@ -219,7 +219,7 @@ gg_all_treatments <-ggplot(data = sum_all_treatments,
           legend.background = element_blank(),
           panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12, angle=45)) +
+          axis.text = element_text(size = 12, angle=45, hjust=1)) +
     ylim(0.06, 0.16) +
   scale_x_discrete("Treatment", labels=c("Elevated No E. coli","Elevated + E. coli","Low No E. coli","Low + E. coli"))+
     labs(x = "Treatment", 
@@ -227,7 +227,7 @@ gg_all_treatments <-ggplot(data = sum_all_treatments,
          caption = "data represent mean +/- SEM" ) +
        # theme(legend.position="none")+
   scale_shape_discrete("Symbiotic state", labels=c("Aposymbiotic","Symbiotic")) +
-    scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "darkred")) +
+    scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred")) +
    theme(aspect.ratio = 1.5)
 gg_all_treatments
 
@@ -247,7 +247,7 @@ gg_all_treatments <-ggplot(data = sum_all_treatments,
           legend.background = element_blank(),
           panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
+          axis.text = element_text(size = 12, angle=45, hjust = 1)) +
     ylim(0.06, 0.15) +
   scale_x_discrete("Treatment", labels=c("Elevated No E. coli","Elevated + E. coli","Low No E. coli","Low + E. coli"))+
     labs(x = "Treatment", 
@@ -255,7 +255,7 @@ gg_all_treatments <-ggplot(data = sum_all_treatments,
          caption = "data represent mean +/- SEM" ) +
        # theme(legend.position="none")+
   scale_shape_manual("Feeding treatment", labels=c("Fed","Starved"), values=c(18,8)) +
-    scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "darkred")) +
+    scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred")) +
    theme(aspect.ratio = 1.5)
 gg_all_treatments
 ```
@@ -285,7 +285,7 @@ gg_sum_sym_temp_nitrate_EC <-ggplot(data = sum_sym_temp_nitrate_EC,
          caption = "data represent mean +/- SEM" ) +
        # theme(legend.position="none")+
   scale_shape_discrete("Symbiotic state", labels=c("Aposymbiotic","Symbiotic")) +
-    scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "darkred"))
+    scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred"))
 
 gg_sum_sym_temp_nitrate_EC
 
@@ -312,7 +312,7 @@ gg_sum_sym_temp_nitrate_NOEC <-ggplot(data = sum_sym_temp_nitrate_NOEC,
          caption = "data represent mean +/- SEM" ) +
        # theme(legend.position="none")+
   scale_shape_discrete("Symbiotic state", labels=c("Aposymbiotic","Symbiotic")) +
-    scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "darkred"))
+    scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred"))
 
 gg_sum_sym_temp_nitrate_NOEC
 ```
@@ -497,7 +497,7 @@ gg_nitrate_NOEC <-ggplot(data = sum_nitrate_NOEC,
          caption = "data represent mean +/- SEM" ) +
        # theme(legend.position="none")+
      ylim(0.05, 0.25) +
-  scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "red3"))
+  scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "red3"))
 gg_nitrate_NOEC 
 
 # # By temp with E. coli
@@ -527,7 +527,7 @@ gg_nitrate_EC <-ggplot(data = sum_nitrate_EC,
          caption = "data represent mean +/- SEM" ) +
        # theme(legend.position="none")+
       ylim(0.05, 0.25) +
-  scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "red3"))
+  scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "red3"))
 gg_nitrate_EC 
 
 
@@ -660,7 +660,7 @@ gg_nitrate_NOEC_food <-ggplot(data = sum_nitrate_NOEC_food,
   scale_shape_discrete(labels=c("Fed","Starved"),name="Nutritional State") +
        # theme(legend.position="none")+
   ylim(0.05, 0.3) +
-  scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "red3"))
+  scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "red3"))
 gg_nitrate_NOEC_food
 
 # # By temp with E. coli
@@ -686,7 +686,7 @@ gg_nitrate_EC <-ggplot(data = sum_nitrate_EC_food,
        # theme(legend.position="none")+
   ylim(0.05, 0.3) +
   scale_shape_discrete(labels=c("Fed","Starved"),name="Nutritional State") +
-  scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "red3"))
+  scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "red3"))
 gg_nitrate_EC 
 ```
 
