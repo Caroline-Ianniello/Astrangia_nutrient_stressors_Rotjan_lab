@@ -46,6 +46,9 @@ library(Rmisc)
 library(ggeffects)
 library(forestmodel)
 
+install.packages("svglite")
+library(svglite)
+
 #turn off scientific notation
 options(scipen=999)
 
@@ -77,7 +80,7 @@ options(max.print = 10000)
 # #Did all pre-processing and double checked dead were deleted 6.22.24
 
 
-resp_all.data <- read.csv("/Users/carolineianniello/Astrangia Ecotox/Data/resp_combined_NO3categorized_outlier_removed_6_24_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+resp_all.data <- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/resp_combined_NO3categorized_outlier_removed_6_24_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 
 count(resp_all.data$NO3_category)
 #140 high observations
@@ -206,10 +209,10 @@ resp_all.data$NO3_category_e_coli <- paste(resp_all.data$NO3_category, resp_all.
 #Summarize all treatments by SYM STATE and temp
 sum_all_treatments <- summarySE(resp_all.data, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "temp", "NO3_category_e_coli"))
 # Visualize
-gg_all_treatments <-ggplot(data = sum_all_treatments,
+gg_sym_state <-ggplot(data = sum_all_treatments,
        aes(x = NO3_category_e_coli,
            y = abs_resp_rate_SA_corr, col=temp, shape=sym_state)) +
-    geom_point(size=4, position=position_dodge(width=0.8)) +
+    geom_point(size=4.5, position=position_dodge(width=0.8)) +
     geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.25, linewidth=0.8, position=position_dodge(width=0.8)) +
     ggtitle ("Respiration Rate By Treatment") +
     theme(legend.position = "right",
@@ -219,45 +222,50 @@ gg_all_treatments <-ggplot(data = sum_all_treatments,
           legend.background = element_blank(),
           panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12, angle=45, hjust=1)) +
+          axis.text = element_text(size = 14, angle=45, hjust=1),
+          text = element_text(family = "serif")) +
     ylim(0.06, 0.16) +
-  scale_x_discrete("Treatment", labels=c("Elevated No E. coli","Elevated + E. coli","Low No E. coli","Low + E. coli"))+
+  scale_x_discrete("Treatment", labels=c("Elevated NO3 No E. coli","Elevated NO3 + E. coli","Background NO3 No E. coli","Background NO3 + E. coli"))+
     labs(x = "Treatment", 
          y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
        # theme(legend.position="none")+
   scale_shape_discrete("Symbiotic state", labels=c("Aposymbiotic","Symbiotic")) +
     scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred")) +
-   theme(aspect.ratio = 1.5)
-gg_all_treatments
+   theme(aspect.ratio = 1.2)
+gg_sym_state
+ggsave(file="Figures/gg_sym_state.svg", plot=gg_sym_state)
 
 #Summarize all treatments by FOOD and temp
 sum_all_treatments <- summarySE(resp_all.data, measurevar = "abs_resp_rate_SA_corr", groupvars = c("food", "temp", "NO3_category_e_coli"))
 # Visualize
-gg_all_treatments <-ggplot(data = sum_all_treatments,
+gg_fed_starved <-ggplot(data = sum_all_treatments,
        aes(x = NO3_category_e_coli,
            y = abs_resp_rate_SA_corr, col=temp, shape=food)) +
-    geom_point(size=4, position=position_dodge(width=0.8)) +
+    geom_point(size=4.5, position=position_dodge(width=0.8)) +
     geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.25, linewidth=0.8, position=position_dodge(width=0.8)) +
     ggtitle ("Respiration Rate By Treatment, Temp, and Food") +
-    theme(legend.position = "right",
+   theme(legend.position = "right",
            legend.text = element_text(size=13),
           legend.title = element_text(size=15),
           axis.title = element_text(size = 14),
           legend.background = element_blank(),
           panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12, angle=45, hjust = 1)) +
-    ylim(0.06, 0.15) +
-  scale_x_discrete("Treatment", labels=c("Elevated No E. coli","Elevated + E. coli","Low No E. coli","Low + E. coli"))+
+          axis.text = element_text(size = 14, angle=45, hjust=1),
+          text = element_text(family = "serif")) +
+    ylim(0.06, 0.16) +
+  scale_x_discrete("Treatment", labels=c("Elevated NO3 No E. coli","Elevated NO3 + E. coli","Background NO3 No E. coli","Background NO3 + E. coli"))+
     labs(x = "Treatment", 
          y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
          caption = "data represent mean +/- SEM" ) +
        # theme(legend.position="none")+
-  scale_shape_manual("Feeding treatment", labels=c("Fed","Starved"), values=c(18,8)) +
+  scale_shape_manual("Feeding treatment", labels=c("Fed","Starved"), values=c(15,8)) +
     scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred")) +
-   theme(aspect.ratio = 1.5)
-gg_all_treatments
+   theme(aspect.ratio = 1.2)
+
+gg_fed_starved
+ggsave(file="Figures/gg_fed_starved.svg", plot=gg_fed_starved)
 ```
 
 

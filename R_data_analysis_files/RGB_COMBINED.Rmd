@@ -182,21 +182,23 @@ TukeyHSD(anova_RGB )
 
 #For Manuscript
 ```{r}
-sum_sym_temp_nitrate_RGB <- summarySE(RGB_all.data, measurevar = "red_delta", groupvars = c("sym_state", "temp", "NO3_category"))
+sum_sym_state_RGB <- summarySE(RGB_all.data, measurevar = "red_delta", groupvars = c("sym_state", "temp", "NO3_category"))
 # Visualize
-gg_sum_sym_temp_nitrate_RGB <-ggplot(data = sum_sym_temp_nitrate_RGB ,
+gg_sym_state_RGB <-ggplot(data = sum_sym_temp_nitrate_RGB ,
        aes(x = NO3_category,
            y = red_delta, col=temp, shape=sym_state)) +
-    geom_point(size=4) +
+    geom_point(size=4.5) +
     geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.25, linewidth=0.8) +
     ggtitle ("Delta Red Channel Value by Sym State and Temp") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 10),
+ theme(legend.position = "right",
+           legend.text = element_text(size=13),
+          legend.title = element_text(size=15),
+          axis.title = element_text(size = 14),
           legend.background = element_blank(),
           panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
+          axis.text = element_text(size = 14, angle=45, hjust=1),
+          text = element_text(family = "serif")) +
     ylim(-10, 8) +
    ##scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
     labs(x = "Nitrate Dose", 
@@ -206,33 +208,38 @@ gg_sum_sym_temp_nitrate_RGB <-ggplot(data = sum_sym_temp_nitrate_RGB ,
   scale_shape_discrete("Symbiotic state", labels=c("Aposymbiotic","Symbiotic")) +
     scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred"))
 
-gg_sum_sym_temp_nitrate_RGB 
+gg_sym_state_RGB
+ggsave(file="Figures/gg_sym_state_RGB.svg", plot=gg_sym_state_RGB)
 
 # FOOD INSTEAD OF SYM STATE
-sum_food_temp_nitrate_RGB <- summarySE(RGB_all.data, measurevar = "red_delta", groupvars = c("food", "temp", "NO3_category"))
+sum_food_RGB <- summarySE(RGB_all.data, measurevar = "red_delta", groupvars = c("food", "temp", "NO3_category"))
 # Visualize
-gg_sum_food_temp_nitrate_RGB <-ggplot(data = sum_food_temp_nitrate_RGB ,
+gg_food_RGB <-ggplot(data = sum_food_temp_nitrate_RGB ,
        aes(x = NO3_category,
            y = red_delta, col=temp, shape=food)) +
-    geom_point(size=4) +
+    geom_point(size=4.5) +
     geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.25, linewidth=0.8) +
     ggtitle ("Delta Red Channel Value by food State and Temp") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 10),
+ theme(legend.position = "right",
+           legend.text = element_text(size=13),
+          legend.title = element_text(size=15),
+          axis.title = element_text(size = 14),
           legend.background = element_blank(),
           panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
+          axis.text = element_text(size = 14, angle=45, hjust=1),
+          text = element_text(family = "serif")) +
     ylim(-10, 8) +
    ##scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
     labs(x = "Nitrate Dose", 
          y = expression(paste("Delta Red Channel value")), 
          caption = "data represent mean +/- SEM" ) +
        # theme(legend.position="none")+
-  scale_shape_manual("Feeding status", labels=c("Fed","Starved"), values=c(18,8)) +
-    scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred"))
+  scale_shape_manual("Feeding status", labels=c("Fed","Starved"), values=c(15,8)) +
+    scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred"))+
+   theme(aspect.ratio = 1.2)
 
-gg_sum_food_temp_nitrate_RGB 
+gg_food_RGB
+ggsave(file="Figures/gg_food_RGB.svg", plot=gg_food_RGB) 
 ```
 
