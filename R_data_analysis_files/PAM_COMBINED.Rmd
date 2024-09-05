@@ -45,6 +45,7 @@ library(Rmisc)
 #install.packages("ggeffects")
 library(ggeffects)
 library(forestmodel)
+library(patchwork)
 
 #turn off scientific notation
 options(scipen=999)
@@ -131,6 +132,7 @@ PAM_30 <- PAM_all.data %>%
 ```{r}
 
 #Summarize all treatments by SYM STATE and temp
+# SYM STAAAATE
 sum_day1_temp_sym <- summarySE(PAM_all.data, measurevar = c("PAM_avg_day1"), groupvars = c("sym_state", "temp", "NO3_category"))
 sum_day1_temp_sym$day <- 1
 sum_day1_temp_sym$PAM_avg <- sum_day1_temp_sym$PAM_avg_day1
@@ -148,38 +150,6 @@ PAM_day1_11_summary_BACKGROUND <- subset(PAM_day1_11_summary, PAM_day1_11_summar
 
 PAM_day1_11_summary_ELEVATED <- subset(PAM_day1_11_summary, PAM_day1_11_summary$NO3_category=="Elevated")
 
-# Visualize ALL
-PAM_day1_11_summary$day_NO3 <- factor(PAM_day1_11_summary$day_NO3, levels=c("Low_1","Low_11","Elevated_1","Elevated_11"))
-gg_sym_state_PAM<-ggplot(data = PAM_day1_11_summary,
-       aes(x = day_NO3,
-           y = PAM_avg, col=temp, shape=sym_state, group=interaction(sym_state, temp))) +
-    geom_point(size=4.5, position=position_dodge(width=0.2)) +
-    geom_errorbar(aes(ymin=PAM_avg-se, ymax=PAM_avg+se), width=0.25, linewidth=0.8, position=position_dodge(width=0.2)) +
-  #geom_line(data=PAM_day1_11_summary_BACKGROUND, aes(x=day, y=PAM_avg), linewidth=1, position=position_dodge(width=0.2), linetype="dotted")+
-  geom_line(linewidth=1, position=position_dodge(width=0.2), linetype="dotted")+
-    ggtitle ("PAM N Delta By Temp Sym State") +
-theme(legend.position = "right",
-           legend.text = element_text(size=13),
-          legend.title = element_text(size=15),
-          axis.title = element_text(size = 14),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 14, hjust=1),
-          text = element_text(family = "serif")) +
-    #ylim(-0.18,0.15) +
- scale_x_discrete("Day", labels=c("1", "11", "1","11"))+
-    labs(x = "Day", 
-         y = expression(paste("Mean Fv/Fm")), 
-         caption = "data represent mean +/- SEM" ) +
-       # theme(legend.position="none")+
-  scale_shape_discrete("Symbiotic state", labels=c("Aposymbiotic","Symbiotic")) +
-    scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred")) +
-  theme(aspect.ratio = 1.2)
-gg_sym_state_PAM
-ggsave(file="Figures/gg_sym_state_PAM.svg", plot=gg_sym_state_PAM)
-
-
 #FOOOOD
 sum_day1_temp_food <- summarySE(PAM_all.data, measurevar = c("PAM_avg_day1"), groupvars = c("food", "temp", "NO3_category"))
 sum_day1_temp_food$day <- 1
@@ -190,44 +160,94 @@ sum_day11_temp_food$day <- 11
 sum_day11_temp_food$PAM_avg <- sum_day11_temp_food$PAM_avg_day11
 
 
-PAM_day1_11_summary <- full_join(sum_day1_temp_food, sum_day11_temp_food)
-PAM_day1_11_summary$day <- as.factor(PAM_day1_11_summary$day)
-PAM_day1_11_summary$day_NO3 <- paste(PAM_day1_11_summary$NO3_category, PAM_day1_11_summary$day, sep="_")
+PAM_day1_11_summary_food <- full_join(sum_day1_temp_food, sum_day11_temp_food)
+PAM_day1_11_summary_food$day <- as.factor(PAM_day1_11_summary_food$day)
+PAM_day1_11_summary_food$day_NO3 <- paste(PAM_day1_11_summary_food$NO3_category, PAM_day1_11_summary_food$day, sep="_")
 
-PAM_day1_11_summary_BACKGROUND <- subset(PAM_day1_11_summary, PAM_day1_11_summary$NO3_category=="Low")
+PAM_day1_11_summary_BACKGROUND <- subset(PAM_day1_11_summary_food, PAM_day1_11_summary_food$NO3_category=="Low")
 
-PAM_day1_11_summary_ELEVATED <- subset(PAM_day1_11_summary, PAM_day1_11_summary$NO3_category=="Elevated")
-# Visualize FOOD
-PAM_day1_11_summary$day_NO3 <- factor(PAM_day1_11_summary$day_NO3, levels=c("Low_1","Low_11","Elevated_1","Elevated_11"))
+PAM_day1_11_summary_ELEVATED <- subset(PAM_day1_11_summary_food, PAM_day1_11_summary_food$NO3_category=="Elevated")
 
-gg_food_PAM<-ggplot(data = PAM_day1_11_summary,
-       aes(x = day_NO3,
-           y = PAM_avg, col=temp, shape=food, group=interaction(food, temp))) +
-    geom_point(size=4.5, position=position_dodge(width=0.2)) +
-    geom_errorbar(aes(ymin=PAM_avg-se, ymax=PAM_avg+se), width=0.25, linewidth=0.8, position=position_dodge(width=0.2)) +
-  #geom_line(data=PAM_day1_11_summary_BACKGROUND, aes(x=day, y=PAM_avg), linewidth=1, position=position_dodge(width=0.2), linetype="dotted")+
-  geom_line(linewidth=1, position=position_dodge(width=0.2), linetype="dotted")+
-    ggtitle ("PAM N Delta By Temp Sym State") +
-theme(legend.position = "right",
-           legend.text = element_text(size=13),
-          legend.title = element_text(size=15),
-          axis.title = element_text(size = 14),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 14, hjust=1),
-          text = element_text(family = "serif")) +
-    #ylim(-0.18,0.15) +
- scale_x_discrete("Day", labels=c("1", "11", "1","11"))+
-    labs(x = "Day", 
-         y = expression(paste("Mean Fv/Fm")), 
-         caption = "data represent mean +/- SEM" ) +
-       # theme(legend.position="none")+
+
+# COMBINED PAM DELTA PLOT
+# Create the shaded areas data
+highlight <- data.frame(
+  xmin = (2.75),
+  xmax = (4.25),
+  ymin = -Inf,
+  ymax = Inf,
+  fill = c("darkgreen", "darkgreen")
+)
+
+# PAM Symbiotic State Plot
+gg_sym_state_PAM <- ggplot(data = PAM_day1_11_summary,
+                           aes(x = day_NO3,
+                               y = PAM_avg, col = temp, shape = sym_state, group = interaction(sym_state, temp, NO3_category))) +
+  geom_point(size = 4.5, position = position_dodge(width = 0.45)) +
+  geom_errorbar(aes(ymin = PAM_avg - se, ymax = PAM_avg + se), width = 0.455, linewidth = 0.8, position = position_dodge(width = 0.45)) +
+  geom_line(linewidth = 1, position = position_dodge(width = 0.45), linetype = "dotted") +
+  # Add shaded rectangles for highlighting
+  annotate("rect", xmin = highlight$xmin[1], xmax = highlight$xmax[1], ymin = -Inf, ymax = Inf, alpha = 0.2, fill = highlight$fill[1]) +
+  annotate("rect", xmin = highlight$xmin[2], xmax = highlight$xmax[2], ymin = -Inf, ymax = Inf, alpha = 0.2, fill = highlight$fill[2]) +
+  #ggtitle("PAM N Delta By Temp Sym State") +
+  theme_classic() +
+ theme(legend.position = "none",  # Remove legend from the first plot
+        axis.title.x = element_blank(),  # Remove x-axis label from top plot
+        axis.text.x = element_blank(),  # Remove x-axis text from top plot
+        axis.ticks.x = element_blank(), # Remove x-axis ticks from top plot
+        axis.title = element_text(size = 18),
+        axis.text = element_text(size = 18, hjust = 1),
+        text = element_text(family = "serif", size=20)) +
+  ylim(0.28, 0.48) +
+  #scale_x_discrete("Day", labels = c("1", "11", "1", "11")) +
+  #labs(x = "Day",
+       #y = expression(paste("Mean Fv/Fm"))) +
+  scale_shape_discrete("Symbiotic state", labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_color_manual("Temperature", labels = c("20°C", "29°C"), values = c("dodgerblue", "darkred")) 
+gg_sym_state_PAM
+
+#PAM Food plot
+gg_food_PAM <- ggplot(data = PAM_day1_11_summary_food,
+                           aes(x = day_NO3,
+                               y = PAM_avg, col = temp, shape = food, group = interaction(food, temp, NO3_category))) +
+  geom_point(size = 4.5, position = position_dodge(width = 0.45)) +
+  geom_errorbar(aes(ymin = PAM_avg - se, ymax = PAM_avg + se), width = 0.455, linewidth = 0.8, position = position_dodge(width = 0.45)) +
+  geom_line(linewidth = 1, position = position_dodge(width = 0.45), linetype = "dotted") +
+  # Add shaded rectangles for highlighting
+  annotate("rect", xmin = highlight$xmin[1], xmax = highlight$xmax[1], ymin = -Inf, ymax = Inf, alpha = 0.2, fill = highlight$fill[1]) +
+  annotate("rect", xmin = highlight$xmin[2], xmax = highlight$xmax[2], ymin = -Inf, ymax = Inf, alpha = 0.2, fill = highlight$fill[2]) +
+ # ggtitle("PAM N Delta By Temp Sym State") +
+  theme_classic() +
+ theme(legend.position = "right",  # Keep legend in second plot
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),  # Remove y-axis label from bottom plot
+       axis.text = element_text(size = 18, hjust = 1),
+        text = element_text(family = "serif", size=20)) +
+  ylim(0.28, 0.48) +
+  scale_x_discrete("Day", labels = c("1", "11", "1", "11")) +
+  labs(x = "Day",
+       y = expression(paste("Mean Fv/Fm"))) +
   scale_shape_manual("Feeding treatment", labels=c("Fed","Starved"), values=c(15,8)) +
-    scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred")) +
-  theme(aspect.ratio = 1.2)
+  scale_color_manual("Temperature", labels = c("20°C", "29°C"), values = c("dodgerblue", "darkred")) 
 gg_food_PAM
-ggsave(file="Figures/gg_food_PAM.svg", plot=gg_food_PAM)
+
+
+
+# Combine the two plots, sharing the x-axis and legend
+gg_PAM_DELTA <- gg_sym_state_PAM / gg_food_PAM +  # Stack the plots vertically
+  plot_layout(guides = "collect") &  # Share the legend
+  theme(legend.position = "right")  # Position the legend on the right
+
+# Display the combined plot
+gg_PAM_DELTA
+
+ggsave(file="Figures/gg_PAM_DELTA.svg", plot=gg_PAM_DELTA, device='svg')
+ggsave(file="Figures/gg_PAM_DELTA.png", plot=gg_PAM_DELTA)
+
+
+
+
+
 
 
 ```
