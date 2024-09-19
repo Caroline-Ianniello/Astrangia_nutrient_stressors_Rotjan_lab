@@ -167,86 +167,80 @@ PAM_day1_11_summary_food$day_NO3 <- paste(PAM_day1_11_summary_food$NO3_category,
 PAM_day1_11_summary_BACKGROUND <- subset(PAM_day1_11_summary_food, PAM_day1_11_summary_food$NO3_category=="Low")
 
 PAM_day1_11_summary_ELEVATED <- subset(PAM_day1_11_summary_food, PAM_day1_11_summary_food$NO3_category=="Elevated")
+```
 
+```{r Separating symbiotic and aposymbiotic}
 
-# COMBINED PAM DELTA PLOT
-# Create the shaded areas data
+#subset just apo from PAM_day1_11_summary
+PAM_day1_11_summary_APO <- PAM_day1_11_summary %>% 
+filter(sym_state=="APO")
 
-# PAM Symbiotic State Plot
-gg_sym_state_PAM <- ggplot(data = PAM_day1_11_summary,
+gg_apo_PAM <- ggplot(data = PAM_day1_11_summary_APO,
                            aes(x = day_NO3,
-                               y = PAM_avg, col = temp, shape = sym_state, group = interaction(sym_state, temp, NO3_category))) +
+                               y = PAM_avg, col = temp, shape = sym_state, group = interaction(temp, NO3_category))) +  # Group by sym_state, temp, and NO3_category
   geom_point(size = 4.5, position = position_dodge(width = 0.45)) +
-  geom_errorbar(aes(ymin = PAM_avg - se, ymax = PAM_avg + se), width = 0.455, linewidth = 0.8, position = position_dodge(width = 0.45)) +
-  geom_line(linewidth = 1, position = position_dodge(width = 0.45), linetype = "dotted") +
-  #ggtitle("PAM N Delta By Temp Sym State") +
+  geom_errorbar(aes(ymin = PAM_avg - se, ymax = PAM_avg + se), width = 0.455, linewidth = 0.8, position = position_dodge(width = 0.45)) +  # Keep solid error bars
+  geom_line(aes(linetype = "Dotted line"), linewidth = 1, position = position_dodge(width = 0.45)) +  # Dotted lines and include in the legend
+  geom_vline(xintercept = 2.5, color = "black", linetype = "solid", size = 1) +  # Black line separating NO3 categories
   theme_classic() +
- theme(legend.position = "none",  # Remove legend from the first plot
+  theme(legend.position = "none",  # Remove legend from the first plot
         axis.title.x = element_blank(),  # Remove x-axis label from top plot
         axis.text.x = element_blank(),  # Remove x-axis text from top plot
         axis.ticks.x = element_blank(), # Remove x-axis ticks from top plot
         axis.title = element_text(size = 18),
         axis.text = element_text(size = 18, hjust = 1),
-       axis.title.y=element_blank(),
-        text = element_text(family = "serif", size=20)) +
+        axis.title.y = element_blank(),
+        text = element_text(family = "serif", size = 20)) +
   ylim(0.28, 0.48) +
-  #scale_x_discrete("Day", labels = c("1", "11", "1", "11")) +
-  #labs(x = "Day",
-       #y = expression(paste("Mean Fv/Fm"))) +
-  scale_shape_discrete("Symbiotic state", labels = c("Aposymbiotic", "Symbiotic")) +
   scale_color_manual("Temperature", labels = c("20°C", "29°C"), values = c("dodgerblue", "darkred")) +
+  scale_linetype_manual(" ", values = "dotted", labels=c("Change over time")) +  # Set dotted line in the legend
   theme(aspect.ratio = 0.75)
 
-gg_sym_state_PAM
+gg_apo_PAM
 
-#PAM Food plot
-gg_food_PAM <- ggplot(data = PAM_day1_11_summary_food,
+#subset just sym from PAM_day1_11_summary
+PAM_day1_11_summary_sym <- PAM_day1_11_summary %>% 
+filter(sym_state=="SYM")
+
+gg_sym_PAM <- ggplot(data = PAM_day1_11_summary_sym,
                            aes(x = day_NO3,
-                               y = PAM_avg, col = temp, shape = food, group = interaction(food, temp, NO3_category))) +
-  geom_point(size = 4.5, position = position_dodge(width = 0.45)) +
-  geom_errorbar(aes(ymin = PAM_avg - se, ymax = PAM_avg + se), width = 0.455, linewidth = 0.8, position = position_dodge(width = 0.45)) +
-  geom_line(linewidth = 1, position = position_dodge(width = 0.45), linetype = "dotted") +
-  # Add shaded rectangles for highlighting
- # ggtitle("PAM N Delta By Temp Sym State") +
+                               y = PAM_avg, col = temp, shape = sym_state, group = interaction(temp, NO3_category))) +  # Group by sym_state, temp, and NO3_category
+  geom_point(shape=17, size = 4.5, position = position_dodge(width = 0.45)) +
+  geom_errorbar(aes(ymin = PAM_avg - se, ymax = PAM_avg + se), width = 0.455, linewidth = 0.8, position = position_dodge(width = 0.45)) +  # Keep solid error bars
+  geom_line(aes(linetype = "Dotted line"), linewidth = 1, position = position_dodge(width = 0.45)) +  # Dotted lines and include in the legend
+  geom_vline(xintercept = 2.5, color = "black", linetype = "solid", size = 1) +  # Black line separating NO3 categories
   theme_classic() +
- theme(legend.position = "right",  # Keep legend in second plot
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),  # Remove y-axis label from bottom plot
-       axis.text = element_text(size = 18),
-       axis.text.x = element_text(size = 18, vjust=-1),
-        text = element_text(family = "serif", size=20)) +
+  theme(legend.position = "none",  # Remove legend from the first plot
+        axis.title = element_text(size = 18),
+        axis.text = element_text(size = 18, hjust = 1),
+        axis.title.y = element_blank(),
+        text = element_text(family = "serif", size = 20)) +
+   scale_x_discrete("Day", labels = c("1", "11", "1", "11")) +
   ylim(0.28, 0.48) +
-  scale_x_discrete("Day", labels = c("1", "11", "1", "11")) +
-  labs(x = "Day",
-       y = expression(paste("Mean Fv/Fm"))) +
-  scale_shape_manual("Feeding treatment", labels=c("Fed","Starved"), values=c(15,8)) +
   scale_color_manual("Temperature", labels = c("20°C", "29°C"), values = c("dodgerblue", "darkred")) +
+  scale_linetype_manual(" ", values = "dotted", labels=c("Change over time")) +  # Set dotted line in the legend
   theme(aspect.ratio = 0.75)
-gg_food_PAM
+
+gg_sym_PAM
 
 
-
-# Combine the two plots, sharing the x-axis and legend
-gg_PAM_DELTA <- gg_sym_state_PAM / gg_food_PAM +  # Stack the plots vertically
-  plot_layout(guides = "collect") &  # Share the legend
-  theme(legend.position = "right")  # Position the legend on the right
+# Combine the two plots with space in between
+gg_PAM_apo_sym <- gg_apo_PAM / plot_spacer() / gg_sym_PAM  +  # Add plot_spacer() between the plots
+  plot_layout(guides = "collect", heights = c(1, 0.1, 1)) &  # Adjust the height of the spacer
+  theme(legend.position = "right")  # Keep legend on the right
 
 # Display the combined plot
-gg_PAM_DELTA
+gg_PAM_apo_sym
 
-ggsave(file="Figures/gg_PAM_DELTA.svg", plot=gg_PAM_DELTA, device='svg')
-ggsave(file="Figures/gg_PAM_DELTA.png", plot=gg_PAM_DELTA)
-
-
-
-
-
-
-
+# Save the plot
+ggsave(file="Figures/gg_PAM_apo_sym.svg", plot=gg_PAM_apo_sym, device='svg')
+ggsave(file="Figures/gg_PAM_apo_sym.png", plot=gg_PAM_apo_sym)
 ```
 
 
-```{r Adapting after Randis edits Sept 15}
+
+
+```{r Sym state AND feeding DUAL}
 
 gg_sym_state_PAM <- ggplot(data = PAM_day1_11_summary,
                            aes(x = day_NO3,
@@ -276,7 +270,7 @@ gg_sym_state_PAM
 gg_food_PAM <- ggplot(data = PAM_day1_11_summary_food,
                       aes(x = day_NO3,
                           y = PAM_avg, col = temp, shape = food, group = interaction(food, temp, NO3_category))) +  # Group by food, temp, and NO3_category
-  geom_point(size = 4.5, position = position_dodge(width = 0.45)) +
+  geom_point(aes(fill=temp),size = 4.5, position = position_dodge(width = 0.45)) +
   geom_errorbar(aes(ymin = PAM_avg - se, ymax = PAM_avg + se), width = 0.455, linewidth = 0.8, position = position_dodge(width = 0.45)) +  # Keep solid error bars
   geom_line(aes(linetype = "Dotted line"), linewidth = 1, position = position_dodge(width = 0.45)) +  # Dotted lines and include in the legend
   geom_vline(xintercept = 2.5, color = "black", linetype = "solid", size = 1) +  # Black line separating NO3 categories
@@ -291,8 +285,9 @@ gg_food_PAM <- ggplot(data = PAM_day1_11_summary_food,
   scale_x_discrete("Day", labels = c("1", "11", "1", "11")) +
   labs(x = "Day",
        y = expression(paste("Mean Fv/Fm"))) +
-  scale_shape_manual("Feeding treatment", labels = c("Fed", "Starved"), values = c(15, 8)) +
+  scale_shape_manual("Feeding treatment", labels = c("Fed", "Starved"), values = c(15, 25)) +
   scale_color_manual("Temperature", labels = c("20°C", "29°C"), values = c("dodgerblue", "darkred")) +
+  scale_fill_manual(values = c("dodgerblue", "darkred")) +
   scale_linetype_manual(" ", values = "dotted", labels=c("Change over time")) +  # Set dotted line in the legend
   theme(aspect.ratio = 0.75)
 
