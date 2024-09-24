@@ -77,8 +77,8 @@ options(max.print = 10000)
 #
 # ^ did all that pre-processing then confirmed duplicates in excel spreadhseet. Now we can just read the csv
 
-#QCed and all dead HAVE BEEN deleted, all IDs agree between PAM, RGB, and survival --6.26.24
-RGB_all.data<- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/RGB_recomputed_dead_deleted_combined_NO3categorized_6_26_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+#QCed and all dead HAVE BEEN deleted, all IDs agree between RGB, RGB, and survival --6.26.24
+RGB_all.data<- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/RGB_recomputed_dead_deleted_combined_NO3categorized_6_26_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 
 count(RGB_all.data$NO3_category)
 #188 elevated observations
@@ -182,64 +182,194 @@ TukeyHSD(anova_RGB )
 
 #For Manuscript
 ```{r}
-sum_sym_state_RGB <- summarySE(RGB_all.data, measurevar = "red_delta", groupvars = c("sym_state", "temp", "NO3_category"))
-# Visualize
-gg_sym_state_RGB <-ggplot(data = sum_sym_temp_nitrate_RGB ,
-       aes(x = NO3_category,
-           y = red_delta, col=temp, shape=sym_state)) +
-    geom_point(size=4.5) +
-    geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.25, linewidth=0.8) +
-    ggtitle ("Delta Red Channel Value by Sym State and Temp") +
- theme(legend.position = "right",
-           legend.text = element_text(size=13),
-          legend.title = element_text(size=15),
-          axis.title = element_text(size = 14),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 14, angle=45, hjust=1),
-          text = element_text(family = "serif")) +
-    ylim(-10, 8) +
-   ##scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "Nitrate Dose", 
-         y = expression(paste("Delta Red Channel value")), 
-         caption = "data represent mean +/- SEM" ) +
-       # theme(legend.position="none")+
-  scale_shape_discrete("Symbiotic state", labels=c("Aposymbiotic","Symbiotic")) +
-    scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred"))
+
+#Summarize all treatments by SYM STATE and temp
+# SYM STAAAATE
+sum_day1_temp_sym <- summarySE(RGB_all.data, measurevar = c("red_day1"), groupvars = c("sym_state", "temp", "NO3_category"))
+sum_day1_temp_sym$day <- 1
+sum_day1_temp_sym$red <- sum_day1_temp_sym$red_day1
+
+sum_day11_temp_sym <- summarySE(RGB_all.data, measurevar = c("red_day11"), groupvars = c("sym_state", "temp", "NO3_category"))
+sum_day11_temp_sym$day <- 11
+sum_day11_temp_sym$red <- sum_day11_temp_sym$red_day11
+
+
+RGB_day1_11_summary <- full_join(sum_day1_temp_sym, sum_day11_temp_sym)
+RGB_day1_11_summary$day <- as.factor(RGB_day1_11_summary$day)
+RGB_day1_11_summary$day_NO3 <- paste(RGB_day1_11_summary$NO3_category, RGB_day1_11_summary$day, sep="_")
+
+RGB_day1_11_summary_BACKGROUND <- subset(RGB_day1_11_summary, RGB_day1_11_summary$NO3_category=="Low")
+
+RGB_day1_11_summary_ELEVATED <- subset(RGB_day1_11_summary, RGB_day1_11_summary$NO3_category=="Elevated")
+
+#FOOOOD
+sum_day1_temp_food <- summarySE(RGB_all.data, measurevar = c("red_day1"), groupvars = c("food", "temp", "NO3_category"))
+sum_day1_temp_food$day <- 1
+sum_day1_temp_food$red <- sum_day1_temp_food$red_day1
+
+sum_day11_temp_food <- summarySE(RGB_all.data, measurevar = c("red_day11"), groupvars = c("food", "temp", "NO3_category"))
+sum_day11_temp_food$day <- 11
+sum_day11_temp_food$red <- sum_day11_temp_food$red_day11
+
+
+RGB_day1_11_summary_food <- full_join(sum_day1_temp_food, sum_day11_temp_food)
+RGB_day1_11_summary_food$day <- as.factor(RGB_day1_11_summary_food$day)
+RGB_day1_11_summary_food$day_NO3 <- paste(RGB_day1_11_summary_food$NO3_category, RGB_day1_11_summary_food$day, sep="_")
+
+RGB_day1_11_summary_BACKGROUND <- subset(RGB_day1_11_summary_food, RGB_day1_11_summary_food$NO3_category=="Low")
+
+RGB_day1_11_summary_ELEVATED <- subset(RGB_day1_11_summary_food, RGB_day1_11_summary_food$NO3_category=="Elevated")
+```
+
+```{r Separating symbiotic and aposymbiotic}
+
+#subset just apo from RGB_day1_11_summary
+RGB_day1_11_summary_APO <- RGB_day1_11_summary %>% 
+filter(sym_state=="A")
+
+RGB_day1_11_summary_APO$temp <-as.factor(RGB_day1_11_summary_APO$temp)
+RGB_day1_11_summary_APO$NO3_category <-as.factor(RGB_day1_11_summary_APO$NO3_category)
+
+gg_apo_RGB <- ggplot(data = RGB_day1_11_summary_APO,
+                           aes(x = day_NO3,
+                               y = red, col = temp, shape = sym_state, group = interaction(temp, NO3_category))) +  # Group by sym_state, temp, and NO3_category
+  geom_point(size = 4.5, position = position_dodge(width = 0.45)) +
+  geom_errorbar(aes(ymin = red - se, ymax = red + se), width = 0.455, linewidth = 0.8, position = position_dodge(width = 0.45)) +  # Keep solid error bars
+  geom_line(aes(linetype = "Dotted line"), linewidth = 1, position = position_dodge(width = 0.45)) +  # Dotted lines and include in the legend
+  geom_vline(xintercept = 2.5, color = "black", linetype = "solid", size = 1) +  # Black line separating NO3 categories
+  theme_classic() +
+  theme(legend.position = "none",  # Remove legend from the first plot
+        axis.title.x = element_blank(),  # Remove x-axis label from top plot
+        axis.text.x = element_blank(),  # Remove x-axis text from top plot
+        axis.ticks.x = element_blank(), # Remove x-axis ticks from top plot
+        axis.title = element_text(size = 18),
+        axis.text = element_text(size = 18, hjust = 1),
+        axis.title.y = element_blank(),
+        text = element_text(family = "serif", size = 20)) +
+  ylim(125,170) +
+  scale_color_manual("Temperature", labels = c("20°C", "29°C"), values = c("dodgerblue", "darkred")) +
+  scale_linetype_manual(" ", values = "dotted", labels=c("Change over time")) +  # Set dotted line in the legend
+  theme(aspect.ratio = 0.75)
+
+gg_apo_RGB
+
+#subset just sym from RGB_day1_11_summary
+RGB_day1_11_summary_sym <- RGB_day1_11_summary %>% 
+filter(sym_state=="S")
+RGB_day1_11_summary_sym$temp <-as.factor(RGB_day1_11_summary_sym$temp)
+RGB_day1_11_summary_sym$NO3_category <-as.factor(RGB_day1_11_summary_sym$NO3_category)
+
+
+gg_sym_RGB <- ggplot(data = RGB_day1_11_summary_sym,
+                           aes(x = day_NO3,
+                               y = red, col = temp, shape = sym_state, group = interaction(temp, NO3_category))) +  # Group by sym_state, temp, and NO3_category
+  geom_point(shape=17, size = 4.5, position = position_dodge(width = 0.45)) +
+  geom_errorbar(aes(ymin = red - se, ymax = red + se), width = 0.455, linewidth = 0.8, position = position_dodge(width = 0.45)) +  # Keep solid error bars
+  geom_line(aes(linetype = "Dotted line"), linewidth = 1, position = position_dodge(width = 0.45)) +  # Dotted lines and include in the legend
+  geom_vline(xintercept = 2.5, color = "black", linetype = "solid", size = 1) +  # Black line separating NO3 categories
+  theme_classic() +
+  theme(legend.position = "none",  # Remove legend from the first plot
+        axis.title = element_text(size = 18),
+        axis.text = element_text(size = 18, hjust = 1),
+        axis.title.y = element_blank(),
+        text = element_text(family = "serif", size = 20)) +
+   scale_x_discrete("Day", labels = c("1", "11", "1", "11")) +
+ ylim(125,170) +
+  scale_color_manual("Temperature", labels = c("20°C", "29°C"), values = c("dodgerblue", "darkred")) +
+  scale_linetype_manual(" ", values = "dotted", labels=c("Change over time")) +  # Set dotted line in the legend
+  theme(aspect.ratio = 0.75)
+
+gg_sym_RGB
+
+
+# Combine the two plots with space in between
+gg_RGB_apo_sym <- gg_apo_RGB / plot_spacer() / gg_sym_RGB  +  # Add plot_spacer() between the plots
+  plot_layout(guides = "collect", heights = c(1, 0.1, 1)) &  # Adjust the height of the spacer
+  theme(legend.position = "right")  # Keep legend on the right
+
+# Display the combined plot
+gg_RGB_apo_sym
+
+# Save the plot
+ggsave(file="Figures/gg_RGB_apo_sym.svg", plot=gg_RGB_apo_sym, device='svg')
+ggsave(file="Figures/gg_RGB_apo_sym.png", plot=gg_RGB_apo_sym)
+```
+
+
+
+
+```{r Sym state AND feeding DUAL}
+
+RGB_day1_11_summary$temp <- as.factor(RGB_day1_11_summary$temp)
+
+gg_sym_state_RGB <- ggplot(data = RGB_day1_11_summary,
+                           aes(x = day_NO3,
+                               y = red, col = temp, shape = sym_state, group = interaction(sym_state, temp, NO3_category))) +  # Group by sym_state, temp, and NO3_category
+  geom_point(size = 4.5, position = position_dodge(width = 0.45)) +
+  geom_errorbar(aes(ymin = red - se, ymax = red + se), width = 0.455, linewidth = 0.8, position = position_dodge(width = 0.45)) +  # Keep solid error bars
+  geom_line(aes(linetype = "Dotted line"), linewidth = 1, position = position_dodge(width = 0.45)) +  # Dotted lines and include in the legend
+  geom_vline(xintercept = 2.5, color = "black", linetype = "solid", size = 1) +  # Black line separating NO3 categories
+  theme_classic() +
+  theme(legend.position = "none",  # Remove legend from the first plot
+        axis.title.x = element_blank(),  # Remove x-axis label from top plot
+        axis.text.x = element_blank(),  # Remove x-axis text from top plot
+        axis.ticks.x = element_blank(), # Remove x-axis ticks from top plot
+        axis.title = element_text(size = 18),
+        axis.text = element_text(size = 18, hjust = 1),
+        axis.title.y = element_blank(),
+        text = element_text(family = "serif", size = 20)) +
+ ylim(125, 170) +
+  scale_shape_discrete("Symbiotic state", labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_color_manual("Temperature", labels = c("20°C", "29°C"), values = c("dodgerblue", "darkred")) +
+  scale_linetype_manual(" ", values = "dotted", labels=c("Change over time")) +  # Set dotted line in the legend
+  theme(aspect.ratio = 0.75)
 
 gg_sym_state_RGB
-ggsave(file="Figures/gg_sym_state_RGB.svg", plot=gg_sym_state_RGB)
 
-# FOOD INSTEAD OF SYM STATE
-sum_food_RGB <- summarySE(RGB_all.data, measurevar = "red_delta", groupvars = c("food", "temp", "NO3_category"))
-# Visualize
-gg_food_RGB <-ggplot(data = sum_food_temp_nitrate_RGB ,
-       aes(x = NO3_category,
-           y = red_delta, col=temp, shape=food)) +
-    geom_point(size=4.5) +
-    geom_errorbar(aes(ymin=red_delta-se, ymax=red_delta+se), width=0.25, linewidth=0.8) +
-    ggtitle ("Delta Red Channel Value by food State and Temp") +
- theme(legend.position = "right",
-           legend.text = element_text(size=13),
-          legend.title = element_text(size=15),
-          axis.title = element_text(size = 14),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 14, angle=45, hjust=1),
-          text = element_text(family = "serif")) +
-    ylim(-10, 8) +
-   ##scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "Nitrate Dose", 
-         y = expression(paste("Delta Red Channel value")), 
-         caption = "data represent mean +/- SEM" ) +
-       # theme(legend.position="none")+
-  scale_shape_manual("Feeding status", labels=c("Fed","Starved"), values=c(15,8)) +
-    scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred"))+
-   theme(aspect.ratio = 1.2)
+RGB_day1_11_summary_food$temp <- as.factor(RGB_day1_11_summary_food$temp)
+gg_food_RGB <- ggplot(data = RGB_day1_11_summary_food,
+                      aes(x = day_NO3,
+                          y = red, col = temp, shape = food, group = interaction(food, temp, NO3_category))) +  # Group by food, temp, and NO3_category
+  geom_point(aes(fill=temp),size = 4.5, position = position_dodge(width = 0.45)) +
+  geom_errorbar(aes(ymin = red - se, ymax = red + se), width = 0.455, linewidth = 0.8, position = position_dodge(width = 0.45)) +  # Keep solid error bars
+  geom_line(aes(linetype = "Dotted line"), linewidth = 1, position = position_dodge(width = 0.45)) +  # Dotted lines and include in the legend
+  geom_vline(xintercept = 2.5, color = "black", linetype = "solid", size = 1) +  # Black line separating NO3 categories
+  theme_classic() +
+  theme(legend.position = "right",  # Keep legend in second plot
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),  # Remove y-axis label from bottom plot
+        axis.text = element_text(size = 18),
+        axis.text.x = element_text(size = 18, vjust = -1),
+        text = element_text(family = "serif", size = 20)) +
+ ylim(125, 170) +
+  scale_x_discrete("Day", labels = c("1", "11", "1", "11")) +
+  labs(x = "Day",
+       y = expression(paste("Mean Fv/Fm"))) +
+  scale_shape_manual("Feeding treatment", labels = c("Fed", "Starved"), values = c(15, 25)) +
+  scale_color_manual("Temperature", labels = c("20°C", "29°C"), values = c("dodgerblue", "darkred")) +
+  scale_fill_manual(values = c("dodgerblue", "darkred")) +
+  scale_linetype_manual(" ", values = "dotted", labels=c("Change over time")) +  # Set dotted line in the legend
+  theme(aspect.ratio = 0.75)
 
 gg_food_RGB
-ggsave(file="Figures/gg_food_RGB.svg", plot=gg_food_RGB) 
+
+
+# Combine the two plots with space in between
+gg_RGB_DELTA <- gg_sym_state_RGB / plot_spacer() / gg_food_RGB +  # Add plot_spacer() between the plots
+  plot_layout(guides = "collect", heights = c(1, 0.1, 1)) &  # Adjust the height of the spacer
+  theme(legend.position = "right")  # Keep legend on the right
+
+# Display the combined plot
+gg_RGB_DELTA
+
+# Save the plot
+ggsave(file="Figures/gg_RGB_DELTA.svg", plot=gg_RGB_DELTA, device='svg')
+ggsave(file="Figures/gg_RGB_DELTA.png", plot=gg_RGB_DELTA)
+
+
+
+
+
 ```
+
 

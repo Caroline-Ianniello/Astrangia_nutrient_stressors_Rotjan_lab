@@ -157,7 +157,7 @@ gg_temp_food <- ggplot() +
   annotate("rect", xmin = 3.5, xmax = 4.5, ymin = -Inf, ymax = Inf, alpha = 0.2, fill = "#7e7e7e") +
   geom_point(data = sum_temp_food,
     aes(x = NO3_category_e_coli,
-        y = abs_resp_rate_SA_corr, col=temp, shape=food, group=interaction(temp, food)),
+        y = abs_resp_rate_SA_corr, col=temp, shape=food, fill=temp, group=interaction(temp, food)),
     size = 4.5,
     position = position_dodge(width = 0.8)) +
   geom_errorbar(data = sum_temp_food, 
@@ -182,7 +182,8 @@ gg_temp_food <- ggplot() +
     expression("Elevated NO"[3])
   )) +
   labs(caption = "Data represent mean +/- SEM") +  # Caption for the second plot
-  scale_shape_manual("Feeding treatment", labels=c("Fed","Starved"), values=c(15,8)) +
+  scale_shape_manual("Feeding treatment", labels = c("Fed", "Starved"), values = c(15, 25)) +
+    scale_fill_manual(values = c("dodgerblue", "darkred")) +
   scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred"))
 
 # Combine the two plots, sharing the x-axis and legend, and add space between plots

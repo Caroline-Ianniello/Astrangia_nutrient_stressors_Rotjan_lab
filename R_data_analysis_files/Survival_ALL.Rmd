@@ -63,13 +63,13 @@ options(max.print=1000000)
 
 
 ```{r upload data}
-survival_all.data <- read.csv("/Users/carolineianniello/Astrangia Ecotox/Data/Survival_06_26_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+survival_all.data <- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/Survival_06_26_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 
 # #Create a NEW column for nitrate with new categories
 
 survival_all.data <- survival_all.data %>%
    mutate(NO3_category = case_when(
-    NO3_mean_observed < 6  ~ "Low" , #need two equal signs
+    NO3_mean_observed < 6  ~ "Background" , #need two equal signs
       NO3_mean_observed >= 6 ~ "Elevated" 
     )
  )
@@ -187,31 +187,36 @@ ggsurvplot(all_survfit, # survival function
                 conf.int = FALSE, # remove confidence intervals
                 pval = FALSE, # do not include p value on plot
                 surv.scale = "default", # or %
-                legend.labs= c("Elevated 20°C Apo Fed, n=30", "Elevated 20°C Apo Starved n=15", "Elevated 20°C Sym Fed, n=30" , "Elevated 20°C Sym Starved, n=15", "Elevated 30°C Apo Fed, n=15", "Elevated 30°C Apo Starved, n=43", "Elevated 30°C Sym Fed, n=15", "Elevated 30°C Sym Starved, n=45","Low 20°C Apo Fed, n=90", "Low 20°C Apo Starved, n=105", "Low 20°C Sym Fed, n=90", "Low 20°C Sym Starved, n=105", "Low 30°C Apo Fed, n=107", "Low 30°C Apo Starved, n=75", "Low 30°C Sym Fed, n=106", "Low 30°C Sym Starved, n=74"), 
+                legend.labs= c("Elevated 20°C Apo Fed, n=30", "Elevated 20°C Apo Starved n=15", "Elevated 20°C Sym Fed, n=30" , "Elevated 20°C Sym Starved, n=15", "Elevated 29°C Apo Fed, n=15", "Elevated 29°C Apo Starved, n=43", "Elevated 29°C Sym Fed, n=15", "Elevated 29°C Sym Starved, n=45","Background 20°C Apo Fed, n=90", "Background 20°C Apo Starved, n=105", "Background 20°C Sym Fed, n=90", "Background 20°C Sym Starved, n=105", "Background 29°C Apo Fed, n=107", "Background 29°C Apo Starved, n=75", "Background 29°C Sym Fed, n=106", "Background 29°C Sym Starved, n=74"), 
                 legend = c(0.2, 0.48), font.legend = 12, legend.title ="Treatment", # legend parameters 
                 xlab = "Day", xlim = c(0, 12), break.x.by = 1, font.x = 14, # x axis parameters
                 ylim = c(0.4,1), font.y= 14, # y axis parameters
                 font.tickslab = 14,
                 censor.size = 8,
-                ggtheme = theme_classic2(),
+           ggtheme = theme_classic2(),
+                #ggtheme = theme_classic2(base_family = "Serif"),
+           #font.family = "Serif",
                 title = "Astrangia Survival",
            palette = c(
-"#A526C5",
-"#2429B7",
-"#2171D4",
-"#28CDE6",
-"#39EFBB",
-"#9F6C56",
-"#AE3125",
-"#CA2256",
-"#E223AE",
-"#D133EC",
-"#268B67",
-"#25A542",
-"#41C023",
-"#93DE20",
-"#E9E52E",
-"#FBBF18"))
+"#A51C03",
+"#C44303",
+"#E37A02",
+"#FEB601",
+"#FFE91F",
+"#A5FF1F",
+"#24FF78",
+"#46DD4D",
+"#24FFE2",
+"#55C2CE",
+"#29B0FF",
+"#2949FF",
+"#0909C8",
+"#7238F0",
+"#9F3EEA",
+"#DB4DD6"
+
+
+))
 
 
 ```
