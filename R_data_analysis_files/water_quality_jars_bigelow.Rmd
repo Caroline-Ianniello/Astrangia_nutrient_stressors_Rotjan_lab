@@ -24,7 +24,7 @@ library("ggplot2")
 #check model with performance package
   #model tools R markdown
   #check for colinearity
-  #r squared figures
+  #r squaNO3_uM figures
 #install.packages("performance")
 #install.packages(c("rlang", "ggplot2", "performance", "dplyr", "ggrepel", "see"), dependencies = TRUE)
 library("performance")
@@ -44,7 +44,7 @@ options(max.print=1000000)
 
 ```{r upload data }
 #upload data
-water_qual_bigelow_all <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/bigelow_water_quality_all_6_21_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+water_qual_bigelow_all <- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/bigelow_water_quality_all_6_21_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 water_qual_bigelow_all$treatment_ID<-as.factor(water_qual_bigelow_all$treatment_ID)
 water_qual_bigelow_all$N_species_dose_temp<-as.factor(water_qual_bigelow_all$N_species_dose_temp)
 
@@ -56,31 +56,38 @@ water_qual_bigelow_all$temp<-as.factor(water_qual_bigelow_all$temp)
 ```{r}
 water_qual_bigelow_all <- water_qual_bigelow_all %>%
 mutate(NO3_category = case_when(
-NO3_mean_observed < 6  ~ "Low" , #need two equal signs
+NO3_mean_observed < 6  ~ "Background" , #need two equal signs
 NO3_mean_observed >= 6 ~ "Elevated" 
  )
 )
+
+
+#make a new column for nitrate: phosphate ratio
+water_qual_bigelow_all$nitrate_phosphate_ratio <- water_qual_bigelow_all$NO3_uM / water_qual_bigelow_all$PO4
+
+hist(water_qual_bigelow_all$nitrate_phosphate_ratio)
 
 ```
 
 
 ```{r}
 #T test on fed versus starved (please god don't let this be sig)
-t.test(NO3_uM ~ food, data= water_qual_bigelow_all, paired=F) # THANK GOD ITS NOT SIG FOR NITRATE
-t.test(NH4_uM ~ food, data= water_qual_bigelow_all, paired=F) # THEY ARE DIFFERENT FOR AMMONIUM WOMP WOMP
+t.test(NO3_uM ~ food, data= water_qual_bigelow_all, NO3_uM=F) # THANK GOD ITS NOT SIG FOR NITRATE
+t.test(NH4_uM ~ food, data= water_qual_bigelow_all, NO3_uM=F) # THEY ARE DIFFERENT FOR AMMONIUM WOMP WOMP
 
 
 #T test on 20 v 30 (id be shocked if this wasnt signficiant)
-t.test(NO3_uM ~ temp, data= water_qual_bigelow_all, paired=F) # THANK GOD ITS NOT SIG FOR NITRATE
-t.test(NH4_uM ~ temp, data= water_qual_bigelow_all, paired=F) # THEY ARE SIGNIFICANTLY DIFFERENT
+t.test(NO3_uM ~ temp, data= water_qual_bigelow_all, NO3_uM=F) # THANK GOD ITS NOT SIG FOR NITRATE
+t.test(NH4_uM ~ temp, data= water_qual_bigelow_all, NO3_uM=F) # THEY ARE SIGNIFICANTLY DIFFERENT
 
 
-#T test on NO3_um vs. NO3_INTENDED, these are paired
-t.test(water_qual_bigelow_all$NO3_uM, water_qual_bigelow_all$NO3_INTENDED, data= water_qual_bigelow_all, paired=T)  
+#T test on NO3_um vs. NO3_INTENDED, these are NO3_uM
+t.test(water_qual_bigelow_all$NO3_uM, water_qual_bigelow_all$NO3_INTENDED, data= water_qual_bigelow_all, NO3_uM=T)  
 # SIGNIFICANTLY DIFFERENT
-t.test(water_qual_bigelow_all$NH4_uM, water_qual_bigelow_all$NH4_INTENDED, data= water_qual_bigelow_all, paired=T)
+t.test(water_qual_bigelow_all$NH4_uM, water_qual_bigelow_all$NH4_INTENDED, data= water_qual_bigelow_all, NO3_uM=T)
 #SIGNIFICANTLY DIFFERENT
 ```
+
 #Histograms and letting the data bin itself
 ```{r}
 
@@ -111,38 +118,85 @@ bin_equal(rnorm(20), nbin = 3)
 ```
 
 
-#Visualizations
+```{r Range of background and elevated}
+background_NO3 <- subset(water_qual_bigelow_all, water_qual_bigelow_all$NO3_category=="Background")
+elevated_NO3 <- subset(water_qual_bigelow_all, water_qual_bigelow_all$NO3_category=="Elevated")
 
-
-```{r}
-
-#create a new column "NO3_category_temp_food"
-water_qual_bigelow_all$NO3_category_temp_food <- paste(water_qual_bigelow_all$NO3_category, water_qual_bigelow_all$temp, water_qual_bigelow_all$food , sep="_")
-
-water_qual_mean <- summarySE(water_qual_bigelow_all, measurevar = "NO3_uM", groupvars = c("NO3_category", "food", "temp"), na.rm=T)
-
-gg_water_qual <- ggplot(water_qual_mean, aes(x=NO3_category, y=NO3_uM, shape= food, color=temp)) + 
-  scale_color_manual(values=c("dodgerblue","darkred"), labels=c("20°C","30°C")) +
-   scale_shape_manual("Feeding treatment", labels=c("Fed","Starved"), values=c(18,8)) +
-  geom_point(size=4) +
-    geom_errorbar(aes(ymin=NO3_uM-se, ymax=NO3_uM+se), width=0.25, linewidth=0.8) +
-  labs(color="Temperature") +
-  ylab("Nitrate level (uM)")+
-  xlab("Treatment ID")+
-   ylim(0, 16) +
-  theme(legend.position = "right",
-           legend.text = element_text(size=13),
-          legend.title = element_text(size=15),
-          axis.title = element_text(size = 14),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-  ggtitle("Nitrate Levels in Jars")
-gg_water_qual 
+range(background_NO3$NO3_mean_observed)
+range(elevated_NO3$NO3_mean_observed)
 
 ```
 
+
+#Visualizations
+
+
+
+```{r Food treatment and water quality}
+
+water_qual_bigelow_all$NO3_category_temp_food <- paste(water_qual_bigelow_all$NO3_category, water_qual_bigelow_all$temp, water_qual_bigelow_all$food , sep="_")
+
+water_qual_mean <- summarySE(water_qual_bigelow_all, measurevar = "NO3_uM", groupvars = c("NO3_category", "food", "temp"), na.rm=T)
+gg_food_water_qual <- ggplot(data = water_qual_mean,
+                      aes(x = NO3_category,
+                          y = NO3_uM, col = temp, shape = food, group = interaction(food, temp, NO3_category))) +  # Group by food, temp, and NO3_category
+  geom_point(aes(fill=temp),size = 4.5, position = position_dodge(width = 0.45)) +
+  geom_errorbar(aes(ymin = NO3_uM - se, ymax = NO3_uM + se), width = 0.455, linewidth = 0.8, position = position_dodge(width = 0.45)) +  # Keep solid error bars
+  theme_classic() +
+  theme(legend.position = "right",  # Keep legend in second plot
+        axis.text = element_text(size = 18),
+        axis.text.x = element_text(size = 18, vjust = -1),
+        text = element_text(family = "serif", size = 20)) +
+# ylim(125, 170) +
+ scale_x_discrete("Nitrate level", labels = c("Background NO"[3]~" ", "Elevated NO"[3]~" ")) +
+  labs(x = "Nitrate level",
+       y = expression(paste("Nitrate level (uM)"))) +
+  scale_shape_manual("Feeding treatment", labels = c("Fed", "Starved"), values = c(15, 25)) +
+  scale_color_manual("Temperature", labels = c("20°C", "29°C"), values = c("dodgerblue", "darkred")) +
+  scale_fill_manual(values = c("dodgerblue", "darkred")) +
+  scale_y_continuous(breaks=seq(2,18, by=2)) +
+  theme(aspect.ratio = 0.75)
+
+gg_food_water_qual
+ggsave(file="Figures/gg_food_water_qual.svg", plot=gg_food_water_qual, device='svg')
+ggsave(file="Figures/gg_food_water_qual.png", plot=gg_food_water_qual)
+
+```
+
+
+```{r Food treatment and nitrate:phosphate ratio}
+
+water_qual_bigelow_nit_phos_subset <- subset(water_qual_bigelow_all , water_qual_bigelow_all$nitrate_phosphate_ratio >0)
+
+water_qual_bigelow_nit_phos_subset $NO3_category_temp_food <- paste(water_qual_bigelow_nit_phos_subset $NO3_category, water_qual_bigelow_nit_phos_subset $temp, water_qual_bigelow_nit_phos_subset $food , sep="_")
+
+water_qual_nit_phos<- summarySE(water_qual_bigelow_nit_phos_subset , measurevar = "nitrate_phosphate_ratio", groupvars = c("NO3_category", "food", "temp"), na.rm=T)
+
+gg_food_nit_phos <- ggplot(data = water_qual_nit_phos,
+                      aes(x = NO3_category,
+                          y = nitrate_phosphate_ratio, col = temp, shape = food, group = interaction(food, temp, NO3_category))) +  # Group by food, temp, and NO3_category
+  geom_point(aes(fill=temp),size = 4.5, position = position_dodge(width = 0.45)) +
+  geom_errorbar(aes(ymin = nitrate_phosphate_ratio - se, ymax = nitrate_phosphate_ratio + se), width = 0.455, linewidth = 0.8, position = position_dodge(width = 0.45)) +  # Keep solid error bars
+  theme_classic() +
+  theme(legend.position = "right",  # Keep legend in second plot
+        axis.text = element_text(size = 18),
+        axis.text.x = element_text(size = 18, vjust = 1),
+        text = element_text(family = "serif", size = 20)) +
+# ylim(125, 170) +
+ scale_x_discrete("Nitrate level", labels = c("Background NO"[3]~" ", "Elevated NO"[3]~" ")) +
+  labs(x = "Nitrate level",
+       y = expression(paste("Nitrate to Phosphate Ratio"))) +
+  scale_shape_manual("Feeding treatment", labels = c("Fed", "Starved"), values = c(15, 25)) +
+  scale_color_manual("Temperature", labels = c("20°C", "29°C"), values = c("dodgerblue", "darkred")) +
+  scale_fill_manual(values = c("dodgerblue", "darkred")) +
+  #scale_y_continuous(breaks=seq(2,18, by=2)) +
+  theme(aspect.ratio = 0.75)
+
+gg_food_nit_phos
+ggsave(file="Figures/gg_food_nit_phos.svg", plot=gg_food_nit_phos, device='svg')
+ggsave(file="Figures/gg_food_nit_phos.png", plot=gg_food_nit_phos)
+
+```
 
 
 ```{r visualizations - nitrate}
@@ -155,7 +209,7 @@ pivot_longer(-c(treatment_ID, temp), names_to = "variable", values_to = "value")
 
 
 gg_intended_v_actual_nit <- ggplot(water_qual_graph, aes(treatment_ID, value, colour = variable, shape=temp)) + 
-  scale_color_manual(values=c("black","dodgerblue"), labels=c("Intended dose NITRATE", "Measured dose NITRATE")) +
+  scale_color_manual(values=c("black","dodgerblue"), labels=c("Intended dose NITRATE", "MeasuNO3_uM dose NITRATE")) +
   scale_shape_discrete("Temperature", labels=c("20°C","30°C"))+
   geom_point(size=3) +
   labs(color="Condition") +
@@ -165,7 +219,7 @@ gg_intended_v_actual_nit <- ggplot(water_qual_graph, aes(treatment_ID, value, co
   theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1)) + #this makes the x axis labels up and down instead of side to side to prevent overlapping
   ylab("Nitrate level (uM)")+
   xlab("Treatment ID")+
-  ggtitle("Nitrate Levels -- Intended vs. measured")
+  ggtitle("Nitrate Levels -- Intended vs. measuNO3_uM")
 gg_intended_v_actual_nit
 
 ```
@@ -180,7 +234,7 @@ water_qual_graph <- water_qual_bigelow_all %>%
 pivot_longer(-c(treatment_ID, temp), names_to = "variable", values_to = "value")
 
 gg_intended_v_actual_amm <- ggplot(water_qual_graph, aes(treatment_ID, value, colour = variable, shape=temp)) + 
-  scale_color_manual(values=c("black","green2"), labels=c("Intended dose AMMONIUM", "Measured dose AMMONIUM")) +
+  scale_color_manual(values=c("black","green2"), labels=c("Intended dose AMMONIUM", "MeasuNO3_uM dose AMMONIUM")) +
   scale_shape_discrete("Temperature", labels=c("20°C","30°C"))+
   geom_point(size=3) +
   labs(color="Condition") +
@@ -190,7 +244,7 @@ gg_intended_v_actual_amm <- ggplot(water_qual_graph, aes(treatment_ID, value, co
   theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1)) + #this makes the x axis labels up and down instead of side to side to prevent overlapping
   ylab("Ammonium level (uM)")+
   xlab("Treatment ID")+
-  ggtitle("Ammonium Levels -- Intended vs. measured")
+  ggtitle("Ammonium Levels -- Intended vs. measuNO3_uM")
 gg_intended_v_actual_amm
 ```
 

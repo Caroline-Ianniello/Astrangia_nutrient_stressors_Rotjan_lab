@@ -46,19 +46,19 @@ options(max.print = 10000)
 ```
 
 ```{r input data}
-env_chamber_HOBO <- read.csv("/Users/carolineianniello/Astrangia Ecotox/Data/Environmental_Chamber_Summer2022_9_5_22.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+env_chamber_HOBO <- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/Environmental_Chamber_Summer2022_9_5_22.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 env_chamber_HOBO$date<-as.factor(env_chamber_HOBO$date)
 # its okay to omit rows with NAs
 env_chamber_HOBO<-na.omit(env_chamber_HOBO)
 
 
-temperate_HOBO <- read.csv("/Users/carolineianniello/Astrangia Ecotox/Data/Temperate_System_Rotjan_Lab_9_5_22.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+temperate_HOBO <- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/Temperate_System_Rotjan_Lab_9_5_22.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 temperate_HOBO$date<-as.factor(temperate_HOBO$date)
 # its okay to omit rows with NAs
 temperate_HOBO<-na.omit(temperate_HOBO)
 
 
-all_HOBO <- read.csv("/Users/carolineianniello/Astrangia Ecotox/Data/HOBO_all_by_day_4_7_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+all_HOBO <- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/HOBO_all_by_day_4_7_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 all_HOBO$date<-as.factor(all_HOBO$date)
 # its okay to omit rows with NAs
 all_HOBO <- na.omit(all_HOBO)
@@ -121,28 +121,25 @@ gg_by_run<-ggplot(NULL,
                         aes(x = exp_day,
            y = temp, group=1))+
   theme(legend.position = "top",
-          legend.text= element_text(size=13),
+          legend.text= element_text(size=14),
           legend.background = element_blank())+
-    ggtitle ("All temperature, averaged across experiments per data by experiment day") +
+  theme_classic() +
     theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
+          legend.title = element_text(size=16),
+          axis.title = element_text(size = 16),
           legend.background = element_blank(),
-          axis.text = element_text(size = 12)) +
+          axis.text = element_text(size = 16),
+          text = element_text(family = "serif", size = 16)) +
         geom_point(data = sum_temp_by_run_chamber, size=4, aes(color="30°C Heat Challenge")) +
       geom_point(data = sum_temp_by_run_temperate, size=4, aes(color="20°C Ambient"))+
-    scale_color_manual("Treatment", labels=c("20°C Ambient","30°C Heat Challenge"), values=c("royalblue", "darkred")) +
+    scale_color_manual("Treatment", labels=c("20°C Ambient","30°C Heat Challenge"), values=c("dodgerblue", "darkred")) +
    ylim(18, 30) +
-  # scale_y_discrete(c("19","20","21","22","23","24","25","26","27","28","29","30","31")) +
-  # geom_point(data = sum_temp_by_run_chamber, size=4, color="darkred") +
-     # geom_point(data = sum_temp_by_run_temperate, size=4, color="royalblue")+
      geom_line(data=sum_temp_by_run_chamber, color='darkred', linewidth=1) + 
-      geom_line(data=sum_temp_by_run_temperate, color='royalblue', linewidth=1) +
+      geom_line(data=sum_temp_by_run_temperate, color='dodgerblue', linewidth=1) +
      geom_errorbar(data=sum_temp_by_run_chamber, aes(ymin=temp-se, ymax=temp+se), width=0.5, size = 1, color="darkred") +
-     geom_errorbar(data=sum_temp_by_run_temperate, aes(ymin=temp-se, ymax=temp+se), width=0.5, size = 1, color="royalblue") +
+     geom_errorbar(data=sum_temp_by_run_temperate, aes(ymin=temp-se, ymax=temp+se), width=0.5, size = 1, color="dodgerblue") +
     labs(x = "Day of experiment", 
-         y = expression(paste("Temperature (°C)")), 
-         caption = "data represent mean +/- SEM" ) 
+         y = expression(paste("Temperature (°C)"))) 
 gg_by_run
 
 #Need to do a nonparametric t test -- Welch I think

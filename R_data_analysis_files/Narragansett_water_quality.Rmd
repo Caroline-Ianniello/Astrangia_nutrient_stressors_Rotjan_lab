@@ -53,7 +53,7 @@ options(max.print = 10000)
 
 
 ```{r}
-narragansett_water_qual.data <- read.csv("/Users/carolineianniello/Astrangia Ecotox/Data/Narragansett_water_qual_2014_2022_QCed_8_22_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+narragansett_water_qual.data <- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/Narragansett_water_qual_2014_2022_QCed_8_22_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 
 #I think we just want upper, and stations:
 #2 which is Conimicut point
@@ -107,7 +107,7 @@ narragansett_water_qual.data <- narragansett_water_qual.data  %>% mutate(locatio
 #now we have all depths, let's visualize
 ```
 
-```{r}
+```{r FOR MANUSCRIPT -- Nitrate over months}
 narragansett_water_qual.data$season <- factor(narragansett_water_qual.data$season, levels=c("Winter","Spring","Summer","Fall"))
 narragansett_water_qual.data$location <- factor(narragansett_water_qual.data$location, levels=c("Conimicut Point","GSO Dock","Jamestown"))
 
@@ -119,31 +119,6 @@ narragansett_water_qual.data$nitrate.uml <- as.numeric(narragansett_water_qual.d
 hist(narragansett_water_qual.data$nitrate.uml)
 
 # NITRATE
-#Summarize by location, nitrate, season
-sum_wq_narra_nitrate <- summarySE(narragansett_water_qual.data, measurevar = c("nitrate.uml"), groupvars = c("location", "season"))
-gg_sum_wq_narra_nitrate <-ggplot(data = sum_wq_narra_nitrate ,
-       aes(x = season,
-           y = nitrate.uml, col=location)) +
-    geom_point(size=4) +
-    geom_errorbar(aes(ymin=nitrate.uml-se, ymax=nitrate.uml+se), width=0.25, linewidth=0.8) +
-    ggtitle ("Nitrate Averages Across Years in Narragansett Bay, 2019-2021") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 10),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-   # ylim(-10, 8) +
-   ##scale_x_discrete("Nitrate Level", labels=c("0-6uM","6-10uM","10-20uM","10uM"))+
-    labs(x = "Season", 
-         y = expression(paste("Nitrate uM")), 
-         caption = "data represent mean +/- SEM" ) 
-       # theme(legend.position="none")+
-    #scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "darkred"))
-gg_sum_wq_narra_nitrate
-
-#By month
 sum_month_year_wq_narra_nitrate <- summarySE(narragansett_water_qual.data, measurevar = c("nitrate.uml"), groupvars = c("location", "month","year"), na.rm=T)
 sum_month_year_wq_narra_nitrate$year <- as.factor(sum_month_year_wq_narra_nitrate$year)
 sum_month_year_wq_narra_nitrate$month <-as.factor(sum_month_year_wq_narra_nitrate$month)
@@ -151,25 +126,25 @@ sum_month_year_wq_narra_nitrate$month <-as.factor(sum_month_year_wq_narra_nitrat
 gg_sum_month_year_wq_narra_nitrate <-ggplot(data = sum_month_year_wq_narra_nitrate ,
        aes(x = month,
            y = nitrate.uml, col=year, shape=location, group=interaction(year,location))) +
-    geom_point(size=3) +
- geom_line(linetype="dotted", size=.7)+
-    geom_errorbar(aes(ymin=nitrate.uml-se, ymax=nitrate.uml+se), width=0.25, linewidth=0.8) +
-    ggtitle ("Surface Nitrate Averages Across Years in Narragansett Bay, 2018-2022") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 10),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 10)) +
-    ylim(0, 20) +
+    geom_point( size=6, position = position_dodge(width = 0.45), stroke=2) +
+ geom_line(linetype="dotted", size=1, position = position_dodge(width = 0.45))+
+    geom_errorbar(aes(ymin=nitrate.uml-se, ymax=nitrate.uml+se), width=0.25, linewidth=0.8, position = position_dodge(width = 0.45))+
+    ggtitle (" ") +
+  theme_classic() +
+  theme(legend.position = "right",  # Keep legend in second plot
+        axis.text = element_text(size = 18),
+        axis.text.x = element_text(size = 18),
+        text = element_text(family = "serif", size = 20),
+        legend.key.size = unit(2, 'lines')) +
    scale_x_discrete(labels=c("January","February","March","April", "May","June","July","August","September","October","November","December"))+
     labs(x = "Month", 
-         y = expression(paste("Nitrate uM")), 
-         caption = "data represent mean +/- SEM" ) 
-         #  scale_color_manual("Location", values=c("#EC407A", "#43A047", "#00BCD4")) 
-#scale_shape_discrete("Year", values=c(1,2,3,4,5,6,7,8))
+         y = expression(paste("Nitrate uM"))) +
+         scale_color_manual("Year", values=c("#AF1DA8","#3416AA","#1757D7","#2CD4EE","#55B97F"), labels=c("2018","2019","2020","2021","2022")) +
+scale_shape_manual("Location", values=c(15, 1), labels=c("Conimicut Point","Jamestown"))
+         
 gg_sum_month_year_wq_narra_nitrate
+ggsave(file="Figures/gg_sum_month_year_wq_narra_nitrate.svg", plot=gg_sum_month_year_wq_narra_nitrate, device='svg')
+ggsave(file="Figures/gg_sum_month_year_wq_narra_nitrate.png", plot=gg_sum_month_year_wq_narra_nitrate)
 
 ```
 
@@ -178,28 +153,30 @@ sum_month_year_wq_narra_temp <- summarySE(narragansett_water_qual.data, measurev
 sum_month_year_wq_narra_temp$year <- as.factor(sum_month_year_wq_narra_temp$year)
 sum_month_year_wq_narra_temp$month <-as.factor(sum_month_year_wq_narra_temp$month)
 
-gg_sum_month_year_wq_narra_temp <-ggplot(data = sum_month_year_wq_narra_temp ,
+gg_sum_month_year_wq_narra_temp <-ggplot(data = sum_month_year_wq_narra_temp,
        aes(x = month,
            y = temperature.celsius, col=year, shape=location, group=interaction(year,location))) +
-    geom_point(size=3) +
- geom_line(linetype="  dotted")+
-    geom_errorbar(aes(ymin=temperature.celsius-se, ymax=temperature.celsius+se), width=0.25, linewidth=0.8) +
-    ggtitle ("Surface Temperature Averages Across Years in Narragansett Bay, 2018-2022") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 10),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 10)) +
-  #  ylim(0, 20) +
+    geom_point( size=6, position = position_dodge(width = 0.45), stroke=2) +
+ geom_line(linetype="dotted", size=1, position = position_dodge(width = 0.45))+
+    geom_errorbar(aes(ymin=temperature.celsius-se, ymax=temperature.celsius+se), width=0.25, linewidth=0.8, position = position_dodge(width = 0.45))+
+    ggtitle (" ") +
+  theme_classic() +
+  theme(legend.position = "right",  # Keep legend in second plot
+        axis.text = element_text(size = 18),
+        axis.text.x = element_text(size = 18),
+        text = element_text(family = "serif", size = 20),
+        legend.key.size = unit(2, 'lines')) +
    scale_x_discrete(labels=c("January","February","March","April", "May","June","July","August","September","October","November","December"))+
     labs(x = "Month", 
-         y = expression(paste("Temperature °C")), 
-         caption = "data represent mean +/- SEM" ) 
-         #  scale_color_manual("Location", values=c("#EC407A", "#43A047", "#00BCD4")) 
-#scale_shape_discrete("Year", values=c(1,2,3,4,5,6,7,8))
+         y = expression(paste("Temperature °C"))) +
+         scale_color_manual("Year", values=c("#AF1DA8","#3416AA","#1757D7","#2CD4EE","#55B97F"), labels=c("2018","2019","2020","2021","2022")) +
+scale_shape_manual("Location", values=c(15, 1), labels=c("Conimicut Point","Jamestown")) +
+  scale_y_continuous(breaks=seq(0,35, by=5))
+         
 gg_sum_month_year_wq_narra_temp
+ggsave(file="Figures/gg_sum_month_year_wq_narra_temp.svg", plot=gg_sum_month_year_wq_narra_tempe, device='svg')
+ggsave(file="Figures/gg_sum_month_year_wq_narra_temp.png", plot=gg_sum_month_year_wq_narra_temp)
+
 ```
 
 ```{r}

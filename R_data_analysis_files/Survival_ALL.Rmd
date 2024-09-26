@@ -175,48 +175,37 @@ label_treatments <- function(labels0){
 }
 
 # Plot kaplan meier survival function with ggplot
-
 all_survfit <- survfit(Surv(Day, Death) ~ treatment, data = survival_all.data)
 summary(all_survfit)
 
+
 library(RColorBrewer)
-display.brewer.all()
+#display.brewer.all()
 library(viridis)
 
-ggsurvplot(all_survfit, # survival function
+gg_survival <- ggsurvplot(all_survfit, # survival function
                 conf.int = FALSE, # remove confidence intervals
                 pval = FALSE, # do not include p value on plot
                 surv.scale = "default", # or %
-                legend.labs= c("Elevated 20°C Apo Fed, n=30", "Elevated 20°C Apo Starved n=15", "Elevated 20°C Sym Fed, n=30" , "Elevated 20°C Sym Starved, n=15", "Elevated 29°C Apo Fed, n=15", "Elevated 29°C Apo Starved, n=43", "Elevated 29°C Sym Fed, n=15", "Elevated 29°C Sym Starved, n=45","Background 20°C Apo Fed, n=90", "Background 20°C Apo Starved, n=105", "Background 20°C Sym Fed, n=90", "Background 20°C Sym Starved, n=105", "Background 29°C Apo Fed, n=107", "Background 29°C Apo Starved, n=75", "Background 29°C Sym Fed, n=106", "Background 29°C Sym Starved, n=74"), 
-                legend = c(0.2, 0.48), font.legend = 12, legend.title ="Treatment", # legend parameters 
-                xlab = "Day", xlim = c(0, 12), break.x.by = 1, font.x = 14, # x axis parameters
-                ylim = c(0.4,1), font.y= 14, # y axis parameters
-                font.tickslab = 14,
+                legend.labs= c("Background nitrate 20°C Aposymbiotic Fed, n=90","Background nitrate 20°C Aposymbiotic Starved, n=105", "Background nitrate 20°C Symbiotic Fed, n=90", "Background nitrate 20°C Symboitic Starved, n=105", "Background nitrate 29°C Aposymbiotic Fed, n=107", "Background nitrate 29°C Aposymbiotic Starved, n=75","Background nitrate 29°C Symbiotic Fed, n=106","Background nitrate 29°C Symbiotic Starved, n=74", "Elevated nitrate 20°C Aposymbiotic Fed, n=30", "Elevated nitrate 20°C Aposymbiotic Starved, n=15", "Elevated nitrate 20°C Symbiotic Fed, n=30" , "Elevated nitrate 20°C Symbiotic Starved, n=15", "Elevated nitrate 29°C Aposymbiotic Fed, n=15", "Elevated nitrate 29°C Aposymbiotic Starved, n=43", "Elevated nitrate 29°C Symbiotic Fed, n=15", "Elevated nitrate 29°C Symbiotic Starved, n=45"),
+                legend = c(0.3, 0.48), font.legend = 18, legend.title ="Treatment", # legend parameters 
+                xlab = "Day", xlim = c(0, 12), break.x.by = 1, font.x = 18, # x axis parameters
+                ylim = c(0.4,1), font.y= 18, # y axis parameters
+                font.tickslab = 18,
                 censor.size = 8,
-           ggtheme = theme_classic2(),
-                #ggtheme = theme_classic2(base_family = "Serif"),
-           #font.family = "Serif",
-                title = "Astrangia Survival",
+           ggtheme = theme_classic2(base_family = "Times New Roman"),
+           font.family = "Times New Roman",
            palette = c(
-"#A51C03",
-"#C44303",
-"#E37A02",
-"#FEB601",
-"#FFE91F",
-"#A5FF1F",
-"#24FF78",
-"#46DD4D",
-"#24FFE2",
-"#55C2CE",
-"#29B0FF",
-"#2949FF",
-"#0909C8",
-"#7238F0",
-"#9F3EEA",
-"#DB4DD6"
+"#DB4DD6", "#9F3EEA", "#7238F0", "#0909C8", "#2949FF", "#29B0FF", "#55C2CE", "#24FFE2", "#46DD4D", "#A5FF1F", "#FFE91F", "#FEB601", "#E37A02", "#C44303", "#A51C03","#6D4C41"
 
 
 ))
+gg_survival
+
+ggsave(file="Figures/gg_survival.svg", print(gg_survival), device='svg')
+ggsave(file="Figures/gg_survival.png", print(gg_survival))
+
+
 
 
 ```

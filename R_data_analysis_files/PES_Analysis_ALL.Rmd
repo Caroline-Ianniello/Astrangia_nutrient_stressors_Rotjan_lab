@@ -265,7 +265,7 @@ emmeans(clmm_PES_1, specs=pairwise ~sym_state*temp)
 
 
 
-```{r Visualizations of PES}
+```{r Visualizations of PES -- ALL DATA}
 
 pes_all.data$PES_value<- as.numeric(pes_all.data$PES_value)
 
@@ -309,54 +309,78 @@ ggsave(file="Figures/gg_nitrate_PES_4.png", plot=gg_nitrate_PES_4)
 
 ```
 
-```{r}
-# Repeat measures GLM anova -- Poisson dist with a log link
+```{r Visualizations of PES -- FED ONLY }
 
-pes_all.data$sym_state <-  as.factor(pes_all.data$sym_state)
-pes_all.data$food <-  as.factor(pes_all.data$food)
-pes_all.data$temp <-  as.factor(pes_all.data$temp)
-pes_all.data$NO3_category <-  as.numeric(pes_all.data$NO3_category)
+#subset JUST fed corals
+pes_all.data_gg_FED <- pes_all.data_gg %>%
+  filter(food=="F")
 
-model_full <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + sym_state*food + temp*food + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
-summary(model_full)
-#Starved had significantly LOWER PES scores than fed (makes sense)
-#30 degrees had an lower PES (20 was higher)
-emmeans(model_full, specs=pairwise ~ sym_state*temp) #the interaction of sym state and temp goes away in nitrate 
-
-model_2 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + sym_state*food + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
-
-model_3 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food + sym_state*temp + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
-
-model_4 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp + NO3_category*food  + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
-
-model_5 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*temp  + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
-
-model_6 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
-
-model_7 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp + food + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
-summary(model_7)
-emmeans(model_full, specs=pairwise ~ sym_state*temp)
-
-model_8 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp  + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
-
-model_9 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
+#sum by TEMPERATURE AND SYM STATE
+sum_nitrate_FED<- summarySE(pes_all.data_gg_FED, measurevar = "PES_value", groupvars = c("NO3_category_sym_state", "PES_day", "temp"), na.rm=T)
+gg_nitrate_PES_FED <-ggplot(data = sum_nitrate_FED,
+       aes(x = PES_day,
+           y = PES_value, col=temp, shape=NO3_category_sym_state, group=interaction(NO3_category_sym_state, temp))) +
+    geom_point(size = 6, position = position_dodge(width  = 0.85)) +
+ geom_line(linewidth = 1, position = position_dodge(width = 0.85), linetype = "dotted") +
+   geom_errorbar(aes(ymin=PES_value-se, ymax=PES_value+se), width = 1.4, linewidth = 0.8, position = position_dodge(width = 0.85)) +
+    ggtitle ("Polyp Exension Score for FED corals- Average by symbiotic state, temperature, and nitrate level") +
+theme_classic() +
+ theme(legend.position = "right",  
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),  
+       axis.text = element_text(size = 18),
+       axis.text.x = element_text(size = 18, vjust=-1),
+        text = element_text(family = "serif", size=20)) +
+    labs(x = "Day of experiment", 
+         y = expression(paste("Average Polyp Exension Score"))) +
+       # theme(legend.position="none")+
+   scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred")) +
+  scale_shape_manual("Treatment", labels=c("Elevated NO"[3]~"Apo", "Elevated NO"[3]~"Sym","Background NO"[3]~"Apo","Background NO"[3]~"Sym"), values=c(19, 17, 1, 2)) +
+  scale_x_continuous(expand = c(0, .2), limits = c(1,NA),breaks=seq(0,10,by=1)) + 
+  scale_y_continuous(breaks=seq(2.75,4.25, by=0.25))
 
 
-model_10 <- glmmTMB(PES_value ~ PES_day + NO3_category + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
-
-model_11 <- glmmTMB(PES_value ~ PES_day + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
-
-model_12 <- glmmTMB(PES_value ~ PES_day + NO3_category + sym_state + temp + food + sym_state*temp + (1|beetag_exprun), family=poisson, REML = T, data=pes_all.data)
-
-
-
-AIC(model_full,  model_2, model_3, model_4, model_5, model_6, model_7, model_8, model_9, model_10, model_11, model_12)
-
-
-#model 7 is the clear winner
-anova(model_7, model_full) #but they are no different to each other
-
-#lets go with the full model 
-
+gg_nitrate_PES_FED
+ggsave(file="Figures/gg_nitrate_PES_FED.svg", plot=gg_nitrate_PES_FED, device='svg')
+ggsave(file="Figures/gg_nitrate_PES_FED.png", plot=gg_nitrate_PES_FED)
 
 ```
+
+```{r visualizations of PES -- STARVED only}
+
+#subset JUST STARVED corals
+pes_all.data_gg_STARVED <- pes_all.data_gg %>%
+  filter(food=="S")
+
+#sum by TEMPERATURE AND SYM STATE
+sum_nitrate_STARVED<- summarySE(pes_all.data_gg_STARVED, measurevar = "PES_value", groupvars = c("NO3_category_sym_state", "PES_day", "temp"), na.rm=T)
+gg_nitrate_PES_STARVED <-ggplot(data = sum_nitrate_STARVED,
+       aes(x = PES_day,
+           y = PES_value, col=temp, shape=NO3_category_sym_state, group=interaction(NO3_category_sym_state, temp))) +
+    geom_point(size = 4.5, position = position_dodge(width  = 0.85)) +
+ geom_line(linewidth = 1, position = position_dodge(width = 0.85), linetype = "dotted") +
+   geom_errorbar(aes(ymin=PES_value-se, ymax=PES_value+se), width = 1, linewidth = 0.8, position = position_dodge(width = 0.85)) +
+    ggtitle ("Polyp Exension Score for STARVED corals- Average by symbiotic state, temperature, and nitrate level") +
+theme_classic() +
+ theme(legend.position = "right",  
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),  
+       axis.text = element_text(size = 18),
+       axis.text.x = element_text(size = 18, vjust=-1),
+        text = element_text(family = "serif", size=20)) +
+    labs(x = "Day of experiment", 
+         y = expression(paste("Average Polyp Exension Score"))) +
+       # theme(legend.position="none")+
+   scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred")) +
+  scale_shape_manual("Treatment", labels=c("Elevated NO"[3]~"Apo", "Elevated NO"[3]~"Sym","Background NO"[3]~"Apo","Background NO"[3]~"Sym"), values=c(19, 17, 1, 2)) +
+  scale_x_continuous(expand = c(0, .2), limits = c(1,NA),breaks=seq(0,10,by=1)) + 
+  scale_y_continuous(breaks=seq(2.75,4.25, by=0.25))
+
+
+gg_nitrate_PES_STARVED
+ggsave(file="Figures/gg_nitrate_PES_STARVED.svg", plot=gg_nitrate_PES_STARVED, device='svg')
+ggsave(file="Figures/gg_nitrate_PES_STARVED.png", plot=gg_nitrate_PES_STARVED)
+
+```
+```
+
