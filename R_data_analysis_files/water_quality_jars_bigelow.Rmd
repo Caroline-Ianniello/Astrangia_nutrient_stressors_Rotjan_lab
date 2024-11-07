@@ -67,6 +67,14 @@ water_qual_bigelow_all$nitrate_phosphate_ratio <- water_qual_bigelow_all$NO3_uM 
 
 hist(water_qual_bigelow_all$nitrate_phosphate_ratio)
 
+water_qual_background <- water_qual_bigelow_all %>%
+  filter(NO3_category=="Background")
+range(water_qual_background$NO3_mean_observed)
+
+water_qual_elevated <- water_qual_bigelow_all %>%
+  filter(NO3_category=="Elevated")
+range(water_qual_elevated$NO3_mean_observed)
+
 ```
 
 

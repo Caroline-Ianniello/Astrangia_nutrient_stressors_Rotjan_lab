@@ -61,6 +61,10 @@ narragansett_water_qual.data <- read.csv("/Users/carolineianniello/Astrangia_Eco
 #8 which is Jamestown
 # Also categorize by season
 
+#Get rid of 2022 because that is when we did our experiment
+narragansett_water_qual.data <- narragansett_water_qual.data %>% 
+  filter(year!=2022)
+
 #Add months
 narragansett_water_qual.data <- narragansett_water_qual.data  %>% mutate(sample_month = case_when(
    month== 1 ~ "January",
@@ -148,6 +152,18 @@ ggsave(file="Figures/gg_sum_month_year_wq_narra_nitrate.png", plot=gg_sum_month_
 
 ```
 
+```{r adding nitrate to phosphate ratio}
+narragansett_water_qual.data$nitrate_phosphate_ratio <- narragansett_water_qual.data$nitrate.uml/ narragansett_water_qual.data$orthophosphate.uml
+
+hist(narragansett_water_qual.data$nitrate_phosphate_ratio)
+
+range(na.omit(narragansett_water_qual.data$nitrate_phosphate_ratio))
+
+range(na.omit(water_qual_bigelow_nit_phos_subset$nitrate_phosphate_ratio))
+
+```
+
+
 ```{r TEMPERATURE}
 sum_month_year_wq_narra_temp <- summarySE(narragansett_water_qual.data, measurevar = c("temperature.celsius"), groupvars = c("location", "month","year"), na.rm=T)
 sum_month_year_wq_narra_temp$year <- as.factor(sum_month_year_wq_narra_temp$year)
@@ -185,5 +201,19 @@ ggsave(file="Figures/gg_sum_month_year_wq_narra_temp.png", plot=gg_sum_month_yea
 narragansett_water_qual.data_SUMMER <- narragansett_water_qual.data %>%
   filter(season=="Summer")
 summer_summary_temp  <- summarySE(narragansett_water_qual.data_SUMMER, measurevar = c("temperature.celsius"), na.rm=T)
+
+#max summer temp 
+max(narragansett_water_qual.data_SUMMER$temperature.celsius)
 ```
+
+```{r}
+# Calculate the percentage of observations below 6 μM
+percentage_below_6 <- sum(narragansett_water_qual.data$nitrate.uml < 6, na.rm=T) / nrow(narragansett_water_qual.data) * 100
+
+# Print the result
+percentage_below_6
+
+```
+
+
 
