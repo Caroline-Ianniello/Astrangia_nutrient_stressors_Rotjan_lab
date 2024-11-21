@@ -299,6 +299,7 @@ theme_classic() +
        # theme(legend.position="none")+
    scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred")) +
   scale_shape_manual("Treatment", labels=c("Elevated NO"[3]~"Apo", "Elevated NO"[3]~"Sym","Background NO"[3]~"Apo","Background NO"[3]~"Sym"), values=c(19, 17, 1, 2)) +
+  ylim(2.8,4.5) +
   scale_x_continuous(expand = c(0, .2), limits = c(1,NA),breaks=seq(0,10,by=1)) + 
   scale_y_continuous(breaks=seq(2.75,4.25, by=0.25))
 
@@ -337,7 +338,8 @@ theme_classic() +
    scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred")) +
   scale_shape_manual("Treatment", labels=c("Elevated NO"[3]~"Apo", "Elevated NO"[3]~"Sym","Background NO"[3]~"Apo","Background NO"[3]~"Sym"), values=c(19, 17, 1, 2)) +
   scale_x_continuous(expand = c(0, .2), limits = c(1,NA),breaks=seq(0,10,by=1)) + 
-  scale_y_continuous(breaks=seq(2.75,4.25, by=0.25))
+  #scale_y_continuous(breaks=seq(2.75,4.75, by=0.25))
+  ylim(2.5,4.5)
 
 
 gg_nitrate_PES_FED
@@ -374,7 +376,8 @@ theme_classic() +
    scale_color_manual("Temperature", labels=c("20°C","29°C"), values=c("dodgerblue", "darkred")) +
   scale_shape_manual("Treatment", labels=c("Elevated NO"[3]~"Apo", "Elevated NO"[3]~"Sym","Background NO"[3]~"Apo","Background NO"[3]~"Sym"), values=c(19, 17, 1, 2)) +
   scale_x_continuous(expand = c(0, .2), limits = c(1,NA),breaks=seq(0,10,by=1)) + 
-  scale_y_continuous(breaks=seq(2.75,4.25, by=0.25))
+  ylim(2.5,4.5)
+  #scale_y_continuous(breaks=seq(2.75,4.75, by=0.25))
 
 
 gg_nitrate_PES_STARVED
