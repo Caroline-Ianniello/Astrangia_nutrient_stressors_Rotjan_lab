@@ -1,0 +1,1837 @@
+---
+title: "Respirometry data analysis (AMMONIUM) C. Fleming Last updated: 12/13/23"
+output:
+  pdf_document: default
+  html_notebook: default
+authors: Caroline Fleming
+#Some resources:
+  #https://rstudio-pubs-static.s3.amazonaws.com/63556_e35cc7e2dfb54a5bb551f3fa4b3ec4ae.html
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r Install required packages}
+require("knitr")
+
+#install.packages("lmerTest")
+library("lmerTest")
+#install.packages("Matrix")
+library("Matrix")
+#install.packages("lme4")
+library("lme4")
+#install.packages("emmeans")
+library("emmeans")
+#install.packages("pbkrtest")
+library("pbkrtest")
+library("tidyverse")
+library(tidyverse)
+library("performance")
+#install.packages("see")
+library("see")
+#install.packages("ggrepel")
+library("ggrepel")
+#install.packages("sjPlot") #for visualizing linear models
+library(sjPlot)
+#install.packages("MASS")
+library(MASS)
+#install.packages("glmmTMB") # for visualizing model checks
+library(glmmTMB)
+#install.packages("relaimpo") #for quantifying the effects of predictor variables
+library(relaimpo)
+#install.packages("outliers") #for checking out whether a data point is an outlier
+library(outliers)
+library(Rmisc)
+#install.packages("ggeffects")
+library(ggeffects)
+library(forestmodel)
+
+#turn off scientific notation
+options(scipen=999)
+
+#let dplyr print a bunch of numbers
+options(dplyr.print_max = 1e9)
+options(max.print = 10000)   
+
+```
+
+
+```{r Set working directory and upload data - ammonium DATA ONLY}
+# FILE: 
+#RESP_AMMONIUM_cleaned_dead_and_broken_outlierG28Y65_deleted_SA_CORR_12_13_2023
+#Includes all surface area corrected respiration measurements and ONLY AMMONIUM tagged controls. We are NOT pooling the controls
+
+resp_all_ammonium.data <- read.csv("C:/Users/carol/OneDrive/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Data/RESP_ALL_SUMMARY_ALL_cleaned_dead_and_broken_outlierG28Y65_deleted_SA_CORR_5_24_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+#filter by anything that starts with the letter "A" in the treat_ID_full column
+resp_all_ammonium.data <- resp_all_ammonium.data %>%
+    filter(substr(resp_all_ammonium.data$treat_ID_full, 1, 1) == "A")
+
+hist(resp_all_ammonium.data$abs_resp_rate_SA_corr) #slight skew but we're okay let's keep using it
+hist(log(resp_all_ammonium.data$abs_resp_rate_SA_corr)) #logging this looks GREAT
+qqnorm(log(resp_all_ammonium.data$abs_resp_rate_SA_corr)) #this looks really nice
+
+#create a natural logged version of the absolute value of resp rate
+resp_all_ammonium.data$LOG_abs_resp_rate_SA_corr <- log(resp_all_ammonium.data$abs_resp_rate_SA_corr)
+hist(resp_all_ammonium.data$LOG_abs_resp_rate_SA_corr)
+
+
+#make sure everything in linear model is a factor
+resp_all_ammonium.data$treat_ID_full<-as.factor(resp_all_ammonium.data$treat_ID_full)
+resp_all_ammonium.data$e_coli_plate<-as.factor(resp_all_ammonium.data$e_coli_plate)
+resp_all_ammonium.data$temp <- as.factor(resp_all_ammonium.data$temp)
+resp_all_ammonium.data$N_species_dose <- as.factor(resp_all_ammonium.data$N_species_dose)
+resp_all_ammonium.data$N_species_dose <- factor(resp_all_ammonium.data$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+resp_all_ammonium.data$sym_state <- as.factor(resp_all_ammonium.data$sym_state)
+
+
+
+
+
+# #testing for normality
+# #TESTING FOR NORMALITY IN PAM_delta
+# #install new package to see what the best transformation is
+# #install.packages("bestNormalize")
+# library("bestNormalize")
+# bestNormalize(resp_all_ammonium.data$abs_resp_rate_SA_corr)
+# #in order for this to work I need to change the PAM_delta in to a vector
+# resp_all_ammonium.data$abs_resp_rate_SA_corr_vector<-as.vector(resp_all_ammonium.data$abs_resp_rate_SA_corr_vector)
+# #then I run the orderNorm command into a new object
+# orderNormobj_abs_resp_rate_SA_corr<-orderNorm(resp_all_ammonium.data$abs_resp_rate_SA_corr)
+# #this object gives us what we want, but we have to index from that object and put it in a new column
+# resp_all_ammonium.data$ordernorm_abs_resp_rate_SA_corr<-orderNormobj_abs_resp_rate_SA_corr$x.t
+#
+```
+
+
+#For Manuscript
+```{r}
+
+# # ENTIRE DATASET
+# Resp rate by sym state by dose
+# Summarize by sym state so we can visualize
+resp_all_ammonium.data$N_dose <- factor(resp_all_ammonium.data$N_dose, levels=c(0,5,7.5,10))
+resp_all_ammonium.data$sym_state<- as.factor(resp_all_ammonium.data$sym_state)
+sum_sym_state_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "N_dose"))
+# Visualize
+gg_sym_state_ammonium<-ggplot(data = sum_sym_state_ammonium,
+       aes(x = N_dose,
+           y = abs_resp_rate_SA_corr, col=sym_state)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1) +
+    ggtitle ("Ammonium - Sym state by Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 10),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+     ylim(0.05, 0.145) +
+   scale_x_discrete("Ammonium Dose", labels=c("0uM","5uM","7.5uM","10uM"))+
+    labs(x = "Ammonium Dose", 
+         y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+       # theme(legend.position="none")+
+  scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))
+gg_sym_state_ammonium
+
+
+# # NO E COLI AT 20C
+resp_NOEC_20C <- resp_all_ammonium.data %>%
+  filter(e_coli_plate==0 & temp==20)
+resp_NOEC_20C$N_dose <- factor(resp_NOEC_20C$N_dose, levels=c(0,5,7.5,10))
+resp_NOEC_20C$sym_state<- as.factor(resp_NOEC_20C$sym_state)
+sum_ammonium_NOEC_20C<- summarySE(resp_NOEC_20C, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "N_dose"))
+# Visualize
+gg_ammonium_NOEC_20C <-ggplot(data = sum_ammonium_NOEC_20C,
+       aes(x = N_dose,
+           y = abs_resp_rate_SA_corr, col=sym_state)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1) +
+    ggtitle ("Ammonium NO E. Coli 20C - Sym state by Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 10),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   scale_x_discrete("Ammonium Dose", labels=c("0uM","5uM","7.5uM","10uM"))+
+    labs(x = "Ammonium Dose", 
+         y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+  ylim(0.05, 0.145) +
+       # theme(legend.position="none")+
+  scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))
+gg_ammonium_NOEC_20C
+
+# # E COLI AT 20C
+resp_EC_20C <- resp_all_ammonium.data %>%
+  filter(e_coli_plate==1 & temp==20)
+resp_EC_20C$N_dose <- factor(resp_EC_20C$N_dose, levels=c(0,5,7.5,10))
+resp_EC_20C$sym_state<- as.factor(resp_EC_20C$sym_state)
+sum_ammonium_EC_20C<- summarySE(resp_EC_20C, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "N_dose"))
+# Visualize
+gg_ammonium_EC_20C <-ggplot(data = sum_ammonium_EC_20C,
+       aes(x = N_dose,
+           y = abs_resp_rate_SA_corr, col=sym_state)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1) +
+    ggtitle ("Ammonium E. Coli 20C - Sym state by Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 10),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   scale_x_discrete("Ammonium Dose", labels=c("0uM","5uM","7.5uM","10uM"))+
+    labs(x = "Ammonium Dose", 
+         y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+   ylim(0.05, 0.145) +
+       # theme(legend.position="none")+
+  scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))
+gg_ammonium_EC_20C
+
+# # NO E COLI AT 30C
+resp_NOEC_30C <- resp_all_ammonium.data %>%
+  filter(e_coli_plate==0 & temp==30)
+resp_NOEC_30C$N_dose <- factor(resp_NOEC_30C$N_dose, levels=c(0,5,7.5,10))
+resp_NOEC_30C$sym_state<- as.factor(resp_NOEC_30C$sym_state)
+sum_ammonium_NOEC_30C<- summarySE(resp_NOEC_30C, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "N_dose"))
+# Visualize
+gg_ammonium_NOEC_30C <-ggplot(data = sum_ammonium_NOEC_30C,
+       aes(x = N_dose,
+           y = abs_resp_rate_SA_corr, col=sym_state)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1) +
+    ggtitle ("Ammonium NO E. Coli 30C - Sym state by Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 10),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   scale_x_discrete("Ammonium Dose", labels=c("0uM","5uM","7.5uM","10uM"))+
+    labs(x = "Ammonium Dose", 
+         y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+ ylim(0.05, 0.145) +
+       # theme(legend.position="none")+
+  scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))
+gg_ammonium_NOEC_30C
+
+# # E COLI AT 30C
+resp_EC_30C <- resp_all_ammonium.data %>%
+  filter(e_coli_plate==1 & temp==30)
+resp_EC_30C$N_dose <- factor(resp_EC_30C$N_dose, levels=c(0,5,7.5,10))
+resp_EC_30C$sym_state<- as.factor(resp_EC_30C$sym_state)
+sum_ammonium_EC_30C<- summarySE(resp_EC_30C, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "N_dose"))
+# Visualize
+gg_ammonium_EC_30C <-ggplot(data = sum_ammonium_EC_30C,
+       aes(x = N_dose,
+           y = abs_resp_rate_SA_corr, col=sym_state)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1) +
+    ggtitle ("Ammonium E. Coli 30C - Sym state by Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 10),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   scale_x_discrete("Ammonium Dose", labels=c("0uM","5uM","7.5uM","10uM"))+
+    labs(x = "Ammonium Dose", 
+         y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    ylim(0.05, 0.145) +
+       # theme(legend.position="none")+
+  scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))
+gg_ammonium_EC_30C
+
+
+# # By temperature
+resp_NOEC <- resp_all_ammonium.data %>%
+  filter(e_coli_plate==0)
+resp_NOEC$N_dose <- factor(resp_NOEC$N_dose, levels=c(0,5,7.5,10))
+resp_NOEC$sym_state<- as.factor(resp_NOEC$sym_state)
+resp_NOEC$temp<- as.factor(resp_NOEC$temp)
+sum_ammonium_NOEC<- summarySE(resp_NOEC, measurevar = "abs_resp_rate_SA_corr", groupvars = c("N_dose", "temp"))
+# Visualize
+gg_ammonium_NOEC <-ggplot(data = sum_ammonium_NOEC,
+       aes(x = N_dose,
+           y = abs_resp_rate_SA_corr, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1) +
+    ggtitle ("Ammonium NO E. Coli - Temperature by Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 10),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   scale_x_discrete("Ammonium Dose", labels=c("0uM","5uM","7.5uM","10uM"))+
+    labs(x = "Ammonium Dose", 
+         y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+       # theme(legend.position="none")+
+      ylim(0.05, 0.145) +
+  scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "red3"))
+gg_ammonium_NOEC 
+
+# # By temp with E. coli
+resp_EC <- resp_all_ammonium.data %>%
+  filter(e_coli_plate==1)
+resp_EC$N_dose <- factor(resp_EC$N_dose, levels=c(0,5,7.5,10))
+resp_EC$sym_state<- as.factor(resp_EC$sym_state)
+resp_EC$temp<- as.factor(resp_EC$temp)
+sum_ammonium_EC<- summarySE(resp_EC, measurevar = "abs_resp_rate_SA_corr", groupvars = c("N_dose", "temp"))
+# Visualize
+gg_ammonium_EC <-ggplot(data = sum_ammonium_EC,
+       aes(x = N_dose,
+           y = abs_resp_rate_SA_corr, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1) +
+    ggtitle ("Ammonium E. Coli - Temperature by Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 10),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   scale_x_discrete("Ammonium Dose", labels=c("0uM","5uM","7.5uM","10uM"))+
+    labs(x = "Ammonium Dose", 
+         y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+       # theme(legend.position="none")+
+      ylim(0.05, 0.145) +
+  scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "red3"))
+gg_ammonium_EC 
+
+
+############# ADDING FEEDING STATE AS A SHAPE
+# # NO E COLI AT 20C
+sum_ammonium_NOEC_20C_food <- summarySE(resp_NOEC_20C, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "N_dose", "food"))
+# Visualize
+gg_ammonium_NOEC_20C_food <-ggplot(data = sum_ammonium_NOEC_20C_food,
+       aes(x = N_dose,
+           y = abs_resp_rate_SA_corr, col=sym_state, shape=food)) +
+    geom_point(size=5, position=position_dodge(width=0.5)) +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1, position=position_dodge(width=0.5)) +
+    ggtitle ("Ammonium NO E. Coli 20C - Sym state by Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 10),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   scale_x_discrete("Ammonium Dose", labels=c("0uM","5uM","7.5uM","10uM"))+
+    labs(x = "Ammonium Dose", 
+         y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+   ylim(0.04, 0.165) +
+       # theme(legend.position="none")+
+  scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))+
+scale_shape_discrete(labels=c("Fed","Starved"),name="Nutritional State")
+gg_ammonium_NOEC_20C_food
+
+# # E COLI AT 20C
+sum_ammonium_EC_20C_food<- summarySE(resp_EC_20C, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "N_dose","food"))
+# Visualize
+gg_ammonium_EC_20C_food <-ggplot(data = sum_ammonium_EC_20C_food,
+       aes(x = N_dose,
+           y = abs_resp_rate_SA_corr, col=sym_state, shape=food)) +
+   geom_point(size=5, position=position_dodge(width=0.5)) +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1, position=position_dodge(width=0.5)) +
+    ggtitle ("Ammonium E. Coli 20C - Sym state by Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 10),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   scale_x_discrete("Ammonium Dose", labels=c("0uM","5uM","7.5uM","10uM"))+
+    labs(x = "Ammonium Dose", 
+         y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+ ylim(0.04, 0.165) +
+       # theme(legend.position="none")+
+  scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))+
+scale_shape_discrete(labels=c("Fed","Starved"),name="Nutritional State")
+gg_ammonium_EC_20C_food
+
+# # NO E COLI AT 30C
+sum_ammonium_NOEC_30C_food<- summarySE(resp_NOEC_30C, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "N_dose","food"))
+# Visualize
+gg_ammonium_NOEC_30C_food <-ggplot(data = sum_ammonium_NOEC_30C_food,
+       aes(x = N_dose,
+           y = abs_resp_rate_SA_corr, col=sym_state, shape=food)) +
+   geom_point(size=5, position=position_dodge(width=0.5)) +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1, position=position_dodge(width=0.5)) +
+    ggtitle ("Ammonium NO E. Coli 30C - Sym state by Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 10),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   scale_x_discrete("Ammonium Dose", labels=c("0uM","5uM","7.5uM","10uM"))+
+    labs(x = "Ammonium Dose", 
+         y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+ ylim(0.04, 0.165) +
+       # theme(legend.position="none")+
+  scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))+
+scale_shape_discrete(labels=c("Fed","Starved"),name="Nutritional State")
+gg_ammonium_NOEC_30C_food
+
+# # E COLI AT 30C
+sum_ammonium_EC_30C_food<- summarySE(resp_EC_30C, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "N_dose", "food"))
+# Visualize
+gg_ammonium_EC_30C_food <-ggplot(data = sum_ammonium_EC_30C_food,
+       aes(x = N_dose,
+           y = abs_resp_rate_SA_corr, col=sym_state, shape=food)) +
+    geom_point(size=5, position=position_dodge(width=0.5)) +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1, position=position_dodge(width=0.5)) +
+    ggtitle ("Ammonium E. Coli 30C - Sym state by Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 10),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   scale_x_discrete("Ammonium Dose", labels=c("0uM","5uM","7.5uM","10uM"))+
+    labs(x = "Ammonium Dose", 
+         y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+ ylim(0.04, 0.165) +
+       # theme(legend.position="none")+
+  scale_color_manual("Symbiotic state", labels=c("Aposymbiotic","Symbiotic"), values=c("gray", "brown"))+
+scale_shape_discrete(labels=c("Fed","Starved"),name="Nutritional State")
+gg_ammonium_EC_30C_food
+
+# # By temperature
+sum_ammonium_NOEC_food<- summarySE(resp_NOEC, measurevar = "abs_resp_rate_SA_corr", groupvars = c("N_dose", "temp", "food"))
+# Visualize
+gg_ammonium_NOEC_food <-ggplot(data = sum_ammonium_NOEC_food,
+       aes(x = N_dose,
+           y = abs_resp_rate_SA_corr, col=temp, shape=food)) +
+    geom_point(size=5, position=position_dodge(width=0.5)) +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1, position=position_dodge(width=0.5)) +
+    ggtitle ("Ammonium NO E. Coli - Temperature by Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 10),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   scale_x_discrete("Ammonium Dose", labels=c("0uM","5uM","7.5uM","10uM"))+
+    labs(x = "Ammonium Dose", 
+         y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+  scale_shape_discrete(labels=c("Fed","Starved"),name="Nutritional State") +
+       # theme(legend.position="none")+
+   ylim(0.04, 0.165) +
+  scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "red3"))
+gg_ammonium_NOEC_food
+
+# # By temp with E. coli
+sum_ammonium_EC_food<- summarySE(resp_EC, measurevar = "abs_resp_rate_SA_corr", groupvars = c("N_dose", "temp","food"))
+# Visualize
+gg_ammonium_EC <-ggplot(data = sum_ammonium_EC_food,
+       aes(x = N_dose,
+           y = abs_resp_rate_SA_corr, col=temp, shape=food)) +
+    geom_point(size=5, position=position_dodge(width=0.5)) +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.35, size = 1, position=position_dodge(width=0.5)) +
+    ggtitle ("Ammonium E. Coli - Temperature by Dose") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 10),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   scale_x_discrete("Ammonium Dose", labels=c("0uM","5uM","7.5uM","10uM"))+
+    labs(x = "Ammonium Dose", 
+         y = expression(paste("Absolute Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+       # theme(legend.position="none")+
+      ylim(0.04, 0.165) +
+  scale_shape_discrete(labels=c("Fed","Starved"),name="Nutritional State") +
+  scale_color_manual("Temperature", labels=c("20°C","30°C"), values=c("dodgerblue", "red3"))
+gg_ammonium_EC 
+```
+
+
+
+#For SICB
+```{r for SICB}
+
+#Fed, 20C, no E coli
+SICB_data_ammonium_1 <- resp_all_ammonium.data %>%
+  filter(food=="F") %>%
+  filter(temp==20) %>%
+  filter(abs_resp_rate_SA_corr<0.3)
+
+sum_N_species_dose_ammonium <- summarySE(SICB_data_ammonium_1, measurevar = "abs_resp_rate_SA_corr", groupvars = c("N_species_dose"))
+ggplot(data = sum_N_species_dose_ammonium ,
+       aes(x = N_species_dose,
+           y = abs_resp_rate_SA_corr, fill="black")) +
+    geom_col(fill=c("#587E9F","#B398D0","#795695","#4C1B66"), color="black", alpha=0.8, width=0.5) +
+      geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.1, size = 1) +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 14),
+          axis.title.x=element_text(size=14)) +
+  ggtitle("ammonium") +
+  ylim(0, 0.15) +
+  labs(x = "Ammonium dose", 
+         y = expression(paste("Rate O2 Consumption (umol*hr"^"2"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="0 uM", A_5="5 uM", A_7.5="7.5 uM", A_10="10 uM"))
+
+ammonium_SICB_model_1 <- lmer(LOG_abs_resp_rate_SA_corr ~ N_species_dose + red_day11 +  N_species_dose*red_day11 + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_ammonium_1)
+summary(ammonium_SICB_model_1)
+(summary(emmeans(ammonium_SICB_model_1, specs=pairwise ~ N_species_dose)))
+
+
+#fed, with temperature, NO E. coli
+SICB_data_ammonium_noEC <- resp_all_ammonium.data %>%
+  filter(food=="F") %>%
+  filter(e_coli_plate=="0") %>%
+filter(abs_resp_rate_SA_corr<0.3)
+
+ammonium_SICB_model_noEC <- lmer(LOG_abs_resp_rate_SA_corr ~ control_or_nutrient + temp + red_day11 +  control_or_nutrient*temp + control_or_nutrient*red_day11 + temp*red_day11 + control_or_nutrient*red_day11*temp + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_ammonium_noEC)
+
+# boundary (singular) fit: see help('isSingular') HAPPENS WHEN RANDOM EFFECTS ARE VERY SMALL
+plot_model(ammonium_SICB_model_noEC, vline.color="black")
+summary(ammonium_SICB_model_noEC)
+#nothing sig
+(summary(emmeans(ammonium_SICB_model_noEC, specs=pairwise ~ temp*control_or_nutrient)))
+#again we see metabolic depression
+SICB_data_ammonium_noEC$control_or_nutrient <- factor(SICB_data_ammonium_noEC$control_or_nutrient, levels=c("Control","Ammonium"))
+
+sum_SICB_data_ammonium_noEC <- summarySE(SICB_data_ammonium_noEC, measurevar = "abs_resp_rate_SA_corr", groupvars = c("control_or_nutrient", "temp"))
+
+sum_SICB_data_ammonium_noEC$temp <- as.factor(sum_SICB_data_ammonium_noEC$temp)
+sum_SICB_data_ammonium_noEC$control_or_nutrient <- factor(sum_SICB_data_ammonium_noEC$control_or_nutrient, levels=c("Control", "Ammonium"))
+
+ggplot(data = sum_SICB_data_ammonium_noEC,
+       aes(x = control_or_nutrient,
+           y = abs_resp_rate_SA_corr, fill=temp)) +
+       geom_bar(position="dodge", alpha=0.8, width=0.5, stat="identity") + 
+        geom_errorbar(aes(x=control_or_nutrient, ymin=abs_resp_rate_SA_corr-se, 
+            ymax=abs_resp_rate_SA_corr+se), width=0.2, size = 0.8, position=position_dodge(0.5))  +
+    ggtitle("Ammonium") +
+    ylim(0, 0.125) +
+    labs(x = "Ammonium dose", 
+         y = expression(paste("Rate O2 Consumption (umol*hr"^"2"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("", labels=c(Control="No Ammonium", Ammonium="Ammonium")) +
+   theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 14),
+          axis.title.x=element_text(size=14)) +    scale_fill_manual("Temperature", labels=c("20°C", "30°C"),values=c("#607FBE", "#BE6860")) 
+
+
+
+
+
+#just keep everything fed
+SICB_data_ammonium <- resp_all_ammonium.data %>%
+  filter(food=="F") %>%
+ filter(abs_resp_rate_SA_corr<0.3) #BECAUSE THERES AN OUTLIER around 0.3 for temp 30! KEEP TRACK OF ME
+#create an lmer with this dataset
+ammonium_SICB_model <- lmer(LOG_abs_resp_rate_SA_corr ~ control_or_nutrient + temp + red_day11 + e_coli_plate + control_or_nutrient*temp + control_or_nutrient*e_coli_plate + e_coli_plate*temp + e_coli_plate*red_day11 + control_or_nutrient*red_day11 + temp*red_day11 + control_or_nutrient*red_day11*temp + control_or_nutrient*temp*e_coli_plate + control_or_nutrient*red_day11*e_coli_plate + temp*red_day11*e_coli_plate + control_or_nutrient*red_day11*temp*e_coli_plate + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_ammonium)
+# boundary (singular) fit: see help('isSingular') HAPPENS WHEN RANDOM EFFECTS ARE VERY SMALL
+
+summary(ammonium_SICB_model)
+#marginally sig effect of temp
+#no overall effect of e coli, dose, or sym state
+(summary(emmeans(ammonium_SICB_model, specs=pairwise ~ temp)))
+(summary(emmeans(ammonium_SICB_model, specs=pairwise ~ e_coli_plate)))
+(summary(emmeans(ammonium_SICB_model, specs=pairwise ~ control_or_nutrient)))
+(summary(emmeans(ammonium_SICB_model, specs=pairwise ~ temp*e_coli_plate*control_or_nutrient)))
+
+SICB_data_ammonium$control_or_nutrient <- factor(SICB_data_ammonium$control_or_nutrient, levels=c("Control","Ammonium"))
+ggplot(data = SICB_data_ammonium ,
+       aes(x = control_or_nutrient,
+           y = abs_resp_rate_SA_corr, color=temp, shape=e_coli_plate)) +
+    geom_boxplot(outlier.shape = NA) +
+     geom_point(position=position_jitterdodge(), size=2)+
+  ggtitle("Ammonium") +
+  ylim(0, 0.25) +
+  labs(x = "ammonium dose", 
+         y = expression(paste("Rate O2 Consumption (umol*hr"^"2"~"*cm"^"2"~")")), 
+         caption = " " ) +
+    scale_x_discrete("", labels=c(Control="No Ammonium", ammonium="Ammonium")) +
+    scale_color_manual("Temperature", labels=c("20°C", "30°C"),values=c("blue", "darkred")) +
+  scale_shape_manual("E. coli presence",labels=c("No E. coli", "E. coli"),values=c(19, 4))
+
+
+
+# RED DAY 11
+#now lets look at RGB between 20 and 30 
+ammonium_SICB_model_RGB_noEC <- lmer(red_day11 ~ control_or_nutrient + temp + control_or_nutrient*temp  + control_or_nutrient*temp  + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_ammonium_noEC)
+summary(ammonium_SICB_model_RGB_noEC)
+(summary(emmeans(ammonium_SICB_model_RGB_noEC, specs=pairwise ~ control_or_nutrient*temp))) 
+
+
+#using summary function to graph
+sum_SICB_data_ammonium_rgb<- summarySE(SICB_data_ammonium_noEC, measurevar = "red_day11", groupvars = c("control_or_nutrient", "temp"))
+sum_SICB_data_ammonium_rgb$temp <- as.factor(sum_SICB_data_ammonium_rgb$temp)
+sum_SICB_data_ammonium_rgb$control_or_nutrient <- factor(sum_SICB_data_ammonium_rgb$control_or_nutrient, levels=c("Control", "Ammonium"))
+ggplot(data = sum_SICB_data_ammonium_rgb,
+       aes(x = control_or_nutrient,
+           y = red_day11, fill=temp)) +
+       geom_bar(position="dodge", alpha=0.8, width=0.5, stat="identity") + 
+        geom_errorbar(aes(x=control_or_nutrient, ymin=red_day11-se, 
+            ymax=red_day11+se), width=0.2, size = 0.8, position=position_dodge(0.5))  +
+    ggtitle("Ammonium") +
+    labs(x = "Ammonium dose", 
+         y = expression(paste("Symbiosis Color Proxy")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("", labels=c(Control="No Ammonium", Ammonium="Ammonium")) +
+   theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 14),
+          axis.title.x=element_text(size=14)) +    scale_fill_manual("Temperature", labels=c("20°C", "30°C"),values=c("#607FBE", "#BE6860")) 
+
+
+#Randi and Justin want red channel AND resp rate on one graph, high ho
+#using two datasets:
+#sum_SICB_data_ammonium_noEC
+#sum_SICB_data_ammonium_rgb
+sum_SICB_data_ammonium_rgb_res<- summarySE(SICB_data_ammonium_noEC, measurevar = c("red_day11" & "abs_resp_rate_SA_corr"), groupvars = c("control_or_nutrient", "temp"))
+
+test<- data.frame(left_join(sum_SICB_data_ammonium_rgb, sum_SICB_data_ammonium_noEC, by=c("temp","control_or_nutrient")))
+test$red
+
+plotting_rgb_resp_data <- data.frame(cbind(sum_SICB_data_ammonium_rgb, sum_SICB_data_ammonium_noEC[,4:7]))
+?rbind
+
+write.csv(plotting_rgb_resp_data, "plotting_rgb_resp_data.csv")
+
+plotting_rgb_resp_data<- read.csv("plotting_rgb_resp_data.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+plotting_rgb_resp_data<- data.frame(plotting_rgb_resp_data)
+# plotting_rgb_resp_data$metric <- factor(plotting_rgb_resp_data$metric, levels=c("red_day11","abs_resp_rate_SA_corr_times1000
+# "))
+plotting_rgb_resp_data$metric <- as.factor(plotting_rgb_resp_data$metric)
+plotting_rgb_resp_data$temp <- as.factor(plotting_rgb_resp_data$temp)
+plotting_rgb_resp_data$control_or_nutrient <- factor(plotting_rgb_resp_data$control_or_nutrient ,levels=c("Control","Ammonium"))
+
+plotting_rgb_resp_data %>%
+  group_by(metric)
+
+coeff=1/1000
+ggplot(data=plotting_rgb_resp_data, aes(x = control_or_nutrient, y=value, fill=temp, color=metric)) +
+       geom_bar(position=position_dodge(.6), width=0.5, stat="identity", size=1.4, aes(order=metric)) + 
+        geom_errorbar(aes(order=metric, ymin=value-se, 
+            ymax=value+se), width=0.3, position=position_dodge(0.6))  +
+    ggtitle("Ammonium") +
+    labs(x = "Ammonium dose", 
+         y = expression(paste("Symbiosis Color Proxy")), 
+         caption = "data represent mean +/- SEM") +
+    scale_x_discrete("", labels=c(Control="No Ammonium", Ammonium="Ammonium")) +
+  scale_y_continuous(name="Symbiosis color proxy", sec.axis=sec_axis(~.*coeff, name="Rate O2 Consumption (umol*hr"^"2"~"*cm"^"2"~")"))+ #coeff is an option to scale the other axis
+    theme_classic() +
+   theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title.y = element_text(size = 12, margin=(margin(r = 10, l = 10))),
+          axis.title.y.right = element_text(size = 12, margin=(margin(r = 10, l = 10))),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 14),
+          axis.title.x=element_text(size=14)) +    
+  scale_fill_manual("Temperature", labels=c("20°C", "30°C"),values=c("#607FBE", "#BE6860")) +
+  scale_color_manual("Metric", labels=c("Respiration Rate","Symbiosis Color Proxy"), values=c("gray30","#119B9D")) 
+
+
+
+
+# RED RELATIVE CHANGE
+SICB_data_ammonium_noEC$relative_change_red<- (SICB_data_ammonium_noEC$red_day11 - SICB_data_ammonium_noEC$red_day1)/ (SICB_data_ammonium_noEC$red_day1)
+hist(SICB_data_ammonium_noEC$relative_change_red) #normal so lets proceed
+ammonium_SICB_model_RGB_delta_noEC <- lmer(relative_change_red ~ control_or_nutrient + temp + control_or_nutrient*temp  + control_or_nutrient*temp  + (1 | col_num)  + (1 | jar_unique_ID), data= SICB_data_ammonium_noEC)
+summary(ammonium_SICB_model_RGB_noEC)
+(summary(emmeans(ammonium_SICB_model_RGB_noEC, specs=pairwise ~ control_or_nutrient*temp))) 
+
+
+#using summary function to graph
+sum_SICB_data_ammonium_rgb<- summarySE(SICB_data_ammonium_noEC, measurevar = "relative_change_red", groupvars = c("control_or_nutrient", "temp"))
+sum_SICB_data_ammonium_rgb$temp <- as.factor(sum_SICB_data_ammonium_rgb$temp)
+sum_SICB_data_ammonium_rgb$control_or_nutrient <- factor(sum_SICB_data_ammonium_rgb$control_or_nutrient, levels=c("Control", "Ammonium"))
+ggplot(data = sum_SICB_data_ammonium_rgb,
+       aes(x = control_or_nutrient,
+           y = relative_change_red, fill=temp)) +
+       geom_bar(position="dodge", width=0.5, stat="identity", alpha=0.8) + 
+        geom_errorbar(aes( ymin=relative_change_red-se, 
+            ymax=relative_change_red+se), width=0.3, position=position_dodge(0.5))  +
+  #  ggtitle("Ammonium") +
+    labs(x = "Ammonium dose", 
+         y = expression(paste("Percent Change in Color")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("", labels=c(Control="No Ammonium", Ammonium="Ammonium")) +
+   theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 14),
+          axis.title.x=element_text(size=14)) +    scale_fill_manual("Temperature", labels=c("20°C", "30°C"),values=c("#607FBE", "#BE6860")) +
+  ylim(-0.15,0.12)
+
+#Randi and Justin want red channel AND resp rate on one graph, high ho
+#using two datasets:
+#sum_SICB_data_ammonium_noEC
+#sum_SICB_data_ammonium_rgb
+sum_SICB_data_ammonium_rgb_res<- summarySE(SICB_data_ammonium_noEC, measurevar = c("relative_change_red"), groupvars = c("control_or_nutrient", "temp"))
+
+relative_change_and_resp <- data.frame(left_join(sum_SICB_data_ammonium_rgb, sum_SICB_data_ammonium_noEC, by=c("temp","control_or_nutrient")))
+test$red
+write.csv(relative_change_and_resp, "relative_change_and_resp.csv")
+
+relative_change_and_resp<- read.csv("relative_change_and_resp.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+relative_change_and_resp<- data.frame(relative_change_and_resp)
+# plotting_rgb_resp_data$metric <- factor(plotting_rgb_resp_data$metric, levels=c("relative_change_red","abs_resp_rate_SA_corr_times1000
+# "))
+relative_change_and_resp$metric <- as.factor(relative_change_and_resp$metric)
+relative_change_and_resp$temp <- as.factor(relative_change_and_resp$temp)
+relative_change_and_resp$control_or_nutrient <- factor(relative_change_and_resp$control_or_nutrient ,levels=c("Control","Ammonium"))
+
+relative_change_and_resp %>%
+  group_by(metric)
+
+coeff=1
+ggplot(data=relative_change_and_resp, aes(x = control_or_nutrient, y=value, fill=temp, color=metric)) +
+       geom_bar(position=position_dodge(.6), width=0.5, stat="identity", size=1.4, aes(order=metric)) + 
+        geom_errorbar(aes(order=metric, ymin=value-se, 
+            ymax=value+se), width=0.3, position=position_dodge(0.6))  +
+    labs(x = "Ammonium dose", 
+         y = expression(paste("Percent Change in Color")), 
+         caption = "data represent mean +/- SEM") +
+    scale_x_discrete("", labels=c(Control="No Ammonium", Ammonium="Ammonium")) +
+  scale_y_continuous(name="Percent Change in Color", sec.axis=sec_axis(~.*coeff, name="Rate O2 Consumption (umol*hr"^"2"~"*cm"^"2"~")"))+ #coeff is an option to scale the other axis
+  theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title.y = element_text(size = 12, margin=(margin(r = 10, l = 10))),
+          axis.title.y.right = element_text(size = 12, margin=(margin(r = 10, l = 10))),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 14),
+          axis.title.x=element_text(size=14)) +    
+  scale_fill_manual("Temperature", labels=c("20°C", "30°C"),values=c("#607FBE", "#BE6860")) +
+  scale_color_manual("Metric", labels=c("Respiration Rate","Percent Change in Color"), values=c("gray30","#119B9D")) 
+
+
+
+
+```
+
+
+#Linear models - let's do it the full random way we were taught
+
+```{r linear models - ALL AMMONIUM DATA}
+full.model <- lmer(abs_resp_rate_SA_corr ~  N_species_dose + temp + food + sym_state + e_coli_plate + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + N_species_dose*e_coli_plate + temp*food + temp*sym_state + temp*e_coli_plate + food*sym_state + food*e_coli_plate + sym_state*e_coli_plate + (1|col_num) + (1|exp_run_full), data= resp_all_ammonium.data)
+print(step.model<- step(full.model))
+
+#model it selected for;
+
+ammonium_resp_model <- lmer(abs_resp_rate_SA_corr ~ N_species_dose + temp + e_coli_plate + sym_state + (1 | col_num) + (1 | exp_run_full) + N_species_dose:e_coli_plate, data= resp_all_ammonium.data)
+#sym state was marginal but we added it
+
+summary(ammonium_resp_model)
+plot_model(ammonium_resp_model, type="diag")
+#Model actually looks decent! Let's go with this one
+
+(summary(emmeans(ammonium_resp_model, specs=pairwise ~ N_species_dose*temp*sym_state*e_coli_plate*food)))
+
+#A negative coefficient suggests that as the independent variable increases, the dependent variable tends to decrease.
+
+```
+
+
+
+
+
+```{r ANOVAs}
+
+# Nitrate
+summary(aov_dose<-aov(abs_resp_rate_SA_corr ~ N_species_dose, data=resp_all_ammonium.data))
+#Anova(aov_dose, type="III")
+summary(emmeans(aov_dose, specs=pairwise ~ N_species_dose))
+
+# Ammonium by dose by E. coli
+summary(aov_dose<-aov(abs_resp_rate_SA_corr ~ N_species_dose + e_coli_plate, data=resp_all_ammonium.data))
+Anova(aov_dose, type="III")
+summary(emmeans(aov_dose, specs=pairwise ~ N_species_dose*e_coli_plate))
+
+ # contrast                                        estimate       SE  df t.ratio p.value
+ # CNTRL_0 e_coli_plate0 - CNTRL_0 e_coli_plate1  0.0005583 0.000195 365   2.858  0.0845
+ # CNTRL_0 e_coli_plate0 - A_5 e_coli_plate1      0.0010912 0.000345 365   3.161  0.0360
+ # CNTRL_0 e_coli_plate0 - A_10 e_coli_plate1     0.0012736 0.000336 365   3.786  0.0044
+ # A_5 e_coli_plate0 - A_5 e_coli_plate1          0.0005583 0.000195 365   2.858  0.0845
+ # A_7.5 e_coli_plate0 - A_10 e_coli_plate0       0.0008770 0.000273 365   3.210  0.0309
+ # A_7.5 e_coli_plate0 - A_5 e_coli_plate1        0.0012529 0.000343 365   3.654  0.0071
+ # A_7.5 e_coli_plate0 - A_7.5 e_coli_plate1      0.0005583 0.000195 365   2.858  0.0845
+ # A_7.5 e_coli_plate0 - A_10 e_coli_plate1       0.0014352 0.000334 365   4.297  0.0006
+ # A_10 e_coli_plate0 - A_10 e_coli_plate1        0.0005583 0.000195 365   2.858  0.0845
+ # A_7.5 e_coli_plate1 - A_10 e_coli_plate1       0.0008770 0.000273 365   3.210  0.0309
+
+
+# Ammonium by dose
+summary(aov_dose<-aov(abs_resp_rate_SA_corr ~ N_species_dose, data=resp_all_ammonium.data))
+Anova(aov_dose, type="III")
+summary(emmeans(aov_dose, specs=pairwise ~ N_species_dose))
+
+# Ammonium by dose and temperature
+summary(aov_dose_temp<-aov(abs_resp_rate_SA_corr ~ N_species_dose + temp, data=resp_all_ammonium.data))
+Anova(aov_dose_temp, type="III")
+summary(emmeans(aov_dose_temp, specs=pairwise ~ N_species_dose*temp))
+
+# E. coli by temperature - nutrient vs control
+summary(aov_EC<-aov(abs_resp_rate_SA_corr ~ temp + control_or_nutrient, data=e_coli))
+Anova(aov_EC, type="III")
+summary(emmeans(aov_EC, specs=pairwise ~ temp*control_or_nutrient))
+
+# No E. coli by temperature - nutrient vs. control
+summary(aov_no_EC<-aov(abs_resp_rate_SA_corr ~ temp + control_or_nutrient, data=no_e_coli))
+Anova(aov_no_EC, type="III")
+summary(emmeans(aov_no_EC, specs=pairwise ~ temp*control_or_nutrient))
+
+# E. coli by dose and temperature 
+summary(aov_EC<-aov(abs_resp_rate_SA_corr ~ temp + N_species_dose, data=e_coli))
+Anova(aov_EC, type="III")
+summary(emmeans(aov_EC, specs=pairwise ~ temp*N_species_dose))
+# $contrasts
+#  contrast                          estimate       SE  df t.ratio p.value
+#  temp30 CNTRL_0 - temp20 A_10     0.0016938 0.000506 178   3.349  0.0217
+#  temp30 A_7.5 - temp20 A_10       0.0017479 0.000506 178   3.456  0.0154
+
+# No E. coli by dose and temperature
+summary(aov_no_EC<-aov(abs_resp_rate_SA_corr ~ temp + N_species_dose, data=no_e_coli))
+Anova(aov_no_EC, type="III")
+summary(emmeans(aov_no_EC, specs=pairwise ~ temp*N_species_dose))
+
+
+#by sym state
+summary(aov_sym_state<-aov(abs_resp_rate_SA_corr ~ sym_state + N_species_dose, data=resp_all_ammonium.data))
+Anova(aov_sym_state, type="III")
+summary(emmeans(aov_sym_state, specs=pairwise ~ sym_state*N_species_dose))
+# contrast                estimate       SE  df t.ratio p.value
+#  A CNTRL_0 - S A_10     0.0011851 0.000336 365   3.525  0.0111
+#  S A_5 - A A_7.5       -0.0011501 0.000340 365  -3.383  0.0179
+#  A A_7.5 - A A_10       0.0008833 0.000274 365   3.224  0.0297
+#  A A_7.5 - S A_10       0.0013577 0.000336 365   4.039  0.0017
+#  S A_7.5 - S A_10       0.0008833 0.000274 365   3.224  0.0297
+
+
+```
+
+```{r Nutrient or control linear model}
+
+
+full.model_control_or_nutrient <- lmer(abs_resp_rate_SA_corr ~  control_or_nutrient + temp + food + sym_state + e_coli_plate + control_or_nutrient*temp + control_or_nutrient*food + control_or_nutrient*sym_state + control_or_nutrient*e_coli_plate + temp*food + temp*sym_state + temp*e_coli_plate + food*sym_state + food*e_coli_plate + sym_state*e_coli_plate +  + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= resp_all_ammonium.data)
+print(step.model<- step(full.model_control_or_nutrient))
+
+#CONTROL OR NUTRIENT -- not significant
+lm_resp_control_or_nutrient <- lmer(abs_resp_rate_SA_corr ~ control_or_nutrient + e_coli_plate + sym_state + temp + (1|vial_ID) + (1 | col_num), data=resp_all_ammonium.data)
+summary(lm_resp_control_or_nutrient)
+
+emm_test=emmeans(lm_resp_control_or_nutrient, specs=pairwise ~ control_or_nutrient*e_coli_plate)
+summary(emm_test)
+
+tab_model(lm_resp_control_or_nutrient)
+```
+
+
+
+```{r Model interaction plots}
+# Reminder: this is our model
+lm_resp_2 <- lmer(abs_resp_rate_SA_corr ~ N_species_dose + e_coli_plate + sym_state + temp + (1|vial_ID) + (1 | col_num), data=resp_all_ammonium.data)
+summary(lm_resp_2)
+
+
+#Model Interaction plot - ammonium
+# I for some reason cannot simplify this I dont know why
+int_ammonium<-lmer(abs_resp_rate_SA_corr~N_species_dose*temp*sym_state*e_coli_plate+(1|col_num), data=resp_all_ammonium.data)
+summary(int_ammonium)
+int_pred_ammonium <- ggemmeans(int_ammonium, terms=c("N_species_dose", "sym_state", "temp","e_coli_plate")) # I cannot do more than 4 interactions 
+pred_ammonium <- ggplot(int_pred_ammonium, aes(facet,predicted, colour = group)) +
+  geom_point(aes(shape = x)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.3) +
+  labs(x = "temp", y = "Rate O2 Consumption (umol*min-1*cm-1)",
+       color = "temp") +
+  facet_grid(~panel) +
+  ggtitle("test") +
+  theme_classic() +
+  theme(axis.title.x = element_text(color="black", size=12),
+axis.title.y = element_text(color="black", size=12))+
+  theme(axis.text.x = element_text(size=12),
+          axis.text.y = element_text(size=12)) +
+  scale_color_manual(values=c("black", "goldenrod"))
+pred_ammonium
+
+```
+
+
+```{r Graphs - Plotting model estimates}
+#Plot model estimate for N_species_dose # I am not sure how interesting this is, but here is the code if we want it
+l=plot_model(lm_resp_2, 'pred', ci.lvl = 0.95, terms="N_species_dose")
+l +
+  theme_classic() +
+xlab("N species dose")+
+  ylab("Rate O2 Consumption (umol*min-1*cm-1)")+
+  ggtitle("")+
+  theme(axis.title.x = element_text(color="black", size=14, face="bold"),
+axis.title.y = element_text(color="black", size=14, face="bold"))+
+  theme(axis.text.x = element_text(size=14),
+          axis.text.y = element_text(size=14))
+# plot model estimate for temp
+t=plot_model(lm_resp_e_coli_2, 'pred', ci.lvl = 0.95, terms="N_species_dose")
+t
+
+```
+
+```{r Graphs - Summarizing by each variable}
+# Summarize by N_species_dose so we can visualize
+sum_N_species_dose_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "abs_resp_rate_SA_corr_inverted", groupvars = c("N_species_dose"))
+# Visualize
+gg_N_species_dose_ammonium<-ggplot(data = sum_N_species_dose_ammonium,
+       aes(x = N_species_dose,
+           y = abs_resp_rate_SA_corr_inverted, col=N_species_dose)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr_inverted-se, ymax=abs_resp_rate_SA_corr_inverted+se), width=0.5, size = 1) +
+  geom_jitter(data=resp_all_ammonium.data, aes(x=N_species_dose, y=abs_resp_rate_SA_corr_inverted), size=0.1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium - N Species Dose summary") +
+   theme(legend.position="none")+
+    labs(x = "\n", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", A_5="1.5uM", A_7.5="5uM", A_10="18uM"))+
+    scale_color_manual(labels=labels, values=c("blue", "turquoise4","#359C35","darkgreen"))
+gg_N_species_dose_ammonium
+
+# Summarize by temperature so we can visualize
+sum_temp_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "abs_resp_rate_SA_corr_inverted", groupvars = c("temp"))
+# Visualize
+gg_temp_ammonium<-ggplot(data = sum_temp_ammonium,
+       aes(x = temp,
+           y = abs_resp_rate_SA_corr_inverted, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr_inverted-se, ymax=abs_resp_rate_SA_corr_inverted+se), width=0.5, size = 1) +
+  geom_jitter(data = resp_all_ammonium.data,
+       aes(x = temp,
+           y = abs_resp_rate_SA_corr_inverted, col=temp), size=0.1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium- Temperature summary") +
+  theme(legend.position="none")+
+    labs(x = "Temperature", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("Temperature", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
+    scale_color_manual(labels=labels, values=c("blue", "red"))
+gg_temp_ammonium
+
+# Summarize by E. coli so we can visualize
+sum_e_coli_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "abs_resp_rate_SA_corr_inverted", groupvars = c("e_coli_plate"))
+# Visualize
+gg_e_coli_ammonium<-ggplot(data = sum_e_coli_ammonium,
+       aes(x = e_coli_plate,
+           y = abs_resp_rate_SA_corr_inverted, col=e_coli_plate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr_inverted-se, ymax=abs_resp_rate_SA_corr_inverted+se), width=0.5, size = 1) +
+  geom_jitter(data = resp_all_ammonium.data,
+       aes(x = e_coli_plate,
+           y = abs_resp_rate_SA_corr_inverted, col=e_coli_plate), size=0.1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium- E. coli summary") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   # scale_x_discrete(labels=c("20C","30C"))+
+    theme(legend.position="none")+
+    labs(x = "E. coli presence", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+        scale_x_discrete("N species dose", labels=c("0"="No E. coli", "1"="E. coli")) +
+    scale_color_manual(labels=labels, values=c("gray30", "green4"))
+gg_e_coli_ammonium
+
+# Summarize by sym state so we can visualize
+sum_sym_state_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "abs_resp_rate_SA_corr_inverted", groupvars = c("sym_state"))
+# Visualize
+gg_sym_state_ammonium<-ggplot(data = sum_sym_state_ammonium,
+       aes(x = sym_state,
+           y = abs_resp_rate_SA_corr_inverted, col=sym_state)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr_inverted-se, ymax=abs_resp_rate_SA_corr_inverted+se), width=0.5, size = 1) +
+  geom_jitter(data = resp_all_ammonium.data,
+       aes(x = sym_state,
+           y = abs_resp_rate_SA_corr_inverted, col=sym_state), size=0.1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium- Sym state summary") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   # scale_x_discrete(labels=c("20C","30C"))+
+    labs(x = "Symbiotic state", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+        theme(legend.position="none")+
+        scale_x_discrete("Symbiotic State", labels=c("A"="Apo", "S"="Symbiotic")) +
+        scale_color_manual(labels=labels, values=c("gray", "brown"))
+gg_sym_state_ammonium
+summary(aov(abs_resp_rate_SA_corr_inverted ~ sym_state, data=resp_all_ammonium.data))
+# UGH THEY ARE DIFFERENT! But it doesnt  come up in the overall model
+#Let's jitter to check this out
+gg_sym_state_ammonium_jitter<-ggplot(data = resp_all_ammonium.data,
+       aes(x = sym_state,
+           y = abs_resp_rate_SA_corr_inverted, col=sym_state)) +
+  geom_boxplot(width=0.8) +
+  geom_jitter(width=0.15, alpha=0.9) + #this overlays the raw data  
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium- Sym state summary") +
+   # scale_x_discrete(labels=c("20C","30C"))+
+    labs(x = "Symbiotic state", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+        theme(legend.position="none")+
+        scale_x_discrete("Symbiotic State", labels=c("A"="Apo", "S"="Symbiotic")) +
+        scale_color_manual(labels=labels, values=c("gray", "brown"))
+gg_sym_state_ammonium_jitter
+summary(lm(abs_resp_rate_SA_corr_inverted ~ sym_state, data=resp_all_ammonium.data))
+
+# Summarize by food so we can visualize
+sum_food_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "abs_resp_rate_SA_corr_inverted", groupvars = c("food"))
+# Visualize
+gg_food_ammonium<-ggplot(data = sum_food_ammonium,
+       aes(x = food,
+           y = abs_resp_rate_SA_corr_inverted, col=food)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr_inverted-se, ymax=abs_resp_rate_SA_corr_inverted+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium- Food summary") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   # scale_x_discrete(labels=c("20C","30C"))+
+    labs(x = "Symbiotic state", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme(legend.position="none")+
+   scale_x_discrete("Food presence", labels=c("F"="Fed", "S"="Starved")) +
+   scale_color_manual(labels=labels, values=c("orange", "black"))
+gg_food_ammonium
+summary(lm(abs_resp_rate_SA_corr_inverted ~ sym_state, data=resp_all_ammonium.data))
+
+
+# Summarize by food and sym state so we can visualize
+sum_food_sym_state_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "abs_resp_rate_SA_corr_inverted", groupvars = c("e_coli_plate","food"))
+# Visualize
+gg_food_sym_state_ammonium<-ggplot(data = sum_food_sym_state_ammonium,
+       aes(x = e_coli_plate,
+           y = abs_resp_rate_SA_corr_inverted, col=food)) + #use fill here or the legends will be really hard to work with
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr_inverted-se, ymax=abs_resp_rate_SA_corr_inverted+se), width=0.5, size = 1) +
+  geom_jitter(data = resp_all_ammonium.data,
+       aes(x = e_coli_plate,
+           y = abs_resp_rate_SA_corr_inverted, colour=food), size=0.1) +
+    ggtitle ("ammonium- E coli and food summary") +
+   #scale_fill_manual(name="Feeding Regime", labels=c('Fed', 'Starved'))+
+ # scale_fill_manual(values=c("brown", "darkgray"))+
+    labs(x = "E coli plate", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+      scale_x_discrete(name="E coli presence", labels=c("A"="Aposymbiotic", "S"="Symbiotic")) +
+  # scale_fill_manual(values=c("brown", "darkgray"))
+ scale_color_manual(values=c("salmon3", "cornsilk4"))
+gg_food_sym_state_ammonium #seems obvious that food doesnt matter
+
+# Summarize by temp and N species dose so we can visualize
+sum_N_species_dose_temp_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "abs_resp_rate_SA_corr_inverted", groupvars = c("temp","N_species_dose"))
+# Visualize
+gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
+       aes(x = N_species_dose,
+           y = abs_resp_rate_SA_corr_inverted, colour=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr_inverted-se, ymax=abs_resp_rate_SA_corr_inverted+se), width=0.1, size = 1) +
+  geom_jitter(data = resp_all_ammonium.data,
+       aes(x = N_species_dose,
+           y = abs_resp_rate_SA_corr_inverted, colour=temp), size=0.1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium - N species dose and temperature summary") +
+     
+   # scale_x_discrete(labels=c("20C","30C"))+
+    labs(x = "ammonium dose", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+  scale_x_discrete("Dose", labels=c("20"="Ambient", "30"="Elevated")) +
+    scale_color_manual(labels=c("20C","30C"), values=c("blue", "hotpink"))
+gg_N_species_dose_temp_ammonium 
+
+# Summarize by e_coli and N species dose so we can visualize
+sum_N_species_dose_e_coli_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "abs_resp_rate_SA_corr_inverted", groupvars = c("e_coli_plate","N_species_dose"))
+# Visualize
+gg_N_species_dose_e_coli_ammonium<-ggplot(data = sum_N_species_dose_e_coli_ammonium,
+       aes(x = N_species_dose,
+           y = abs_resp_rate_SA_corr_inverted, colour=e_coli_plate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr_inverted-se, ymax=abs_resp_rate_SA_corr_inverted+se), width=0.5, size = 1) +
+  geom_jitter(data = resp_all_ammonium.data,
+       aes(x = N_species_dose,
+           y = abs_resp_rate_SA_corr_inverted, colour=e_coli_plate), size=0.1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium- N species dose and e coli summary") +
+   # scale_x_discrete(labels=c("20C","30C"))+
+    labs(x = "ammonium dose", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+   scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", A_5="1.5uM", A_7.5="5uM", A_10="18uM"))+
+     scale_color_manual("E. coli presence", labels=c("1"="E. coli", "0"="No E. coli"), values=c("gray25", "green4"))
+gg_N_species_dose_e_coli_ammonium
+
+# Summarize by e_coli and temp so we can visualize
+sum_temp_e_coli_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "abs_resp_rate_SA_corr_inverted", groupvars = c("e_coli_plate","temp"))
+# Visualize
+gg_temp_e_coli_ammonium<-ggplot(data = sum_temp_e_coli_ammonium,
+       aes(x = e_coli_plate,
+           y = abs_resp_rate_SA_corr_inverted, colour=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr_inverted-se, ymax=abs_resp_rate_SA_corr_inverted+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium- temperature and e coli summary") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+   # scale_x_discrete(labels=c("20C","30C"))+
+    labs(x = "E. coli", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+     scale_x_discrete("E. coli presence", labels=c("0"="No E. coli", "1"="E coli"))+
+     scale_color_manual(labels=labels, values=c("blue", "red"))
+gg_temp_e_coli_ammonium
+
+# Summarize by temp and N species dose so we can visualize
+sum_N_species_dose_temp_ammonium <- summarySE(resp_all_ammonium.data, measurevar = "abs_resp_rate_SA_corr_inverted", groupvars = c("temp","N_species_dose"))
+# Visualize
+gg_N_species_dose_temp_ammonium<-ggplot(data = sum_N_species_dose_temp_ammonium,
+       aes(x = N_species_dose,
+           y = abs_resp_rate_SA_corr_inverted, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr_inverted-se, ymax=abs_resp_rate_SA_corr_inverted+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium - N species dose and temperature summary") +
+    labs(x = "ammonium dose", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", A_5="1.5uM", A_7.5="5uM", A_10="18uM"))+
+    scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
+gg_N_species_dose_temp_ammonium
+
+# Summarize by N_species_dose and sym state so we can visualize
+sum_N_species_dose_ammonium_sym_state <- summarySE(resp_all_ammonium.data, measurevar = "abs_resp_rate_SA_corr_inverted", groupvars = c("N_species_dose", "sym_state"))
+# Visualize
+sum_N_species_dose_ammonium_sym_state <-ggplot(data = sum_N_species_dose_ammonium_sym_state,
+       aes(x = N_species_dose,
+           y = abs_resp_rate_SA_corr_inverted, col=sym_state)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr_inverted-se, ymax=abs_resp_rate_SA_corr_inverted+se), width=0.1, size = 1) +
+    ggtitle ("ammonium - N Species Dose and sym state summary") +
+   #theme(legend.position="none")+
+    labs(x = "\n", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("ammonium dose", labels=c(CNTRL_0="Control", A_5="1.5uM", A_7.5="5uM", A_10="18uM"))+
+    scale_color_manual(labels=c("Apo","Sym"), values=c("gray", "brown"))
+sum_N_species_dose_ammonium_sym_state
+```
+
+
+```{r Graphs - Plotting model estimates}
+#Plot model estimate for N_species_dose # I am not sure how interesting this is, but here is the code if we want it
+l=plot_model(lm_resp_2, 'pred', ci.lvl = 0.95, terms="N_species_dose")
+l +
+  theme_classic() +
+xlab("N species dose")+
+  ylab("Rate O2 Consumption (umol*min-1*cm-1)")+
+  ggtitle("")+
+  theme(axis.title.x = element_text(color="black", size=14, face="bold"),
+axis.title.y = element_text(color="black", size=14, face="bold"))+
+  theme(axis.text.x = element_text(size=14),
+          axis.text.y = element_text(size=14))
+# plot model estimate for temp
+
+
+```
+
+```{r Models and graphs without controls}
+
+ammonium_without_control <- read.csv("RESP_Ammonium_without_controls.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+ammonium_without_control <- na.omit(ammonium_without_control)
+#make sure treatID is a character
+ammonium_without_control$treat_ID_full<-as.character(ammonium_without_control$treat_ID_full)
+ammonium_without_control$e_coli_plate<-as.character(ammonium_without_control$e_coli_plate)
+ammonium_without_control$temp <- as.character(ammonium_without_control$temp)
+
+ammonium_controls <- subset(resp_all_ammonium.data, resp_all_ammonium.data$N_dose==0)
+
+
+full.model <- lmer(abs_resp_rate_SA_corr ~  N_species_dose + temp + food + sym_state + e_coli_plate + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + N_species_dose*e_coli_plate + temp*food + temp*sym_state + temp*e_coli_plate + food*sym_state + food*e_coli_plate + sym_state*e_coli_plate +  (1|col_num) + (1|exp_num) , data= ammonium_without_control)
+print(step.model<- step(full.model))
+
+
+mm_without_controls <-lmer(abs_resp_rate_SA_corr ~ N_species_dose + sym_state + e_coli_plate + temp + (1 | col_num), data=ammonium_without_control)
+
+summary(mm_without_controls)
+
+# Summarize by temperature
+emm_temp=emmeans(mm_without_controls, specs=pairwise ~ temp)
+summary(emm_temp)
+
+#Pairwise by 
+emm_N_species_dose=emmeans(mm_without_controls, specs=pairwise ~ e_coli_plate)
+summary(emm_N_species_dose)
+
+# Visualize by sym state
+sum_sym_state <- summarySE(ammonium_without_control, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state"))
+gg_sym_state_ammonium<-ggplot(data = sum_sym_state,
+       aes(x = sym_state,
+           y = abs_resp_rate_SA_corr, col=sym_state)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium without control - Sym state summary") +
+  theme(legend.position="none")+
+    labs(x = "Sym state", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+   # scale_x_discrete("Sym", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
+    scale_color_manual(labels=labels, values=c("gray", "brown"))
+gg_sym_state_ammonium
+
+
+# Visualize by temperature
+sum_sym_state <- summarySE(ammonium_without_control, measurevar = "abs_resp_rate_SA_corr", groupvars = c("temp"))
+gg_sym_state_ammonium<-ggplot(data = sum_sym_state, 
+          aes(x=temp, y = abs_resp_rate_SA_corr, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium without control - Sym state summary") +
+  theme(legend.position="none")+
+    labs(x = "Temperature", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+   # scale_x_discrete("Sym", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
+    scale_color_manual(labels=labels, values=c("blue", "red"))
+gg_sym_state_ammonium
+
+
+sum_sym_state <- summarySE(ammonium_without_control, measurevar = "abs_resp_rate_SA_corr", groupvars = c("e_coli_plate"))
+gg_sym_state_ammonium<-ggplot(data = sum_sym_state, 
+          aes(x=e_coli_plate, y = abs_resp_rate_SA_corr, col=e_coli_plate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium without controls - E. coli summary") +
+  theme(legend.position="none")+
+    labs(x = "E. coli presence", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+   # scale_x_discrete("Sym", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
+    scale_color_manual(labels=labels, values=c("black", "darkgreen"))
+gg_sym_state_ammonium
+
+```
+
+
+```{r Controls only}
+ammonium_controls <- subset(resp_all_ammonium.data, resp_all_ammonium.data$N_dose==0)
+
+
+#linear model 
+ammonium_controls$treat_ID_full<-as.factor(ammonium_controls$treat_ID_full)
+ammonium_controls$e_coli_plate<-as.factor(ammonium_controls$e_coli_plate)
+ammonium_controls$temp <- as.factor(ammonium_controls$temp)
+ammonium_controls$N_species_dose <- as.factor(ammonium_controls$N_species_dose)
+ammonium_controls$food <- as.factor(ammonium_controls$food)
+
+full.model <- lmer(abs_resp_rate_SA_corr ~  N_species_dose + temp + food + sym_state + e_coli_plate + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + N_species_dose*e_coli_plate + temp*food + temp*sym_state + temp*e_coli_plate + food*sym_state + food*e_coli_plate + sym_state*e_coli_plate +  (1|col_num) + (1|exp_num) , data= ammonium_controls)
+print(step.model<- step(full.model))
+
+
+mm_controls <-lmer(abs_resp_rate_SA_corr ~ sym_state + e_coli_plate + temp + (1 | col_num), data=ammonium_controls)
+
+emm_control <-emmeans(mm_controls, specs=pairwise ~ sym_state)
+summary(emm_control)
+
+summary(mm_without_controls)
+
+
+
+#make sure treatID is a character
+ammonium_controls$treat_ID_full<-as.character(ammonium_controls$treat_ID_full)
+ammonium_controls$e_coli_plate<-as.character(ammonium_controls$e_coli_plate)
+ammonium_controls$temp <- as.character(ammonium_controls$temp)
+
+sum_sym_state <- summarySE(ammonium_controls, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state"))
+gg_sym_state_ammonium<-ggplot(data = sum_sym_state, 
+          aes(x=sym_state, y = abs_resp_rate_SA_corr, col=sym_state)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium CONTROLS ONLY - Sym state summary") +
+  theme(legend.position="none")+
+    labs(x = "Sym state", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+   # scale_x_discrete("Sym", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
+    scale_color_manual(labels=labels, values=c("gray", "brown"))
+gg_sym_state_ammonium
+
+```
+
+```{r Controls vs. Nutrient - CHALK TALK}
+
+
+#CHALK TALK DOSE MODEL not including genetic data, WITHOUT E. COLI
+
+fullModel = lm(abs_resp_rate_SA_corr ~  N_species_dose + temp + food + sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state +  food*sym_state, data= no_e_coli) # model with all 9 variables and possible combinations
+summary(fullModel)
+
+nullModel = lm(abs_resp_rate_SA_corr ~  1, data= all_sym) # model with the intercept only
+
+summary(stepAIC(nullModel, # start with a model containing no variables
+                direction = 'forward', # run forward selection
+                scope = list(upper = fullModel, # the maximum to consider is a model with all variables
+                             lower = nullModel), # the minimum to consider is a model with no variables
+                trace = 1)) # do not show the step-by-step process of model selection
+
+
+mm_chalktalk<- lm(abs_resp_rate_SA_corr ~  N_species_dose , data= no_e_coli)
+summary(mm_chalktalk)
+
+emm_chalktalk=emmeans(mm_sym , specs=pairwise ~ N_species_dose)
+summary(emm_chalktalk)
+
+summary(aov_no_EC<-aov(abs_resp_rate_SA_corr ~ N_species_dose, data=no_e_coli))
+TukeyHSD(aov_no_EC, "N_species_dose")
+
+summary(nutrient_control_model_nitrate <- lm(abs_resp_rate_SA_corr ~control_or_nutrient, data=no_e_coli))
+emm_chalktalk=emmeans(nutrient_control_model_nitrate, specs=pairwise ~ control_or_nutrient)
+summary(emm_chalktalk)
+
+
+#I added a column called "control_or_nutrient"
+
+#first let's do E. coli for control vs. nutrient
+
+sum_e_coli_control_nutrient <- summarySE(resp_all_ammonium.data, measurevar = "abs_resp_rate_SA_corr", groupvars = c("e_coli_plate", "control_or_nutrient"))
+gg_e_coli_ammonium<-ggplot(data = sum_e_coli_control_nutrient,
+       aes(x = control_or_nutrient,
+           y = abs_resp_rate_SA_corr, col=e_coli_plate)) +
+    geom_point() +
+    ylim(-0.005, -0.0036) +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium with & without control - E. coli summary") +
+    labs(x = " ", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_color_manual(" ", labels=c("Control","E. coli"), values=c("blue", "orange"))
+gg_e_coli_ammonium
+
+
+#now let's do temperature for control vs. nutrient
+
+sum_temp_control_nutrient <- summarySE(resp_all_ammonium.data, measurevar = "abs_resp_rate_SA_corr", groupvars = c("temp", "control_or_nutrient"))
+gg_temp_ammonium<-ggplot(data = sum_temp_control_nutrient,
+       aes(x = control_or_nutrient,
+           y = abs_resp_rate_SA_corr, col=temp)) +
+    geom_point() +
+    ylim(-0.005, -0.0038) +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium with & without control - Temperature summary") +
+  theme(
+  axis.title.x = element_text(size = 16),
+  #axis.text.x = element_text(size = 16),
+  axis.title.y = element_text(size = 16)) +
+    labs(x = " ", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_color_manual(" Temperature ", labels=c("20C","30C"), values=c("blue", "darkred"))
+gg_temp_ammonium
+
+#now let's do sym state for control vs. nutrient
+
+sum_sym_state_control_nutrient <- summarySE(resp_all_ammonium.data, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state", "control_or_nutrient"))
+gg_sym_state_ammonium<-ggplot(data = sum_sym_state_control_nutrient,
+       aes(x = control_or_nutrient,
+           y = abs_resp_rate_SA_corr, col=sym_state)) +
+    geom_point() +
+    ylim(-0.0049, -0.0039) +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("ammonium with & without control - Sym state summary") +
+    labs(x = " ", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_color_manual(" Symbiotic State ", labels=c("Aposymbiotic","Symbiotic"), values=c("darkgray", "tan4"))
+gg_sym_state_ammonium
+
+
+
+# STATS STATS STATS
+lm_resp_control_v_nutrient <- lmer(abs_resp_rate_SA_corr ~  e_coli_plate + control_or_nutrient + (1 | col_num), data=resp_all_ammonium.data)
+summary(lm_resp_control_v_nutrient)
+
+# Summarize by control_or_nutrient * e_coli
+emm_control_v_nutrient=emmeans(lm_resp_control_v_nutrient, specs=pairwise ~ control_or_nutrient*e_coli_plate)
+summary(emm_control_v_nutrient)
+
+# Summarize by control_or_nutrient * temp
+emm_control_v_nutrient=emmeans(lm_resp_control_v_nutrient, specs=pairwise ~ control_or_nutrient*temp)
+summary(emm_control_v_nutrient)
+
+# Summarize by control_or_nutrient * symbiotic state
+emm_control_v_nutrient=emmeans(lm_resp_control_v_nutrient, specs=pairwise ~ control_or_nutrient*sym_state)
+summary(emm_control_v_nutrient)
+
+
+
+
+
+
+```
+
+
+```{r without E. coli for chalk talk}
+# Summarize by N_species_dose WITHOUT E. coli so we can visualize
+sum_N_species_dose_ammonium_e_coli <- summarySE(no_e_coli, measurevar = "abs_resp_rate_SA_corr", groupvars = c("N_species_dose"))
+sum_N_species_dose_ammonium_e_coli$N_species_dose <- factor(sum_N_species_dose_ammonium_e_coli$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+# Visualize
+gg_N_species_dose_ammonium<-ggplot(data = sum_N_species_dose_ammonium_e_coli,
+       aes(x = N_species_dose,
+           y = abs_resp_rate_SA_corr, col=N_species_dose)) +
+    geom_point() +
+      ylim(-0.005, -0.0032) +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Ammonium - N Species Dose summary NO E. Coli") +
+   theme(legend.position="none")+
+    labs(x = "\n", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="Control", A_5="Ambient", A_7.5="Intermediate", A_10="High"))+
+    scale_color_manual(labels=labels, values=c("blue", "orchid1","blueviolet","purple4"))
+gg_N_species_dose_ammonium
+
+no_e_coli$treat_ID_full<-as.factor(no_e_coli$treat_ID_full)
+no_e_coli$e_coli_plate<-as.factor(no_e_coli$e_coli_plate)
+no_e_coli$temp <- as.factor(no_e_coli$temp)
+no_e_coli$N_species_dose <- as.factor(no_e_coli$N_species_dose)
+no_e_coli$food <- as.factor(no_e_coli$food)
+
+full.model <- lmer(abs_resp_rate_SA_corr ~  N_species_dose + temp + food + sym_state + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state +  food*sym_state +  +  (1|col_num) + (1|exp_num) , data= no_e_coli)
+print(step.model<- step(full.model))
+
+e_coli_model <-lmer(abs_resp_rate_SA_corr ~  N_species_dose + temp + sym_state +  (1|col_num) + (1|exp_num) , data= no_e_coli)
+summary(e_coli_model)
+emm_e_coli<-emmeans(e_coli_model, specs=pairwise ~ N_species_dose)
+summary(emm_e_coli)
+
+
+
+
+```
+
+
+```{r Plots for randi - models and graphs without controls}
+
+
+
+ammonium_without_control <- read.csv("RESP_Ammonium_without_controls.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+ammonium_without_control <- na.omit(ammonium_without_control)
+#make sure treatID is a character
+ammonium_without_control$treat_ID_full<-as.character(ammonium_without_control$treat_ID_full)
+ammonium_without_control$e_coli_plate<-as.character(ammonium_without_control$e_coli_plate)
+ammonium_without_control$temp <- as.character(ammonium_without_control$temp)
+
+
+full.model <- lmer(abs_resp_rate_SA_corr ~  N_species_dose + temp + food + sym_state + e_coli_plate + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + N_species_dose*e_coli_plate + temp*food + temp*sym_state + temp*e_coli_plate + food*sym_state + food*e_coli_plate + sym_state*e_coli_plate +  (1|col_num) + (1|exp_num) , data= ammonium_without_control)
+print(step.model<- step(full.model))
+
+mm_without_controls <-lmer(abs_resp_rate_SA_corr ~ N_species_dose + temp + (1 | col_num), data=ammonium_without_control)
+
+summary(mm_without_controls)
+
+# Summarize by temperature
+emm_temp=emmeans(mm_without_controls, specs=pairwise ~ temp)
+summary(emm_temp)
+
+#Pairwise by N species dose 
+emm_N_species_dose=emmeans(mm_without_controls, specs=pairwise ~ N_species_dose)
+summary(emm_N_species_dose)
+
+# Visualize
+sum_temp_ammonium <- summarySE(ammonium_without_control, measurevar = "abs_resp_rate_SA_corr", groupvars = c("temp"))
+
+gg_temp_ammonium<-ggplot(data = sum_temp_ammonium,
+       aes(x = temp,
+           y = abs_resp_rate_SA_corr, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Ammonium- Temperature and dose summary without controls") +
+  theme(legend.position="none")+
+    labs(x = "Temperature", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    scale_x_discrete("Temperature", labels=c("20"="Control 20C", "30"="Elevated 30C")) +
+      scale_color_manual("Temperature",labels=c("20C","30C"), values=c("blue", "red"))
+gg_temp_ammonium
+
+```
+
+
+```{r Looking at E. coli subsets}
+# STATS - E. COLI  SUBSET
+#stepAIC is from the MASS package
+fullModel_EC = lm(abs_resp_rate_SA_corr ~   control_or_nutrient + temp + sym_state + control_or_nutrient*temp + control_or_nutrient*sym_state  + temp*sym_state, data= e_coli) # model with all 9 variables and possible combinations
+
+nullModel_EC = lm(abs_resp_rate_SA_corr ~  1, data= e_coli) # model with the intercept only
+
+summary(stepAIC(nullModel_EC, # start with a model containing no variables
+                direction = 'forward', # run forward selection
+                scope = list(upper = fullModel_EC, # the maximum to consider is a model with all variables
+                             lower = nullModel_EC), # the minimum to consider is a model with no variables
+                trace = 1)) # do not show the step-by-step process of model selection
+
+#this is the model it selected for
+lm_EC <- lm(formula = abs_resp_rate_SA_corr ~ sym_state + temp + control_or_nutrient + temp*control_or_nutrient, data = e_coli)
+
+summary(emmeans(lm_EC, specs=pairwise ~ temp*control_or_nutrient))
+
+#replacing control or nutrient with dose
+lm_EC <- lm(formula = abs_resp_rate_SA_corr ~ sym_state + temp + N_species_dose + temp*N_species_dose, data = e_coli)
+summary(lm_EC)
+summary(emmeans(lm_EC, specs=pairwise ~ temp*N_species_dose))
+
+# STATS - NO E. COLI  SUBSET
+#stepAIC is from the MASS package
+fullModel_no_EC = lm(abs_resp_rate_SA_corr ~   control_or_nutrient + temp + sym_state + control_or_nutrient*temp + control_or_nutrient*sym_state  + temp*sym_state, data= no_e_coli) # model with all 9 variables and possible combinations
+
+nullModel_no_EC = lm(abs_resp_rate_SA_corr ~  1, data= no_e_coli) # model with the intercept only
+
+summary(stepAIC(nullModel_no_EC, # start with a model containing no variables
+                direction = 'forward', # run forward selection
+                scope = list(upper = fullModel_no_EC, # the maximum to consider is a model with all variables
+                             lower = nullModel_no_EC), # the minimum to consider is a model with no variables
+                trace = 1)) # do not show the step-by-step process of model selection
+
+#this is the model it selected for
+lm_no_EC <- lm(formula = abs_resp_rate_SA_corr ~ 1, data = no_e_coli)
+
+#replacing control or nutrient with dose
+lm_no_EC <- lm(formula = abs_resp_rate_SA_corr ~ sym_state + temp + N_species_dose + temp*N_species_dose, data = no_e_coli)
+summary(lm_no_EC)
+summary(emmeans(lm_no_EC, specs=pairwise ~ temp*N_species_dose))
+```
+
+
+```{r Looking at E. coli subsets}
+# E. coli
+sum_temp_dose_ammonium_e_coli <- summarySE(e_coli, measurevar = "abs_resp_rate_SA_corr", groupvars = c("temp", "N_species_dose"))
+sum_temp_dose_ammonium_e_coli$N_species_dose <- factor(sum_temp_dose_ammonium_e_coli$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+
+gg_sum_temp_dose_ammonium_e_coli<-ggplot(data = sum_temp_dose_ammonium_e_coli,
+       aes(x = N_species_dose,
+           y = abs_resp_rate_SA_corr, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Ammonium- Temperature and dose summary - E. coli treated corals") +
+  theme(legend.position="none")+
+    labs(x = "Ammonium dose", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+      scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
+    scale_color_manual(labels=labels, values=c("blue", "red"))
+gg_sum_temp_dose_ammonium_e_coli
+
+full.model.e_coli <- lmer(abs_resp_rate_SA_corr ~  N_species_dose + temp + food + sym_state  + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state +  food*sym_state +  (1|col_num) + (1|exp_num) , data= e_coli)
+print(step.model<- step(full.model.e_coli))
+
+summary(mm_e_coli <- lmer(abs_resp_rate_SA_corr ~  N_species_dose + temp + (1|col_num), data= e_coli))
+
+# Summarize by temperature
+emm_temp=emmeans(mm_e_coli, specs=pairwise ~ temp*N_species_dose)
+summary(emm_temp)
+ # contrast                          estimate       SE  df t.ratio p.value
+ # temp20 A_10 - temp20 A_7.5      -0.0011139 0.000391 160  -2.848  0.0908
+ # temp20 A_10 - temp30 A_7.5      -0.0016759 0.000491 169  -3.415  0.0178 **
+ # temp20 A_10 - temp30 CNTRL_0    -0.0016040 0.000489 165  -3.280  0.0272 **
+ # temp30 A_10 - temp30 A_7.5      -0.0011139 0.000391 160  -2.848  0.0908
+
+
+# No E. coli
+sum_temp_dose_ammonium_no_e_coli <- summarySE(no_e_coli, measurevar = "abs_resp_rate_SA_corr", groupvars = c("temp", "N_species_dose"))
+sum_temp_dose_ammonium_no_e_coli$N_species_dose <- factor(sum_temp_dose_ammonium_no_e_coli$N_species_dose, levels=c("CNTRL_0", "A_5", "A_7.5","A_10"))
+
+gg_sum_temp_dose_ammonium_no_e_coli<-ggplot(data = sum_temp_dose_ammonium_no_e_coli,
+       aes(x = N_species_dose,
+           y = abs_resp_rate_SA_corr, col=temp)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Ammonium- Temperature and dose summary - No E. coli treated corals") +
+  theme(legend.position="none")+
+    labs(x = "Ammonium dose", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+      scale_x_discrete("Ammonium dose", labels=c(CNTRL_0="Control", A_5="5uM", A_7.5="7.5uM", A_10="10uM"))+
+    scale_color_manual(labels=labels, values=c("blue", "red"))
+gg_sum_temp_dose_ammonium_no_e_coli
+
+full.model.no_e_coli <- lmer(abs_resp_rate_SA_corr ~  N_species_dose + temp + food + sym_state  + N_species_dose*temp + N_species_dose*food + N_species_dose*sym_state + temp*food + temp*sym_state +  food*sym_state +  (1|col_num) + (1|exp_num) , data= no_e_coli)
+print(step.model<- step(full.model.no_e_coli))
+
+summary(mm_no_e_coli <- lmer(abs_resp_rate_SA_corr ~  N_species_dose + temp + (1|col_num), data= no_e_coli))
+
+# Summarize by temperature
+emm_temp=emmeans(mm_no_e_coli, specs=pairwise ~ temp*N_species_dose)
+summary(emm_temp)
+# NO STATISTICALLY SIGNIFICANT DIFFERENCES
+
+
+```
+
+
+
+```{r Looking at ammonium 10uM}
+# We found in the above analyses that there was a statistically significant difference between Control and 10uM under E. coli. Let's zoom out and look at 10uM and see what might be driving that model 
+
+#QUESTION: For corals at 10uM ammonium, is there a significant difference if you are 1) fed vs starved? NO 2) E. coli vs. no E. coli? No, but it looks close 3) sym vs apo? NO  4) 20 vs. 30C? NO
+
+all_10uM<-subset(resp_all_ammonium.data, resp_all_ammonium.data$N_species_dose=="A_10")
+
+full.model_all_10uM <- lmer(abs_resp_rate_SA_corr ~ e_coli_plate + temp + food + sym_state + e_coli_plate*temp + e_coli_plate*food + e_coli_plate*sym_state + temp*food + temp*sym_state + food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= all_10uM)
+summary(full.model_all_10uM)
+print(step.model<- step(full.model_all_10uM))
+
+#model it recommends:
+mm_all_10uM<-lmer(abs_resp_rate_SA_corr ~ e_coli_plate + temp + food + sym_state + (1 | col_num) + e_coli_plate:temp + e_coli_plate:food + e_coli_plate:sym_state, data=all_10uM)
+summary(mm_all_10uM) # E. coli seems to be driving the model
+#posthocs
+emm_all_10uM_sym_state <- emmeans(mm_all_10uM, pairwise ~ sym_state)
+summary(emm_all_10uM_sym_state)
+
+#let's try it just on E. coli data at 10uM
+
+e_coli_10uM<-subset(resp_all_ammonium.data, resp_all_ammonium.data$N_species_dose=="N_10" & resp_all_ammonium.data$e_coli_plate==1)
+full.model_e_coli_10uM <- lmer(abs_resp_rate_SA_corr ~ temp + food + sym_state + temp*food + temp*sym_state + food*sym_state + (1|vial_ID) +  (1|col_num) + (1|exp_num) + (1|exp_subrun), data= e_coli_10uM)
+summary(full.model_e_coli_10uM)
+print(step.model<- step((full.model_e_coli_10uM)))
+
+summary(aov(e_coli_10uM$abs_resp_rate_SA_corr ~ e_coli_10uM$temp))
+
+
+#Let's 10uM and see what comes out
+lm_all_10uM<- lm(abs_resp_rate_SA_corr~e_coli_plate + temp + food + sym_state, data=all_10uM)
+summary(lm_all_10uM)
+# Summarize by E. coli -- it looks like there is a difference here, but it just doesn't come out as significant
+all_10uM_sum_e_coli <- summarySE(all_10uM, measurevar = "abs_resp_rate_SA_corr", groupvars = c("e_coli_plate"))
+# Summarize by food
+all_10uM_sum_food <- summarySE(all_10uM, measurevar = "abs_resp_rate_SA_corr", groupvars = c("food"))
+# Summarize by sym-state
+all_10uM_sum_sym_state <- summarySE(all_10uM, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state"))
+# Summarize by temp
+all_10uM_sum_temp <- summarySE(all_10uM, measurevar = "abs_resp_rate_SA_corr", groupvars = c("temp"))
+# Visualize
+ggplot(data = all_10uM_sum_e_coli,
+       aes(x = e_coli_plate,
+           y = abs_resp_rate_SA_corr)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("A 10uM - E. coli vs. No E. coli") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\n", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+
+# What about 10uM treated with E. coli
+e_coli_10uM<-subset(resp_all_ammonium.data, resp_all_ammonium.data$N_species_dose=="A_10" & resp_all_ammonium.data$e_coli_plate==1)
+# Summarize by food
+e_coli_10uM_sum_food <- summarySE(e_coli_10uM, measurevar = "abs_resp_rate_SA_corr", groupvars = c("food"))
+# Summarize by sym-state
+e_coli_10uM_sum_sym_state <- summarySE(e_coli_10uM, measurevar = "abs_resp_rate_SA_corr", groupvars = c("sym_state"))
+# Summarize by temp
+e_coli_10uM_sum_temp <- summarySE(e_coli_10uM, measurevar = "abs_resp_rate_SA_corr", groupvars = c("temp"))
+# Visualize
+ggplot(data = e_coli_10uM_sum_food,
+       aes(x = food,
+           y = abs_resp_rate_SA_corr)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=abs_resp_rate_SA_corr-se, ymax=abs_resp_rate_SA_corr+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("N 10uM with E. Coli - Fed vs. Starved") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\n", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*cm"^"2"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+
+```
+
+
+
+
+```{r playing around with Sarahs code to see if there is an effect of E coli at every treatment}
+
+#Generate a linear model and then use the log function on it
+lm_resp_TREAT_ID <- lmer(abs_resp_rate_SA_corr ~ treat_ID_collapsed_controls + (1|exp_num) + (1|col_num), data= resp_all_ammonium.data)
+lm_resp_TREAT_ID_log<- Log(lm_resp_TREAT_ID)~e_coli_plate + (1|exp_num) + (1|col_num)
+summary(lm_resp_TREAT_ID_log)
+
+# Question: Is there a significant change of resp rate at each treatment ID under E coli?
+# create grouping factor to run all linear models for each treatment at once
+by_treat_all <- group_by(resp_all_ammonium.data, treat_ID_collapsed_controls)
+
+# Create a df with the parameter coefficients of the linear models  
+response.lm_all <- 
+  do(by_treat_all, 
+   tidy(                     
+     lm(abs_resp_rate_SA_corr~e_coli_plate, data= .)))
+print(response.lm_all)
+
+# TEMP
+#create grouping factor to run all linear models for each treatment at once
+by_treat_20C<- group_by(all_20C, treat_ID_collapsed_controls)
+
+# Create a df with the parameter coefficients of the linear models  
+response.lm_20C <- 
+  do(by_treat_20C, 
+   tidy(                     
+     lm(abs_resp_rate_SA_corr~e_coli_plate, data= .)))
+response.lm_20C
+
+# create grouping factor to run all linear models for each treatment at once
+by_treat_30C<- group_by(all_30C, treat_ID_collapsed_controls)
+
+# Create a df with the parameter coefficients of the linear models  
+response.lm_30C <- 
+  do(by_treat_30C, 
+   tidy(                     
+     lm(abs_resp_rate_SA_corr~e_coli_plate, data= .)))
+response.lm_30C
+
+# SYM STATE
+#create grouping factor to run all linear models for each treatment at once
+by_treat_sym<- group_by(all_sym, treat_ID_collapsed_controls)
+
+# Create a df with the parameter coefficients of the linear models  
+response.lm_sym <- 
+  do(by_treat_sym, 
+   tidy(                     
+     lm(abs_resp_rate_SA_corr~e_coli_plate, data= .)))
+response.lm_sym
+
+# create grouping factor to run all linear models for each treatment at once
+by_treat_apo<- group_by(all_apo, treat_ID_collapsed_controls)
+
+# Create a df with the parameter coefficients of the linear models  
+response.lm_apo <- 
+  do(by_treat_apo, 
+   tidy(                     
+     lm(abs_resp_rate_SA_corr~e_coli_plate, data= .)))
+response.lm_apo
+
+```
+
+# We are now going to subset just fed and just starved data and do linear models to compare results to the overall model
+```{r Fed data}
+#first let's subset all of the fed data
+all_fed_ammonium<-subset(resp_all_ammonium.data, resp_all_ammonium.data$food=="F")
+qqnorm(all_fed_ammonium$abs_resp_rate_SA_corr) #looks good
+
+#now let's do model selection
+full.model_fed_ammonium <- lmer(abs_resp_rate_SA_corr ~  N_species_dose + temp + sym_state + e_coli_plate + N_species_dose*temp +  N_species_dose*sym_state + N_species_dose*e_coli_plate + temp*sym_state + temp*e_coli_plate +  sym_state*e_coli_plate +  (1|col_num) + (1|exp_num) , data= all_fed_ammonium)
+print(step.model<- step(full.model_fed_ammonium))
+
+mm_fed_ammonium <- lmer(abs_resp_rate_SA_corr ~  N_species_dose + temp + sym_state + e_coli_plate +  (1|col_num) , data= all_fed_ammonium)
+summary(mm_fed_ammonium)
+#E coli and n species dose came out significant
+
+```
+
+
+```{r Starved data}
+#first let's subset all of the fed data
+all_starved_ammonium<-subset(resp_all_ammonium.data, resp_all_ammonium.data$food=="S")
+qqnorm(all_starved_ammonium$abs_resp_rate_SA_corr) #looks good
+full.model_starved_ammonium <- lmer(abs_resp_rate_SA_corr ~  N_species_dose + temp + sym_state + e_coli_plate + N_species_dose*temp +  N_species_dose*sym_state + N_species_dose*e_coli_plate + temp*sym_state + temp*e_coli_plate +  sym_state*e_coli_plate +  (1|col_num) + (1|exp_num) , data= all_fed_ammonium)
+print(step.model<- step(full.model_starved_ammonium))
+
+mm_starved_ammonium <- lmer(abs_resp_rate_SA_corr ~ N_species_dose + temp + sym_state + e_coli_plate +  (1|col_num) , data= all_starved_ammonium)
+summary(mm_starved_ammonium)
+
+#E coli and n species dose came out significant
+
+```

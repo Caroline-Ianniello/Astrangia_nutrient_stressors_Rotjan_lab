@@ -1,0 +1,56 @@
+---
+title: "Narragansett maps"
+author: "Caroline Fleming"
+date: "2023-03-23"
+output: html_document
+---
+
+```{r load required packages}
+#install.packages("ggmap")
+library(ggmap)
+#install.packages('osmdata')
+library(osmdata)
+ 
+#ggmap tutorial:
+# https://towardsdatascience.com/a-guide-to-using-ggmap-in-r-b283efdff2af
+
+#here is my API key
+#AIzaSyAZMk84DD46I0EMsHm0ZzSD8ATpZPQWKBo
+
+```
+
+```{r}
+#lets graph lisbon for funsies
+lisbon_map <- get_map( getbb('lisbon'), source="stamen")
+ggmap(lisbon_map)
+
+```
+
+```{r adding my API key}
+#how to set up an API key (you need to link a credit card)
+# https://www.findingyourway.io/blog/2018/12/05/2018-12-05-using-ggmap-after-july-2018/
+api_secret <- 'AIzaSyAZMk84DD46I0EMsHm0ZzSD8ATpZPQWKBo'
+#sounds scary but its pretty much impossible for us to reach the limit where we would be charged, each time you run get_googlemap you are charged 0.002 USD and google gives you $200 a month, so 1000 maps are $2
+register_google(key = api_secret)
+```
+
+```{r creating our first map}
+
+narra_sat <- get_map("Prudence Island, Rhode Island", maptype='satellite', source="google", api_key = api_secret, zoom=10)
+ggmap(narra_sat)
+
+astrangia_pop_locations <- data.frame(lat = c(41.717719, 41.478478), #remember you will have to rearrange here because lats need to go together and lons need to go together
+                               lon = c(-71.360080, -71.354022))
+
+providence <- data.frame(lat= 41.826901, lon= -71.413924)
+
+labels=c("Conimicut Point","Ft. Wetherill")
+ggmap(narra_sat) +
+   geom_point(data = astrangia_pop_locations, aes(x = lon, y = lat), color = "orange", size = 4) +
+  geom_text_repel(data=astrangia_pop_locations, aes(label = c("Conimicut Point","Ft. Wetherill")), color="white")+
+  geom_point(data=providence, aes(x = lon, y = lat), color = "blue", size = 5) +  geom_text_repel(data=providence, aes(label = "Providence"), color="white")+
+  ggtitle("Astrangia Populations in Narragansett Bay")
+
+
+```
+
