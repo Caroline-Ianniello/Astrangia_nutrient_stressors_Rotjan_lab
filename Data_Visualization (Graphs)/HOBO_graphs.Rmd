@@ -1,0 +1,465 @@
+---
+title: "HOBO Graphs"
+author: "Caroline Fleming"
+date: "2023-03-23"
+output: html_document
+---
+
+```{r Install required packages}
+library("tidyverse")
+#install.packages("lmerTest")
+library("lmerTest")
+#install.packages("Matrix")
+library("Matrix")
+#install.packages("lme4")
+library("lme4")
+#install.packages("emmeans")
+library("emmeans")
+#install.packages("pbkrtest")
+library("pbkrtest")
+library("performance")
+#install.packages("see")
+library("see")
+#install.packages("ggrepel")
+library("ggrepel")
+#install.packages("sjPlot") #for visualizing linear models
+library(sjPlot)
+#install.packages("MASS")
+library(MASS)
+#install.packages("glmmTMB") # for visualizing model checks
+library(glmmTMB)
+#install.packages("relaimpo") #for quantifying the effects of predictor variables
+library(relaimpo)
+#install.packages("outliers") #for checking out whether a data point is an outlier
+library(outliers)
+library(Rmisc)
+#install.packages("ggeffects")
+library(ggeffects)
+
+#turn off scientific notation
+options(scipen=999)
+
+#let dplyr print a bunch of numbers
+options(dplyr.print_max = 1e9)
+options(max.print = 10000)   
+
+```
+
+```{r input data}
+env_chamber_HOBO <- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/Environmental_Chamber_Summer2022_9_5_22.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+env_chamber_HOBO$date<-as.factor(env_chamber_HOBO$date)
+# its okay to omit rows with NAs
+env_chamber_HOBO<-na.omit(env_chamber_HOBO)
+
+
+temperate_HOBO <- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/Temperate_System_Rotjan_Lab_9_5_22.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+temperate_HOBO$date<-as.factor(temperate_HOBO$date)
+# its okay to omit rows with NAs
+temperate_HOBO<-na.omit(temperate_HOBO)
+
+
+all_HOBO <- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/HOBO_all_by_day_4_7_23.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+all_HOBO$date<-as.factor(all_HOBO$date)
+# its okay to omit rows with NAs
+all_HOBO <- na.omit(all_HOBO)
+#get rid of all observations that were NOT part of an experiment
+all_HOBO<- subset(all_HOBO, all_HOBO$exp_num!="0")
+all_HOBO$date<-as.factor(all_HOBO$date)
+all_HOBO$chamber_or_temperate<-as.factor(all_HOBO$chamber_or_temperate)
+all_HOBO$exp_num<-as.factor(all_HOBO$exp_num)
+all_HOBO$exp_A<-as.factor(all_HOBO$exp_A)
+all_HOBO$exp_B<-as.factor(all_HOBO$exp_B)
+
+```
+
+```{r}
+#Lets established the MEAN temperature for our heat treatment
+
+mean(env_chamber_HOBO$temp)
+#28.8
+
+
+```
+
+
+```{r summarize by treatment overall}
+#all data by experimental number
+sum_temp <- summarySE(all_HOBO, measurevar = "temp", groupvars = c("chamber_or_temperate"))
+gg_temp<-ggplot(data = sum_temp,
+       aes(x = chamber_or_temperate,
+           y = temp, col=chamber_or_temperate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=temp-se, ymax=temp+se), width=0.1, size = 1) +
+    ggtitle ("All data") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    scale_color_manual("Treatment", labels=c("Chamber","Temperate"), values=c("darkred", "royalblue")) +
+    labs(x = "Treatment", 
+         y = expression(paste("Temperature (C)")), 
+         caption = "data represent mean +/- SEM" ) 
+gg_temp
+```
+
+```{r Day averaged over all experiments}
+all_HOBO_by_day <- all_HOBO
+all_HOBO_by_day$exp_day <- as.factor(all_HOBO_by_day$exp_day)
+
+#subset so we can make the geomlines 
+all_HOBO_by_day_chamber <- subset(all_HOBO_by_day, all_HOBO_by_day$chamber_or_temperate=="chamber")
+sum_temp_by_run_chamber <- summarySE(all_HOBO_by_day_chamber, measurevar = "temp", groupvars = c("exp_day"))
+all_HOBO_by_day_temperate <- subset(all_HOBO_by_day, all_HOBO_by_day$chamber_or_temperate=="temperate")
+sum_temp_by_run_temperate <- summarySE(all_HOBO_by_day_temperate, measurevar = "temp", groupvars = c("exp_day"))
+
+#all data averaged over day of experiment
+sum_temp_by_run <- summarySE(all_HOBO_by_day, measurevar = "temp", groupvars = c("exp_day", "chamber_or_temperate"))
+gg_by_run<-ggplot(NULL, 
+                        aes(x = exp_day,
+           y = temp, group=1))+
+  theme(legend.position = "top",
+          legend.text= element_text(size=14),
+          legend.background = element_blank())+
+  theme_classic() +
+    theme(legend.position = "right",
+          legend.title = element_text(size=16),
+          axis.title = element_text(size = 16),
+          legend.background = element_blank(),
+          axis.text = element_text(size = 16),
+          text = element_text(family = "serif", size = 16)) +
+        geom_point(data = sum_temp_by_run_chamber, size=4, aes(color="30°C Heat Challenge")) +
+      geom_point(data = sum_temp_by_run_temperate, size=4, aes(color="20°C Ambient"))+
+    scale_color_manual("Treatment", labels=c("20°C Ambient","30°C Heat Challenge"), values=c("dodgerblue", "darkred")) +
+   ylim(18, 30) +
+     geom_line(data=sum_temp_by_run_chamber, color='darkred', linewidth=1) + 
+      geom_line(data=sum_temp_by_run_temperate, color='dodgerblue', linewidth=1) +
+     geom_errorbar(data=sum_temp_by_run_chamber, aes(ymin=temp-se, ymax=temp+se), width=0.5, size = 1, color="darkred") +
+     geom_errorbar(data=sum_temp_by_run_temperate, aes(ymin=temp-se, ymax=temp+se), width=0.5, size = 1, color="dodgerblue") +
+    labs(x = "Day of experiment", 
+         y = expression(paste("Temperature (°C)"))) 
+gg_by_run
+
+#Need to do a nonparametric t test -- Welch I think
+
+
+#Min and Max
+min(all_HOBO_by_day_temperate$temp)
+#19.567
+max(all_HOBO_by_day_temperate$temp)
+#25.125
+#janky ass temperate system
+
+min(all_HOBO_by_day_chamber$temp)
+#23.677
+max(all_HOBO_by_day_chamber $temp)
+#30.963
+
+
+sum_temp_by_chamber_by_run <- summarySE(all_HOBO_by_day, measurevar = "temp", groupvars = c("chamber_or_temperate"))
+
+
+```
+
+
+
+
+################
+```{r subset sum_experiment 2A which was run Aug 4 through Aug 15}
+
+#ENVIRONMENTAL CHAMBER EXP 2A
+#selecting data by row (a condition for a column)
+env_chamber_HOBO_exp_2<- env_chamber_HOBO[env_chamber_HOBO$date  %in% c("8/4/2022", "8/5/2022", "8/6/2022", "8/7/2022", "8/8/2022", "8/9/2022", "8/10/2022", "8/11/2022", "8/12/2022", "8/13/2022", "8/14/2022", "8/15/2022"),] #the comma is important at the end here, tells R that we are looking at ROWs not entire columns
+
+#now R is stupid so we have to make sure the factor has the right levels in order
+env_chamber_HOBO_exp_2$date <- factor(env_chamber_HOBO_exp_2$date, levels=c("8/4/2022", "8/5/2022", "8/6/2022", "8/7/2022", "8/8/2022", "8/9/2022", "8/10/2022", "8/11/2022", "8/12/2022", "8/13/2022", "8/14/2022", "8/15/2022"))
+
+#TEMEPERATE EXP 2A
+#selecting data by row (a condition for a column)
+temperate_HOBO_exp_2<- temperate_HOBO[temperate_HOBO$date  %in% c("8/4/2022", "8/5/2022", "8/6/2022", "8/7/2022", "8/8/2022", "8/9/2022", "8/10/2022", "8/11/2022", "8/12/2022", "8/13/2022", "8/14/2022", "8/15/2022"),] #the comma is important at the end here, tells R that we are looking at ROWs not entire columns
+
+#now R is stupid so we have to make sure the factor has the right levels in order
+temperate_HOBO_exp_2$date <- factor(temperate_HOBO_exp_2$date, levels=c("8/4/2022", "8/5/2022", "8/6/2022", "8/7/2022", "8/8/2022", "8/9/2022", "8/10/2022", "8/11/2022", "8/12/2022", "8/13/2022", "8/14/2022", "8/15/2022"))
+
+min(temperate_HOBO_exp_2$temp)
+max(temperate_HOBO_exp_2$temp)
+
+min(env_chamber_HOBO_exp_2$temp)
+max(env_chamber_HOBO_exp_2$temp)
+
+```
+
+
+
+```{r ENVIRONMENTAL CHAMBER GRAPH for experiment 2 run A}
+
+sum_temp_byday_env_chamber <- summarySE(env_chamber_HOBO_exp_2, measurevar = "temp", groupvars = c("date"))
+# Visualize
+gg_env_chamber<-ggplot(data = sum_temp_byday_env_chamber,
+       aes(x = date,
+           y = temp, group=1)) +
+  geom_line(color="darkred")+
+    geom_point(color="darkred") +
+    geom_errorbar(aes(ymin=temp-se, ymax=temp+se), width=0.1, size = 1, color="darkred") +
+    scale_color_manual(values = c("darkred")) +
+    ggtitle ("Environmental chamber by day temperature") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\n", 
+         y = expression(paste("Temperature (C)")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+gg_env_chamber
+
+min(env_chamber_HOBO)
+```
+
+```{r TEMPERATE GRAPH for experiment 2}
+  sum_temp_byday_temperate <- summarySE(temperate_HOBO_exp_2, measurevar = "temp", groupvars = c("date"))
+# Visualize
+gg_temperate<-ggplot(data = sum_temp_byday_temperate,
+       aes(x = date,
+           y = temp, group=1)) +
+  geom_line(color="darkblue")+
+    geom_point(color="darkblue") +
+    geom_errorbar(aes(ymin=temp-se, ymax=temp+se), width=0.1, size = 1, color="darkblue") +
+    scale_color_manual(values = c("darkblue")) +
+    ggtitle ("Environmental chamber by day temperature") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\n", 
+         y = expression(paste("Temperature (C)")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+gg_temperate
+```
+
+
+```{r Experiment 2 graph}
+
+gg_exp_2_temp <- ggplot(NULL, 
+                        aes(x = date,
+           y = temp, group=1))+
+  theme(
+  axis.text.x = element_text(size = 18),
+   axis.title.x = element_text(size = 20),
+  axis.text.y = element_text(size = 18),
+   axis.title.y = element_text(size = 20)) +
+  theme(legend.position = "top",
+          legend.text= element_text(size=13),
+          legend.background = element_blank())+
+      geom_point(data = sum_temp_byday_env_chamber, size=4, aes(color="30°C Heat Challenge")) +
+      geom_point(data = sum_temp_byday_temperate, size=4, aes(color="20°C Ambient"))+
+     geom_line(data=sum_temp_byday_env_chamber, color='darkred', linewidth=1) + 
+      geom_line(data=sum_temp_byday_temperate, color='royalblue', linewidth=1) +
+     geom_errorbar(data=sum_temp_byday_env_chamber, aes(ymin=temp-se, ymax=temp+se), width=0.5, size = 1, color="darkred") +
+     geom_errorbar(data=sum_temp_byday_temperate, aes(ymin=temp-se, ymax=temp+se), width=0.5, size = 1, color="royalblue") +
+    labs(colour=" ", x="Day of Experiment", y="Temperature °C") +
+  scale_x_discrete("Day of Experiment", labels=c("8/4/2022"=1, "8/5/2022"=2, "8/6/2022"=3, "8/7/2022"=4, "8/8/2022"=5, "8/9/2022"=6, "8/10/2022"=7, "8/11/2022"=8, "8/12/2022"=9, "8/13/2022"=10, "8/14/2022"=11, "8/15/2022"=12)) +
+   scale_color_manual(values=c("royalblue", "darkred"))
+gg_exp_2_temp
+
+#lets use rbind to make one big dataset
+# sum_temp_byday_env_chamber$temp_env_chamber<-sum_temp_byday_env_chamber$temp
+# sum_temp_byday_temperate$temp_temperate <- sum_temp_byday_temperate$temp
+
+exp_2_HOBO_summary <- rbind(sum_temp_byday_env_chamber, sum_temp_byday_temperate)
+```
+
+
+```{r  stats on differences between hot and ambient and experiments }
+
+#is there an overall difference between chamber and temperate
+
+summary(aov_HOBO<-aov(temp ~ chamber_or_temperate, data= all_HOBO))
+TukeyHSD(aov_HOBO, "chamber_or_temperate")
+#YES, p value is <0.0000001
+
+#is there a difference between experimental number JUST looking at corals in the chamber?
+chamber_HOBO<- subset(all_HOBO, all_HOBO$chamber_or_temperate=="chamber")
+summary(aov_chamber_HOBO<-aov(temp ~ exp_num, data= chamber_HOBO))  
+#there IS a difference between experimental runs
+
+#is there a difference between experimental number JUST looking at corals in the temperate system?
+temperate_HOBO<- subset(all_HOBO, all_HOBO$chamber_or_temperate=="temperate")
+summary(aov_temperate_HOBO<-aov(temp ~ exp_num, data= temperate_HOBO)) 
+TukeyHSD(aov_temperate_HOBO, "exp_num")
+#there IS a difference between experimental runs
+
+#lets look at the min and max
+summary(all_HOBO$chamber_or_temperate)
+```
+
+```{r}
+#all data by experimental number
+sum_temp_by_run <- summarySE(all_HOBO, measurevar = "temp", groupvars = c("exp_num", "chamber_or_temperate"))
+gg_by_run<-ggplot(data = sum_temp_by_run,
+       aes(x = exp_num,
+           y = temp, col=chamber_or_temperate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=temp-se, ymax=temp+se), width=0.1, size = 1) +
+    ggtitle ("All data by experimental number") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    scale_color_manual("Treatment", labels=c("Chamber","Temperate"), values=c("darkred", "royalblue")) +
+    labs(x = "Experimental Run", 
+         y = expression(paste("Temperature (C)")), 
+         caption = "data represent mean +/- SEM" ) 
+gg_by_run
+
+```
+
+```{r subsets}
+
+exp_1A <- subset(all_HOBO, all_HOBO$exp_num==1 & all_HOBO$exp_A==1)
+sum_exp_1A <- summarySE(exp_1A, measurevar = "temp", groupvars = c("chamber_or_temperate", "exp_num"))
+exp_1B <- subset(all_HOBO, all_HOBO$exp_num==1 & all_HOBO$exp_B==1)
+sum_exp_1B <- summarySE(exp_1B, measurevar = "temp", groupvars = c("chamber_or_temperate", "exp_num"))
+exp_2A <- subset(all_HOBO, all_HOBO$exp_num==2 & all_HOBO$exp_A==1)
+sum_exp_2A <- summarySE(exp_2A, measurevar = "temp", groupvars = c("chamber_or_temperate", "exp_num"))
+exp_2B <- subset(all_HOBO, all_HOBO$exp_num==2 & all_HOBO$exp_B==1)
+sum_exp_2B <- summarySE(exp_2B, measurevar = "temp", groupvars = c("chamber_or_temperate", "exp_num"))
+exp_3A <- subset(all_HOBO, all_HOBO$exp_num==3 & all_HOBO$exp_A==1)
+sum_exp_3A <- summarySE(exp_3A, measurevar = "temp", groupvars = c("chamber_or_temperate", "exp_num"))
+exp_3B <- subset(all_HOBO, all_HOBO$exp_num==3 & all_HOBO$exp_B==1)
+sum_exp_3B <- summarySE(exp_3B, measurevar = "temp", groupvars = c("chamber_or_temperate", "exp_num"))
+
+```
+
+```{r gg ALL HOBO DATA BY SUBRUN}
+gg_all_by_subrun <- ggplot(NULL, 
+                        aes(x = exp_num,
+           y = temp, group=1))+
+  theme(
+  axis.text.x = element_text(size = 18),
+   axis.title.x = element_text(size = 20),
+  axis.text.y = element_text(size = 18),
+   axis.title.y = element_text(size = 20)) +
+  theme(legend.position = "top",
+          legend.text= element_text(size=13),
+          legend.background = element_blank())+
+      geom_point(data = sum_exp_1A, size=2, aes(color="1A")) +
+  geom_errorbar(data=sum_exp_1A, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="hotpink4") +
+    geom_point(data = sum_exp_1B, size=2, aes(color="1B")) +
+  geom_errorbar(data=sum_exp_1B, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="hotpink") +
+   geom_point(data = sum_exp_2A, size=2, aes(color="2A")) +
+  geom_errorbar(data=sum_exp_2A, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="plum4") +
+    geom_point(data = sum_exp_2B, size=2, aes(color="2B")) +
+  geom_errorbar(data=sum_exp_2B, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="purple4") +
+  geom_point(data = sum_exp_3A, size=2, aes(color="3A")) +
+  geom_errorbar(data=sum_exp_3A, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="lightsteelblue3") +
+    geom_point(data = sum_exp_3B, size=2, aes(color="3B")) +
+  geom_errorbar(data=sum_exp_3B, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="steelblue3") +
+    labs(colour=" ", x="Experimental Run", y="Temperature °C")  +
+   scale_color_manual("Experimental Subrun", values=c("hotpink4", "hotpink","plum4", "purple4", "lightsteelblue3", "steelblue3"))
+gg_all_by_subrun
+```
+
+```{r gg ENVIRONMENTAL CHAMBER HOBO DATA BY SUBRUN}
+
+exp_1A <- subset(chamber_HOBO, chamber_HOBO$exp_num==1 & chamber_HOBO$exp_A==1)
+sum_exp_1A <- summarySE(exp_1A, measurevar = "temp", groupvars = c("exp_num"))
+exp_1B <- subset(chamber_HOBO, chamber_HOBO$exp_num==1 & chamber_HOBO$exp_B==1)
+sum_exp_1B <- summarySE(exp_1B, measurevar = "temp", groupvars = c("exp_num"))
+exp_2A <- subset(chamber_HOBO, chamber_HOBO$exp_num==2 & chamber_HOBO$exp_A==1)
+sum_exp_2A <- summarySE(exp_2A, measurevar = "temp", groupvars = c("exp_num"))
+exp_2B <- subset(chamber_HOBO, chamber_HOBO$exp_num==2 & chamber_HOBO$exp_B==1)
+sum_exp_2B <- summarySE(exp_2B, measurevar = "temp", groupvars = c("exp_num"))
+exp_3A <- subset(chamber_HOBO, chamber_HOBO$exp_num==3 & chamber_HOBO$exp_A==1)
+sum_exp_3A <- summarySE(exp_3A, measurevar = "temp", groupvars = c("exp_num"))
+exp_3B <- subset(chamber_HOBO, chamber_HOBO$exp_num==3 & chamber_HOBO$exp_B==1)
+sum_exp_3B <- summarySE(exp_3B, measurevar = "temp", groupvars = c("exp_num"))
+
+
+gg_chamber_by_subrun <- ggplot(NULL, 
+                        aes(x = exp_num,
+           y = temp, group=1))+
+  theme(
+  axis.text.x = element_text(size = 18),
+   axis.title.x = element_text(size = 20),
+  axis.text.y = element_text(size = 18),
+   axis.title.y = element_text(size = 20)) +
+  theme(legend.position = "top",
+          legend.text= element_text(size=13),
+          legend.background = element_blank())+
+      geom_point(data = sum_exp_1A, size=2, aes(color="1A")) +
+  geom_errorbar(data=sum_exp_1A, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="hotpink4") +
+    geom_point(data = sum_exp_1B, size=2, aes(color="1B")) +
+  geom_errorbar(data=sum_exp_1B, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="hotpink") +
+   geom_point(data = sum_exp_2A, size=2, aes(color="2A")) +
+  geom_errorbar(data=sum_exp_2A, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="plum4") +
+    geom_point(data = sum_exp_2B, size=2, aes(color="2B")) +
+  geom_errorbar(data=sum_exp_2B, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="purple4") +
+  geom_point(data = sum_exp_3A, size=2, aes(color="3A")) +
+  geom_errorbar(data=sum_exp_3A, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="lightsteelblue3") +
+    geom_point(data = sum_exp_3B, size=2, aes(color="3B")) +
+  geom_errorbar(data=sum_exp_3B, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="steelblue3") +
+    labs(colour=" ", x="Experimental Run", y="Temperature °C")  +
+   scale_color_manual("Experimental Subrun", values=c("hotpink4", "hotpink","plum4", "purple4", "lightsteelblue3", "steelblue3"))
+gg_chamber_by_subrun 
+```
+
+```{r gg TEMPERATE CHAMBER HOBO DATA BY SUBRUN}
+
+exp_1A <- subset(temperate_HOBO, temperate_HOBO$exp_num==1 & temperate_HOBO$exp_A==1)
+sum_exp_1A <- summarySE(exp_1A, measurevar = "temp", groupvars = c("exp_num"))
+exp_1B <- subset(temperate_HOBO, temperate_HOBO$exp_num==1 & temperate_HOBO$exp_B==1)
+sum_exp_1B <- summarySE(exp_1B, measurevar = "temp", groupvars = c("exp_num"))
+exp_2A <- subset(temperate_HOBO, temperate_HOBO$exp_num==2 & temperate_HOBO$exp_A==1)
+sum_exp_2A <- summarySE(exp_2A, measurevar = "temp", groupvars = c("exp_num"))
+exp_2B <- subset(temperate_HOBO, temperate_HOBO$exp_num==2 & temperate_HOBO$exp_B==1)
+sum_exp_2B <- summarySE(exp_2B, measurevar = "temp", groupvars = c("exp_num"))
+exp_3A <- subset(temperate_HOBO, temperate_HOBO$exp_num==3 & temperate_HOBO$exp_A==1)
+sum_exp_3A <- summarySE(exp_3A, measurevar = "temp", groupvars = c("exp_num"))
+exp_3B <- subset(temperate_HOBO, temperate_HOBO$exp_num==3 & temperate_HOBO$exp_B==1)
+sum_exp_3B <- summarySE(exp_3B, measurevar = "temp", groupvars = c("exp_num"))
+
+
+gg_chamber_by_subrun <- ggplot(NULL, 
+                        aes(x = exp_num,
+           y = temp, group=1))+
+  theme(
+  axis.text.x = element_text(size = 18),
+   axis.title.x = element_text(size = 20),
+  axis.text.y = element_text(size = 18),
+   axis.title.y = element_text(size = 20)) +
+  theme(legend.position = "top",
+          legend.text= element_text(size=13),
+          legend.background = element_blank())+
+      geom_point(data = sum_exp_1A, size=2, aes(color="1A")) +
+  geom_errorbar(data=sum_exp_1A, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="hotpink4") +
+    geom_point(data = sum_exp_1B, size=2, aes(color="1B")) +
+  geom_errorbar(data=sum_exp_1B, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="hotpink") +
+   geom_point(data = sum_exp_2A, size=2, aes(color="2A")) +
+  geom_errorbar(data=sum_exp_2A, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="plum4") +
+    geom_point(data = sum_exp_2B, size=2, aes(color="2B")) +
+  geom_errorbar(data=sum_exp_2B, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="purple4") +
+  geom_point(data = sum_exp_3A, size=2, aes(color="3A")) +
+  geom_errorbar(data=sum_exp_3A, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="lightsteelblue3") +
+    geom_point(data = sum_exp_3B, size=2, aes(color="3B")) +
+  geom_errorbar(data=sum_exp_3B, aes(ymin=temp-se, ymax=temp+se), width=0.25, size = 1, color="steelblue3") +
+    labs(colour=" ", x="Experimental Run", y="Temperature °C")  +
+   scale_color_manual("Experimental Subrun", values=c("hotpink4", "hotpink","plum4", "purple4", "lightsteelblue3", "steelblue3"))
+gg_chamber_by_subrun 
+```
+
+
+
+
