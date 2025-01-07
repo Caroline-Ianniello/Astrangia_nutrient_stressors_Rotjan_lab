@@ -44,7 +44,7 @@ options(max.print=1000000)
 
 ```{r upload data }
 #upload data
-water_qual_bigelow_all <- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/bigelow_water_quality_all_6_21_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+water_qual_bigelow_all <- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/experimental_jar_water_quality_all_6_21_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
 water_qual_bigelow_all$treatment_ID<-as.factor(water_qual_bigelow_all$treatment_ID)
 water_qual_bigelow_all$N_species_dose_temp<-as.factor(water_qual_bigelow_all$N_species_dose_temp)
 
