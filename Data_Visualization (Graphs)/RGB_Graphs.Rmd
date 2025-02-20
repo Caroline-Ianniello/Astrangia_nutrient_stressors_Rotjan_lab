@@ -75,7 +75,7 @@ options(max.print = 10000)
 # 
 # #any single datapoint that was over 4 times disparate of mean or median from rest of treatment was discarded
 #
-# ^ did all that pre-processing then confirmed duplicates in excel spreadhseet. Now we can just read the csv
+# ^ did all that pre-processing then confirmed duplicates in excel spreadsheet. Now we can just read the csv
 
 #QCed and all dead HAVE BEEN deleted, all IDs agree between RGB, RGB, and survival --6.26.24
 RGB_all.data<- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/RGB_recomputed_dead_deleted_combined_NO3categorized_6_26_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)

@@ -1,0 +1,52 @@
+---
+title: "Differences_between_experiments"
+author: "Caroline Fleming Ianniello"
+date: "2025-02-20"
+output: html_document
+---
+```{r}
+library(stringr)
+library(tidyverse)
+```
+
+
+```{r Upload all data}
+pes_all.data <- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/PES_all_06_26_24_dead_NAs.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+
+resp_all.data <- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/resp_combined_NO3categorized_6_24_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+
+RGB_all.data<- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/RGB_recomputed_dead_deleted_combined_NO3categorized_6_26_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+
+PAM_all.data<- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/PAM_dead_deleted_combined_NO3categorized_6_26_24.csv", header=TRUE, sep=",",stringsAsFactors = FALSE)
+
+
+```
+
+ANOVAs between experiments
+```{r}
+pes_all.data$exp_num <- as.factor(pes_all.data$exp_num)
+PES_anova <-  aov(PES_value ~ exp_run_full, data=pes_all.data)
+summary(PES_anova)
+
+```
+
+```{r}
+PAM_all.data$exp_num <- as.factor(PAM_all.data$exp_num)
+PAM_anova <-  aov(PAM_delta ~ exp_run, data=PAM_all.data)
+summary(PAM_anova)
+```
+```{r}
+#Extract exp_num
+RGB_all.data$exp_run <- as.numeric(str_extract(RGB_all.data$exprun, "\\d+"))
+RGB_all.data$exp_run <- as.factor(RGB_all.data$exp_run)
+RGB_anova <-  aov(red_delta ~ exp_run, data=RGB_all.data)
+summary(RGB_anova)
+```
+```{r}
+#NOT significantly different
+
+resp_all.data$exp_num <- as.factor(resp_all.data$exp_num)
+resp_anova <-  aov(abs_resp_rate_SA_corr ~ exp_num, data=resp_all.data)
+summary(resp_anova)
+```
+

@@ -190,7 +190,7 @@ clmm_PES_1 <- clmm(PES_value ~ PES_day + NO3_category + sym_state + temp + food 
 #     comb <- combn(full_terms, i, simplify = FALSE)
 #     for (j in seq_along(comb)) {
 #       # Create the formula for the current combination
-#       current_formula <- as.formula(paste("PES_value ~", paste(comb[[j]], collapse = " + "), "+ (1|beetag_exprun)"))
+#       current_formula <- as.formula(paste("PES_value ~", paste(comb[[j]], collapse = " + "), "+ (1|beetag_exprun)", "+ (1|exp_num)"))
 #       print(current_formula)
 #       
 #       # Fit the model
@@ -236,6 +236,12 @@ clmm_PES_KITCHEN_SINK <- clmm(PES_value ~ PES_day + NO3_category + sym_state + t
 
 #All these formulas had an AIC of 8809.427
 clmm_PES_1 <- clmm(PES_value ~ PES_day + food + sym_state*temp +  (1|beetag_exprun), data = pes_all.data)
+summary(clmm_PES_1)
+
+clmm_PES_1_rand <- clmm(PES_value ~ PES_day + food + sym_state*temp +  (1|beetag_exprun) + (1|exp_num), data = pes_all.data)
+summary(clmm_PES_1_rand)
+
+AIC(clmm_PES_1, clmm_PES_1_rand)
 
 clmm_PES_2 <- clmm(PES_value ~ PES_day + temp + food + sym_state*temp +  (1|beetag_exprun), data = pes_all.data)
 
