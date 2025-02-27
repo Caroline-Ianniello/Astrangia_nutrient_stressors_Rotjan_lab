@@ -234,20 +234,17 @@ clmm_PES_1 <- clmm(PES_value ~ PES_day + NO3_category + sym_state + temp + food 
 library(ordinal)
 clmm_PES_KITCHEN_SINK <- clmm(PES_value ~ PES_day + NO3_category + sym_state + temp + food + NO3_category*sym_state + NO3_category*food + NO3_category*temp + sym_state*temp + sym_state*food + food*temp +  (1|beetag_exprun), data = pes_all.data)
 
-#All these formulas had an AIC of 8809.427
-clmm_PES_1 <- clmm(PES_value ~ PES_day + food + sym_state*temp +  (1|beetag_exprun), data = pes_all.data)
-summary(clmm_PES_1)
+#All of the below formulas had the same AIC
 
-clmm_PES_1_rand <- clmm(PES_value ~ PES_day + food + sym_state*temp +  (1|beetag_exprun) + (1|exp_num), data = pes_all.data)
-summary(clmm_PES_1_rand)
+clmm_PES_1 <- clmm(PES_value ~ PES_day + food + sym_state*temp +  (1|beetag_exprun) + (1|exp_num), data = pes_all.data)
 
 AIC(clmm_PES_1, clmm_PES_1_rand)
 
-clmm_PES_2 <- clmm(PES_value ~ PES_day + temp + food + sym_state*temp +  (1|beetag_exprun), data = pes_all.data)
+clmm_PES_2 <- clmm(PES_value ~ PES_day + temp + food + sym_state*temp +  (1|beetag_exprun)+ (1|exp_num), data = pes_all.data)
 
-clmm_PES_3 <- clmm(PES_value ~ PES_day + sym_state + food + sym_state*temp +  (1|beetag_exprun), data = pes_all.data)
+clmm_PES_3 <- clmm(PES_value ~ PES_day + sym_state + food + sym_state*temp +  (1|beetag_exprun)+ (1|exp_num), data = pes_all.data)
 
-clmm_PES_4 <- clmm(PES_value ~ PES_day + sym_state + food + temp + sym_state*temp +  (1|beetag_exprun), data = pes_all.data)
+clmm_PES_4 <- clmm(PES_value ~ PES_day + food + temp + sym_state*temp +  (1|beetag_exprun)+ (1|exp_num), data = pes_all.data)
 
 
 # WE SHOULD GO WITH MODEL 1, WHICH IS THE SIMPLEST MODEL (parsimony) 
@@ -255,17 +252,9 @@ clmm_PES_4 <- clmm(PES_value ~ PES_day + sym_state + food + temp + sym_state*tem
 summary(clmm_PES_1)
 
 
-#PES DAY p= <0.001
-#FOOD STARVED p= <0.001
-#SYM STATE SYM p= 0.904
-#TEMP 30 p=0.00149
-#SYM STATE SYM * TEMP 30 p=0.059
-
 
 emmeans(clmm_PES_1, specs=pairwise ~sym_state*temp)
-#A temp20 - A temp30   0.4077 0.128 Inf   3.177  0.0081
-# S temp20 - A temp30   0.3921 0.129 Inf   3.039  0.0127
-#A temp30 - S temp30  -0.3264 0.127 Inf  -2.574  0.0493
+
 
 ```
 
