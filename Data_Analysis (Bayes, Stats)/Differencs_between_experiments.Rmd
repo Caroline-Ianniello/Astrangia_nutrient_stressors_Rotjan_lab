@@ -25,14 +25,14 @@ PAM_all.data<- read.csv("/Users/carolineianniello/Astrangia_Ecotox/Data/PAM_dead
 ANOVAs between experiments
 ```{r}
 pes_all.data$exp_num <- as.factor(pes_all.data$exp_num)
-PES_anova <-  aov(PES_value ~ exp_run_full, data=pes_all.data)
+PES_anova <-  aov(PES_value ~ exp_num, data=pes_all.data)
 summary(PES_anova)
 
 ```
 
 ```{r}
 PAM_all.data$exp_num <- as.factor(PAM_all.data$exp_num)
-PAM_anova <-  aov(PAM_delta ~ exp_run, data=PAM_all.data)
+PAM_anova <-  aov(PAM_delta ~ exp_num, data=PAM_all.data)
 summary(PAM_anova)
 ```
 ```{r}
